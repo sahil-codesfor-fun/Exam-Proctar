@@ -1,10 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
-import { Plus, X, Trash2, CheckCircle2, LogOut, LayoutGrid, FileText, ShieldAlert, ChevronDown } from 'lucide-react';
+import { Plus, X, Trash2, CheckCircle2, LayoutGrid, FileText, ShieldAlert, Upload, Edit } from 'lucide-react';
 
 const EMPTY_Q = { type: 'mcq', title: '', description: '', points: 10, options: [{ text: '', isCorrect: false },{ text: '', isCorrect: false },{ text: '', isCorrect: false },{ text: '', isCorrect: false }], testCases: [{ input: '', expectedOutput: '', isHidden: false }], timeLimitSeconds: 5, constraints: '' };
+
+const formatForInput = (dateString) => {
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
 
 export const TeacherDashboard = () => {
   const { user, logout } = useAuth();
@@ -17,8 +23,12 @@ export const TeacherDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [viewExam, setViewExam] = useState(null);
+  
+  const [editingId, setEditingId] = useState(null);
+  const fileInputRef = useRef(null);
 
-  const [form, setForm] = useState({ title: '', description: '', course: '', startTime: '', endTime: '', durationMinutes: 60, proctoring: { maxViolations: 3, restrictionMinutes: 30, requireFullscreen: true, disableCopyPaste: true, autoSubmitOnMax: true, enableWebcam: false }, questions: [{ ...EMPTY_Q }] });
+  const defaultForm = { title: '', description: '', course: '', startTime: '', endTime: '', durationMinutes: 60, proctoring: { maxViolations: 3, restrictionMinutes: 30, requireFullscreen: true, disableCopyPaste: true, autoSubmitOnMax: true, enableWebcam: false }, questions: [{ ...EMPTY_Q }] };
+  const [form, setForm] = useState(defaultForm);
 
   const load = () => {
     setLoading(true);
@@ -56,107 +66,205 @@ export const TeacherDashboard = () => {
     updQ(qi, 'testCases', tcs);
   };
 
+  // ── FIX: THE ULTIMATE SMART BULK PARSER ──
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const text = evt.target.result;
+      const blocks = text.split('---').map(b => b.trim()).filter(Boolean);
+      const parsedQs = [];
+
+      blocks.forEach(block => {
+        const lines = block.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        let q = { type: 'subjective', title: '', description: '', points: 10, options: [], testCases: [], constraints: '', timeLimitSeconds: 5 };
+
+        lines.forEach(line => {
+          const upper = line.toUpperCase();
+          if (upper.startsWith('TYPE:')) q.type = line.substring(5).trim().toLowerCase();
+          else if (upper.startsWith('TITLE:')) q.title = line.substring(6).trim();
+          else if (upper.startsWith('DESC:')) q.description = line.substring(5).trim();
+          else if (upper.startsWith('POINTS:')) q.points = parseInt(line.substring(7).trim()) || 10;
+          else if (upper.startsWith('OPT:')) {
+            let optText = line.substring(4).trim();
+            let isCorrect = optText.startsWith('*');
+            if (isCorrect) optText = optText.substring(1).trim();
+            q.options.push({ text: optText, isCorrect });
+          }
+          else if (upper.startsWith('CONSTRAINTS:')) q.constraints = line.substring(12).trim();
+          else if (upper.startsWith('TC_IN:')) {
+            q.testCases.push({ input: line.substring(6).trim().replace(/\\n/g, '\n'), expectedOutput: '', isHidden: false });
+          }
+          else if (upper.startsWith('TC_OUT:')) {
+            if (q.testCases.length > 0) q.testCases[q.testCases.length - 1].expectedOutput = line.substring(7).trim().replace(/\\n/g, '\n');
+          }
+          else if (upper.startsWith('TC_HIDDEN:')) {
+            if (q.testCases.length > 0) q.testCases[q.testCases.length - 1].isHidden = line.substring(10).trim().toLowerCase() === 'true';
+          }
+        });
+
+        // Smart Fallbacks
+        if (!q.title && q.description) q.title = q.description.substring(0, 30) + '...';
+        if (!q.title) q.title = 'Imported Question';
+        if (q.type === 'mcq' && q.options.length === 0) q.options = [{text:'Option 1', isCorrect:true}, {text:'Option 2', isCorrect:false}];
+        if (q.type === 'coding' && q.testCases.length === 0) q.testCases = [{input:'', expectedOutput:'', isHidden:false}];
+        
+        parsedQs.push(q);
+      });
+
+      if (parsedQs.length > 0) {
+        setForm(p => ({ ...p, questions: [...p.questions, ...parsedQs] }));
+        alert(`¡Ay, Mi Amor! ✅ Successfully imported ${parsedQs.length} advanced questions!`);
+      } else {
+        alert('❌ No valid questions found. Click "Format Guide" to see how to structure your text file!');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = null;
+  };
+
+  const showFormatGuide = () => {
+    alert(`TEXT FILE FORMAT GUIDE:\nSeparate questions with 3 dashes: ---\n\nTYPE: mcq (or coding, subjective)\nTITLE: Question Title\nDESC: Question description\nPOINTS: 10\n\nFor MCQ:\nOPT: Option 1\nOPT: *Correct Option (use * for correct)\n\nFor Coding:\nCONSTRAINTS: 1 <= n <= 10\nTC_IN: input\\nnewline\nTC_OUT: expected output\nTC_HIDDEN: true`);
+  };
+
+  const openEditModal = (examData) => {
+    setEditingId(examData._id);
+    setForm({
+      title: examData.title || '',
+      description: examData.description || '',
+      course: examData.course || '',
+      startTime: formatForInput(examData.startTime),
+      endTime: formatForInput(examData.endTime),
+      durationMinutes: examData.durationMinutes || 60,
+      proctoring: examData.proctoring || { maxViolations: 3, restrictionMinutes: 30, requireFullscreen: true, disableCopyPaste: true, autoSubmitOnMax: true, enableWebcam: false },
+      questions: examData.questions && examData.questions.length > 0 ? examData.questions.map(q => ({
+          ...EMPTY_Q,
+          ...q,
+          options: q.options?.length > 0 ? q.options : EMPTY_Q.options.map(o => ({...o})),
+          testCases: q.testCases?.length > 0 ? q.testCases : EMPTY_Q.testCases.map(t => ({...t}))
+      })) : [{ ...EMPTY_Q }]
+    });
+    setModal(true);
+  };
+
   const deploy = async (status = 'published') => {
     if (!form.title.trim()) return alert('Exam title is required.');
 
-    // Validate all question titles
     for (let i = 0; i < form.questions.length; i++) {
       if (!form.questions[i].title.trim()) {
         return alert(`Question ${i + 1} title is required.`);
       }
     }
 
-    // Clean payload: strip irrelevant fields per question type, remove empty dates
     const cleanedQuestions = form.questions.map(q => {
-      const base = {
-        type: q.type,
-        title: q.title.trim(),
-        description: q.description || '',
-        points: q.points || 10,
-      };
-      if (q.type === 'mcq') {
-        base.options = q.options;
-      } else if (q.type === 'coding') {
-        // Only include test cases that have at least an expectedOutput
+      const base = { type: q.type, title: q.title.trim(), description: q.description || '', points: q.points || 10 };
+      if (q.type === 'mcq') base.options = q.options;
+      else if (q.type === 'coding') {
         base.testCases = (q.testCases || []).filter(tc => tc.expectedOutput.trim() !== '');
         base.constraints = q.constraints || '';
         base.timeLimitSeconds = q.timeLimitSeconds || 5;
       }
-      // subjective: no options, no testCases needed
       return base;
     });
 
     const payload = {
       ...form,
-      status,
       questions: cleanedQuestions,
-      // Don't send empty strings for Date fields — Mongoose will reject them
       startTime: form.startTime || undefined,
       endTime:   form.endTime   || undefined,
     };
+    
+    if (!editingId || status === 'draft') payload.status = status;
 
     setSaving(true);
     try {
-      await api.post('/exams', payload);
+      if (editingId) {
+        await api.put(`/exams/${editingId}`, payload); 
+      } else {
+        await api.post('/exams', payload); 
+      }
+      
       setModal(false);
-      setForm({ title: '', description: '', course: '', startTime: '', endTime: '', durationMinutes: 60, proctoring: { maxViolations: 3, restrictionMinutes: 30, requireFullscreen: true, disableCopyPaste: true, autoSubmitOnMax: true, enableWebcam: false }, questions: [{ ...EMPTY_Q }] });
+      setEditingId(null);
+      setForm(defaultForm);
       load();
-    } catch (e) { alert(e.response?.data?.message || 'Deployment failed. Check all fields.'); }
-    finally { setSaving(false); }
+      
+      if (viewExam && editingId) {
+        const updatedRes = await api.get(`/exams/${editingId}`);
+        setViewExam(updatedRes.data.data);
+      }
+    } catch (e) { 
+      alert(e.response?.data?.message || 'Deployment failed. Check your fields.'); 
+    } finally { 
+      setSaving(false); 
+    }
   };
 
   const toggleStatus = async (exam, status) => {
     await api.patch(`/exams/${exam._id}/status`, { status }).catch(() => {});
     load();
+    if (viewExam && viewExam._id === exam._id) {
+       setViewExam({...viewExam, status});
+    }
   };
 
   const deleteExam = async (id) => {
     if (!confirm('Delete this exam?')) return;
     await api.delete(`/exams/${id}`).catch(() => {});
+    if (viewExam?._id === id) setViewExam(null);
     load();
   };
 
-  // ── MODAL rendered inline to preserve input focus across re-renders ──
   const renderModal = () => (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/50 backdrop-blur-sm">
       <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
         <div className="px-8 py-5 border-b flex justify-between items-center">
-          <h2 className="text-lg font-black uppercase">Deploy New Exam</h2>
-          <button onClick={() => setModal(false)}><X size={20} /></button>
+          <h2 className="text-lg font-black uppercase">{editingId ? '✏️ Edit Exam' : 'Deploy New Exam'}</h2>
+          <button onClick={() => { setModal(false); setEditingId(null); setForm(defaultForm); }}><X size={20} /></button>
         </div>
         <div className="p-8 overflow-y-auto flex-1 space-y-6">
-          {/* Basic info */}
-          <input value={form.title} onChange={e => setForm(p => ({...p, title: e.target.value}))} placeholder="Exam Title *" className="w-full px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none" />
+          <input value={form.title} onChange={e => setForm(p => ({...p, title: e.target.value}))} placeholder="Exam Title *" className="w-full px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
           <div className="grid grid-cols-2 gap-4">
-            <input value={form.course} onChange={e => setForm(p => ({...p, course: e.target.value}))} placeholder="Course" className="px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none" />
-            <input type="number" value={form.durationMinutes} onChange={e => setForm(p => ({...p, durationMinutes: +e.target.value}))} placeholder="Duration (min)" className="px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none" />
+            <input value={form.course} onChange={e => setForm(p => ({...p, course: e.target.value}))} placeholder="Course" className="px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
+            <input type="number" value={form.durationMinutes} onChange={e => setForm(p => ({...p, durationMinutes: +e.target.value}))} placeholder="Duration (min)" className="px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
             <div className="flex flex-col">
               <label className="text-[10px] font-bold text-gray-500 uppercase ml-2 mb-1">Start Time (Optional)</label>
-              <input type="datetime-local" value={form.startTime} onChange={e => setForm(p => ({...p, startTime: e.target.value}))} className="px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none text-gray-600" />
+              <input type="datetime-local" value={form.startTime} onChange={e => setForm(p => ({...p, startTime: e.target.value}))} className="px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none text-gray-600 border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
             </div>
             <div className="flex flex-col">
               <label className="text-[10px] font-bold text-gray-500 uppercase ml-2 mb-1">End Time (Optional)</label>
-              <input type="datetime-local" value={form.endTime} onChange={e => setForm(p => ({...p, endTime: e.target.value}))} className="px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none text-gray-600" />
+              <input type="datetime-local" value={form.endTime} onChange={e => setForm(p => ({...p, endTime: e.target.value}))} className="px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none text-gray-600 border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
             </div>
           </div>
-          <textarea value={form.description} onChange={e => setForm(p => ({...p, description: e.target.value}))} placeholder="Description" className="w-full px-4 py-3 bg-gray-50 rounded-xl outline-none h-20 resize-none" />
+          <textarea value={form.description} onChange={e => setForm(p => ({...p, description: e.target.value}))} placeholder="Description" className="w-full px-4 py-3 bg-gray-50 rounded-xl outline-none h-20 resize-none border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
 
-          {/* Proctoring */}
           <div className="bg-emerald-50 p-5 rounded-xl space-y-3">
             <h3 className="text-xs font-black text-emerald-700 uppercase">Security Settings</h3>
             <div className="grid grid-cols-2 gap-3 text-sm">
-              <label className="flex items-center gap-2"><input type="number" value={form.proctoring.maxViolations} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, maxViolations: +e.target.value}}))} className="w-16 px-2 py-1 rounded border" /> Max Violations</label>
-              <label className="flex items-center gap-2"><input type="number" value={form.proctoring.restrictionMinutes} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, restrictionMinutes: +e.target.value}}))} className="w-16 px-2 py-1 rounded border" /> Restriction (min)</label>
-              <label className="flex items-center gap-2"><input type="checkbox" checked={form.proctoring.requireFullscreen} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, requireFullscreen: e.target.checked}}))} /> Require Fullscreen</label>
-              <label className="flex items-center gap-2"><input type="checkbox" checked={form.proctoring.disableCopyPaste} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, disableCopyPaste: e.target.checked}}))} /> Disable Copy/Paste</label>
-              <label className="flex items-center gap-2"><input type="checkbox" checked={form.proctoring.autoSubmitOnMax} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, autoSubmitOnMax: e.target.checked}}))} /> Auto-submit on Max</label>
+              <label className="flex items-center gap-2 font-medium"><input type="number" value={form.proctoring.maxViolations} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, maxViolations: +e.target.value}}))} className="w-16 px-2 py-1 rounded border outline-none font-bold" /> Max Violations</label>
+              <label className="flex items-center gap-2 font-medium"><input type="number" value={form.proctoring.restrictionMinutes} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, restrictionMinutes: +e.target.value}}))} className="w-16 px-2 py-1 rounded border outline-none font-bold" /> Restriction (min)</label>
+              <label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={form.proctoring.requireFullscreen} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, requireFullscreen: e.target.checked}}))} className="accent-emerald-600 w-4 h-4" /> Require Fullscreen</label>
+              <label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={form.proctoring.disableCopyPaste} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, disableCopyPaste: e.target.checked}}))} className="accent-emerald-600 w-4 h-4" /> Disable Copy/Paste</label>
+              <label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={form.proctoring.autoSubmitOnMax} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, autoSubmitOnMax: e.target.checked}}))} className="accent-emerald-600 w-4 h-4" /> Auto-submit on Max</label>
             </div>
           </div>
 
-          {/* Questions */}
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center flex-wrap gap-3">
             <h3 className="text-xs font-black text-gray-400 uppercase">Questions ({form.questions.length})</h3>
-            <button onClick={addQ} className="text-xs font-bold text-emerald-600 flex items-center gap-1"><Plus size={14} /> Add Question</button>
+            
+            <div className="flex gap-2">
+              <button onClick={showFormatGuide} className="text-xs font-bold text-gray-500 flex items-center gap-1 bg-gray-100 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition-all border border-gray-200 shadow-sm">
+                 ❔ Format Guide
+              </button>
+              <input type="file" accept=".txt" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
+              <button onClick={() => fileInputRef.current?.click()} className="text-xs font-bold text-blue-600 flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-all border border-blue-100 shadow-sm">
+                 <Upload size={14} /> Bulk Upload (.txt)
+              </button>
+              <button onClick={addQ} className="text-xs font-bold text-emerald-600 flex items-center gap-1 bg-emerald-50 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-all border border-emerald-100 shadow-sm">
+                 <Plus size={14} /> Add Question
+              </button>
+            </div>
           </div>
 
           {form.questions.map((q, qi) => (
@@ -164,25 +272,25 @@ export const TeacherDashboard = () => {
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-3">
                   <span className="bg-white px-3 py-1 rounded-lg text-xs font-black border">Q{qi+1}</span>
-                  <select value={q.type} onChange={e => updQ(qi, 'type', e.target.value)} className="bg-emerald-50 text-emerald-700 rounded-lg px-3 py-1.5 text-xs font-black border border-emerald-100 cursor-pointer">
+                  <select value={q.type} onChange={e => updQ(qi, 'type', e.target.value)} className="bg-emerald-50 text-emerald-700 rounded-lg px-3 py-1.5 text-xs font-black border border-emerald-100 cursor-pointer outline-none">
                     <option value="mcq">MCQ</option>
                     <option value="coding">CODING</option>
                     <option value="subjective">SUBJECTIVE</option>
                   </select>
-                  <input type="number" value={q.points} onChange={e => updQ(qi, 'points', +e.target.value)} className="w-16 px-2 py-1 rounded border text-xs" placeholder="Points" />
+                  <input type="number" value={q.points} onChange={e => updQ(qi, 'points', +e.target.value)} className="w-16 px-2 py-1.5 rounded-lg border outline-none font-bold text-xs" placeholder="Points" />
                 </div>
-                <button onClick={() => rmQ(qi)} className="text-gray-300 hover:text-red-500"><Trash2 size={16} /></button>
+                <button onClick={() => rmQ(qi)} className="text-gray-400 hover:text-red-500 bg-white p-1.5 rounded-lg border shadow-sm transition-all"><Trash2 size={16} /></button>
               </div>
 
-              <input value={q.title} onChange={e => updQ(qi, 'title', e.target.value)} placeholder="Question title *" className="w-full bg-white border-b py-2 font-bold outline-none" />
-              <textarea value={q.description} onChange={e => updQ(qi, 'description', e.target.value)} placeholder="Description / problem statement" className="w-full bg-white border rounded-lg p-2 text-sm outline-none h-16 resize-none" />
+              <input value={q.title} onChange={e => updQ(qi, 'title', e.target.value)} placeholder="Question title *" className="w-full bg-white border rounded-lg py-2.5 px-4 font-bold outline-none focus:border-emerald-400 transition-all" />
+              <textarea value={q.description} onChange={e => updQ(qi, 'description', e.target.value)} placeholder="Description / problem statement" className="w-full bg-white border rounded-lg p-4 text-sm outline-none h-20 resize-none focus:border-emerald-400 transition-all" />
 
               {q.type === 'mcq' && (
                 <div className="grid grid-cols-2 gap-3">
                   {q.options.map((o, oi) => (
-                    <div key={oi} className="flex items-center gap-2 bg-white p-3 rounded-xl border">
-                      <input type="radio" name={`correct-${qi}`} checked={o.isCorrect} onChange={() => updOpt(qi, oi, 'isCorrect', true)} className="accent-emerald-500" />
-                      <input value={o.text} onChange={e => updOpt(qi, oi, 'text', e.target.value)} placeholder={`Option ${oi+1}`} className="flex-1 text-sm outline-none" />
+                    <div key={oi} className={`flex items-center gap-3 bg-white p-3 rounded-xl border transition-all ${o.isCorrect ? 'border-emerald-400 bg-emerald-50/30' : ''}`}>
+                      <input type="radio" name={`correct-${qi}`} checked={o.isCorrect} onChange={() => updOpt(qi, oi, 'isCorrect', true)} className="accent-emerald-500 w-4 h-4 cursor-pointer" />
+                      <input value={o.text} onChange={e => updOpt(qi, oi, 'text', e.target.value)} placeholder={`Option ${oi+1}`} className="flex-1 text-sm outline-none bg-transparent font-medium" />
                     </div>
                   ))}
                 </div>
@@ -190,23 +298,23 @@ export const TeacherDashboard = () => {
 
               {q.type === 'coding' && (
                 <div className="space-y-3">
-                  <textarea value={q.constraints} onChange={e => updQ(qi, 'constraints', e.target.value)} placeholder="Constraints (e.g. 1 ≤ n ≤ 10^5)" className="w-full bg-white border rounded-lg p-2 text-sm outline-none h-12 resize-none font-mono" />
+                  <textarea value={q.constraints} onChange={e => updQ(qi, 'constraints', e.target.value)} placeholder="Constraints (e.g. 1 ≤ n ≤ 10^5)" className="w-full bg-white border rounded-lg p-3 text-sm outline-none h-14 resize-none font-mono" />
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold text-gray-400 uppercase">Test Cases ({q.testCases.length})</span>
-                    <button onClick={() => addTc(qi)} className="text-xs font-bold text-blue-600 flex items-center gap-1"><Plus size={12} /> Add</button>
+                    <button onClick={() => addTc(qi)} className="text-xs font-bold text-blue-600 flex items-center gap-1 bg-white border px-2 py-1 rounded-lg shadow-sm"><Plus size={12} /> Add TC</button>
                   </div>
                   {q.testCases.map((tc, ti) => (
-                    <div key={ti} className="bg-white rounded-lg border p-3 space-y-2">
+                    <div key={ti} className="bg-white rounded-xl border p-4 space-y-3 shadow-sm">
                       <div className="flex justify-between items-center">
                         <span className="text-xs font-bold text-gray-500">TC {ti+1}</span>
-                        <div className="flex items-center gap-2">
-                          <label className="text-xs flex items-center gap-1"><input type="checkbox" checked={tc.isHidden} onChange={e => updTc(qi, ti, 'isHidden', e.target.checked)} /> Hidden</label>
-                          <button onClick={() => rmTc(qi, ti)} className="text-gray-300 hover:text-red-500"><X size={14} /></button>
+                        <div className="flex items-center gap-3">
+                          <label className="text-xs font-bold text-gray-500 flex items-center gap-1"><input type="checkbox" checked={tc.isHidden} onChange={e => updTc(qi, ti, 'isHidden', e.target.checked)} className="accent-blue-500" /> Hidden</label>
+                          <button onClick={() => rmTc(qi, ti)} className="text-gray-400 hover:text-red-500"><X size={14} /></button>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <textarea value={tc.input} onChange={e => updTc(qi, ti, 'input', e.target.value)} placeholder="Input" className="bg-gray-50 rounded p-2 text-xs font-mono outline-none h-14 resize-none" />
-                        <textarea value={tc.expectedOutput} onChange={e => updTc(qi, ti, 'expectedOutput', e.target.value)} placeholder="Expected Output" className="bg-gray-50 rounded p-2 text-xs font-mono outline-none h-14 resize-none" />
+                      <div className="grid grid-cols-2 gap-3">
+                        <textarea value={tc.input} onChange={e => updTc(qi, ti, 'input', e.target.value)} placeholder="Input" className="bg-gray-50 rounded-lg p-3 text-xs font-mono outline-none h-16 resize-none border border-transparent focus:border-gray-200 focus:bg-white" />
+                        <textarea value={tc.expectedOutput} onChange={e => updTc(qi, ti, 'expectedOutput', e.target.value)} placeholder="Expected Output" className="bg-gray-50 rounded-lg p-3 text-xs font-mono outline-none h-16 resize-none border border-transparent focus:border-gray-200 focus:bg-white" />
                       </div>
                     </div>
                   ))}
@@ -215,20 +323,23 @@ export const TeacherDashboard = () => {
             </div>
           ))}
         </div>
-        <div className="px-8 py-5 border-t flex justify-end gap-3">
-          <button onClick={() => setModal(false)} className="px-6 py-3 text-gray-400 font-bold text-sm hover:text-gray-600">Cancel</button>
-          <button onClick={() => deploy('draft')} disabled={saving} className="px-6 py-3 border border-gray-200 text-gray-600 rounded-xl font-bold text-sm disabled:opacity-50 hover:bg-gray-50">
-            Save Draft
-          </button>
-          <button onClick={() => deploy('published')} disabled={saving} className="px-8 py-3 bg-[#4B775E] text-white rounded-xl font-bold text-sm shadow-lg disabled:opacity-50">
-            {saving ? 'Deploying…' : 'Publish Exam'}
+        <div className="px-8 py-5 border-t flex justify-end gap-3 bg-gray-50 rounded-b-2xl">
+          <button onClick={() => { setModal(false); setEditingId(null); setForm(defaultForm); }} className="px-6 py-3 text-gray-500 font-bold text-sm hover:text-gray-700 bg-white border border-gray-200 rounded-xl shadow-sm transition-all">Cancel</button>
+          
+          {(!editingId || form.status === 'draft') && (
+            <button onClick={() => deploy('draft')} disabled={saving} className="px-6 py-3 border border-amber-200 bg-amber-50 text-amber-700 rounded-xl font-bold text-sm disabled:opacity-50 hover:bg-amber-100 transition-all shadow-sm">
+              Save Draft
+            </button>
+          )}
+
+          <button onClick={() => deploy('published')} disabled={saving} className="px-8 py-3 bg-[#4B775E] text-white rounded-xl font-bold text-sm shadow-lg disabled:opacity-50 hover:bg-[#3d614d] hover:scale-[1.02] active:scale-[0.98] transition-all">
+            {saving ? '⏳ Processing…' : editingId ? '🔄 Update Exam' : '🚀 Publish Exam'}
           </button>
         </div>
       </div>
     </div>
   );
 
-  // ── EXAM DETAIL VIEW (LIVE MONITORING) ──
   const ExamDetail = ({ exam }) => {
     const [liveStudents, setLiveStudents] = useState([]);
     const [liveViolations, setLiveViolations] = useState([]);
@@ -238,7 +349,7 @@ export const TeacherDashboard = () => {
     const ev = violations[exam._id] || [];
 
     useEffect(() => {
-      import('../services/socket').then(({ connectSocket, disconnectSocket }) => {
+      import('../services/socket').then(({ connectSocket }) => {
         const socket = connectSocket();
         socket.emit('join_monitoring', { examId: exam._id });
 
@@ -255,7 +366,6 @@ export const TeacherDashboard = () => {
           socket.off('student_joined');
           socket.off('student_left');
           socket.off('violation_alert');
-          // Don't disconnect if the teacher might monitor multiple, but for now we keep it simple
         };
       });
     }, [exam._id]);
@@ -271,47 +381,60 @@ export const TeacherDashboard = () => {
     };
 
     return (
-      <div className="space-y-6">
-        <button onClick={() => setViewExam(null)} className="text-sm text-gray-400 hover:text-gray-600">← Back</button>
-        <div className="flex justify-between items-start">
+      <div className="space-y-6 pb-20 animate-in fade-in duration-500">
+        <button onClick={() => setViewExam(null)} className="text-sm font-bold text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-colors">← Back to Registry</button>
+        
+        <div className="flex justify-between items-start bg-white p-6 rounded-2xl border shadow-sm">
           <div>
-            <h2 className="text-2xl font-black flex items-center gap-2">
+            <h2 className="text-2xl font-black flex items-center gap-3">
               {exam.title}
-              {exam.status === 'active' && <span className="bg-red-500 text-white text-[10px] uppercase px-2 py-0.5 rounded-full animate-pulse">LIVE</span>}
+              {exam.status === 'active' && <span className="bg-red-500 text-white text-[10px] uppercase px-3 py-1 rounded-full animate-pulse shadow-sm tracking-widest">LIVE NOW</span>}
+              {exam.status === 'published' && <span className="bg-blue-50 text-blue-600 text-[10px] uppercase px-3 py-1 rounded-full border border-blue-100 tracking-widest shadow-sm">PUBLISHED</span>}
             </h2>
-            <p className="text-gray-400 text-sm">{exam.course} • {exam.durationMinutes}min • {exam.questions.length} questions • {exam.totalMarks} marks</p>
+            <div className="flex items-center gap-3 mt-2 text-sm">
+               <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg font-bold text-xs">{exam.course || 'General Sector'}</span>
+               <span className="text-gray-400 font-medium">• {exam.durationMinutes}min window • {exam.questions.length} total nodes • {exam.totalMarks} aggregate value</span>
+            </div>
           </div>
+          
           <div className="flex gap-2">
-            {exam.status === 'draft' && <button onClick={() => toggleStatus(exam, 'published')} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold">Publish</button>}
-            {exam.status === 'published' && <button onClick={() => toggleStatus(exam, 'draft')} className="bg-amber-500 text-white px-4 py-2 rounded-lg text-xs font-bold">Unpublish</button>}
-            {(exam.status === 'published' || exam.status === 'draft') && <button onClick={() => toggleStatus(exam, 'active')} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-bold">Start Now (Override)</button>}
-            {exam.status === 'active' && <button onClick={() => toggleStatus(exam, 'ended')} className="bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-bold">End Exam</button>}
-            <button onClick={() => deleteExam(exam._id)} className="bg-red-50 text-red-600 px-4 py-2 rounded-lg text-xs font-bold border border-red-100">Delete</button>
+            
+            {(exam.status === 'draft' || exam.status === 'published') && (
+               <button onClick={() => openEditModal(exam)} className="flex items-center gap-2 bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">
+                 <Edit size={14}/> Edit Details
+               </button>
+            )}
+
+            {exam.status === 'draft' && <button onClick={() => toggleStatus(exam, 'published')} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-600/20">Publish Network</button>}
+            {exam.status === 'published' && <button onClick={() => toggleStatus(exam, 'draft')} className="bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200 px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">Unpublish</button>}
+            {(exam.status === 'published' || exam.status === 'draft') && <button onClick={() => toggleStatus(exam, 'active')} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-600/20">FORCE START NOW</button>}
+            {exam.status === 'active' && <button onClick={() => toggleStatus(exam, 'ended')} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-red-600/20 animate-pulse">TERMINATE SESSION</button>}
+            <button onClick={() => deleteExam(exam._id)} className="bg-white text-red-500 hover:bg-red-50 border border-gray-200 hover:border-red-200 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1"><Trash2 size={14}/> Dump</button>
           </div>
         </div>
 
-        {/* Live Monitoring */}
         {exam.status === 'active' && (
-          <div className="bg-gray-900 text-white rounded-2xl border border-gray-800 p-6 shadow-2xl">
-            <h3 className="text-xs font-black text-emerald-400 uppercase mb-4 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              Live Monitoring Dashboard
+          <div className="bg-gray-900 text-white rounded-3xl border border-gray-800 p-8 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none transform translate-x-1/2 -translate-y-1/2"></div>
+            
+            <h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-6 flex items-center gap-3">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+              Live Proctoring Matrix
             </h3>
             
-            <div className="grid grid-cols-2 gap-6">
-              {/* Active Students */}
+            <div className="grid grid-cols-2 gap-8 relative z-10">
               <div>
-                <h4 className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Active Sessions ({liveStudents.length})</h4>
-                {liveStudents.length === 0 ? <p className="text-xs text-gray-600">No students currently connected.</p> : (
-                  <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                <h4 className="text-[10px] text-gray-400 uppercase tracking-[0.2em] mb-4 font-bold border-b border-gray-800 pb-2">Active Connections ({liveStudents.length})</h4>
+                {liveStudents.length === 0 ? <p className="text-xs text-gray-600 italic font-medium mt-4">Awaiting incoming student nodes...</p> : (
+                  <div className="space-y-3 max-h-72 overflow-y-auto pr-2 custom-scrollbar">
                     {liveStudents.map(s => (
-                      <div key={s.studentId} className="flex items-center justify-between bg-gray-800 p-3 rounded-xl border border-gray-700">
-                        <div className="flex items-center gap-3">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                          <span className="text-sm font-bold">{s.name}</span>
+                      <div key={s.studentId} className="flex items-center justify-between bg-gray-800/50 backdrop-blur-sm p-4 rounded-2xl border border-gray-700/50 hover:border-gray-600 transition-all group">
+                        <div className="flex items-center gap-4">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                          <span className="text-sm font-bold text-gray-100">{s.name}</span>
                         </div>
-                        <button onClick={() => forceSubmit(s.studentId)} className="text-[10px] font-bold bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-3 py-1.5 rounded-lg transition-all">
-                          FORCE SUBMIT
+                        <button onClick={() => forceSubmit(s.studentId)} className="text-[9px] font-black bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500 hover:text-white px-3 py-2 rounded-lg transition-all uppercase tracking-widest opacity-0 group-hover:opacity-100">
+                          Force Kill
                         </button>
                       </div>
                     ))}
@@ -319,22 +442,22 @@ export const TeacherDashboard = () => {
                 )}
               </div>
 
-              {/* Live Alerts */}
               <div>
-                <h4 className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Live AI Alerts</h4>
-                {liveViolations.length === 0 ? <p className="text-xs text-gray-600">No alerts detected.</p> : (
-                  <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                <h4 className="text-[10px] text-gray-400 uppercase tracking-[0.2em] mb-4 font-bold border-b border-gray-800 pb-2">Vision AI Alert Log</h4>
+                {liveViolations.length === 0 ? <p className="text-xs text-gray-600 italic font-medium mt-4">Sector is currently secure. No infractions detected.</p> : (
+                  <div className="space-y-3 max-h-72 overflow-y-auto pr-2 custom-scrollbar">
                     {liveViolations.map((v, i) => (
-                      <div key={i} className="flex flex-col bg-gray-800 p-3 rounded-xl border border-red-500/30">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-bold text-gray-300">{v.studentName}</span>
-                          <span className="text-[10px] text-gray-500">{new Date(v.timestamp).toLocaleTimeString()}</span>
+                      <div key={i} className="flex flex-col bg-gray-800/50 backdrop-blur-sm p-4 rounded-2xl border-l-4 border-gray-700 hover:bg-gray-800 transition-all" style={{ borderLeftColor: v.severity === 'critical' ? '#ef4444' : '#f97316' }}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-black text-gray-200 uppercase tracking-wide">{v.studentName}</span>
+                          <span className="text-[9px] text-gray-500 font-bold bg-gray-900 px-2 py-1 rounded-md border border-gray-800">{new Date(v.timestamp).toLocaleTimeString()}</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`w-1.5 h-1.5 rounded-full ${v.severity === 'critical' ? 'bg-red-500' : 'bg-orange-500'}`}></span>
-                          <span className="text-xs text-red-400 font-bold">{v.type?.replace(/_/g, ' ').toUpperCase()}</span>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded shadow-sm ${v.severity === 'critical' ? 'bg-red-500 text-white' : 'bg-orange-500 text-white'}`}>
+                            {v.type?.replace(/_/g, ' ')}
+                          </span>
                         </div>
-                        {v.details && <p className="text-[10px] text-gray-400 mt-1">{v.details}</p>}
+                        {v.details && <p className="text-[10px] text-gray-400 font-medium leading-relaxed">{v.details}</p>}
                       </div>
                     ))}
                   </div>
@@ -344,39 +467,35 @@ export const TeacherDashboard = () => {
           </div>
         )}
 
-        {/* Submissions */}
-        <div className="bg-white rounded-2xl border p-6">
-          <h3 className="text-xs font-black text-gray-400 uppercase mb-4">Historical Submissions ({es.length})</h3>
-          {es.length === 0 ? <p className="text-gray-400 text-sm">No submissions yet.</p> : (
-            <table className="w-full text-left text-sm">
-              <thead><tr className="text-xs text-gray-400 uppercase border-b"><th className="py-2">Student</th><th>Score</th><th>%</th><th>Status</th><th>Violations</th></tr></thead>
-              <tbody>{es.map(s => (
-                <tr key={s._id} className="border-b border-gray-50">
-                  <td className="py-3 font-bold">{s.student?.name} <span className="text-gray-400 text-xs">{s.student?.studentId}</span></td>
-                  <td>{s.totalScore}/{s.maxScore}</td>
-                  <td className={`font-bold ${s.percentage >= 40 ? 'text-emerald-600' : 'text-red-500'}`}>{s.percentage}%</td>
-                  <td><span className={`text-xs font-bold px-2 py-0.5 rounded ${s.status === 'submitted' ? 'bg-green-50 text-green-600' : s.status === 'auto_submitted' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>{s.status}</span></td>
-                  <td className={s.violationCount > 0 ? 'text-red-500 font-bold' : ''}>{s.violationCount}</td>
-                </tr>
-              ))}</tbody>
-            </table>
-          )}
-        </div>
-
-        {/* Database Violations */}
-        <div className="bg-white rounded-2xl border p-6">
-          <h3 className="text-xs font-black text-gray-400 uppercase mb-4">Violation Log ({ev.length})</h3>
-          {ev.length === 0 ? <p className="text-gray-400 text-sm">No violations recorded.</p> : (
-            <div className="max-h-60 overflow-y-auto space-y-1">
-              {ev.map((v, i) => (
-                <div key={i} className="flex items-center gap-3 text-xs py-1.5 border-b border-gray-50">
-                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${v.severity === 'critical' ? 'bg-red-500' : v.severity === 'high' ? 'bg-orange-500' : 'bg-amber-400'}`} />
-                  <span className="font-bold text-gray-700 w-32 truncate">{v.student?.name}</span>
-                  <span className="text-gray-500 w-32 truncate">{v.type?.replace(/_/g, ' ')}</span>
-                  <span className="text-gray-400 flex-1 truncate">{v.details}</span>
-                  <span className="ml-auto text-gray-400">{new Date(v.timestamp).toLocaleTimeString()}</span>
-                </div>
-              ))}
+        <div className="bg-white rounded-3xl border shadow-sm p-8">
+          <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6 border-b border-gray-100 pb-4">Historical Submissions ({es.length})</h3>
+          {es.length === 0 ? <p className="text-gray-400 text-sm italic">No records in the vault.</p> : (
+            <div className="overflow-hidden rounded-xl border border-gray-200">
+              <table className="w-full text-left text-sm bg-white">
+                <thead className="bg-gray-50/80"><tr className="text-[10px] font-black text-gray-400 uppercase tracking-widest"><th className="py-4 px-6">Student Node</th><th className="px-6">Score Matrix</th><th className="px-6">Status Flag</th><th className="px-6">Infractions</th></tr></thead>
+                <tbody className="divide-y divide-gray-100">
+                  {es.map(s => (
+                    <tr key={s._id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="py-4 px-6">
+                        <p className="font-bold text-gray-900">{s.student?.name}</p>
+                        <p className="text-[10px] text-gray-400 font-mono mt-0.5">{s.student?.studentId}</p>
+                      </td>
+                      <td className="px-6">
+                        <div className="flex items-center gap-2">
+                           <span className="font-black text-gray-700">{s.totalScore}</span><span className="text-gray-300">/</span><span className="text-xs text-gray-400">{s.maxScore}</span>
+                           <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${s.percentage >= 40 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>{s.percentage}%</span>
+                        </div>
+                      </td>
+                      <td className="px-6"><span className={`text-[9px] font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${s.status === 'submitted' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : s.status === 'auto_submitted' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>{s.status.replace('_', ' ')}</span></td>
+                      <td className="px-6">
+                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-black ${s.violationCount > 0 ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-gray-50 text-gray-400'}`}>
+                          {s.violationCount}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
@@ -384,94 +503,142 @@ export const TeacherDashboard = () => {
     );
   };
 
-  // ── MAIN ──
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden font-sans">
+    <div className="flex h-[calc(100vh-8.5rem)] bg-gray-50 overflow-hidden font-sans relative rounded-xl border border-gray-100 shadow-sm">
+      
       {modal && renderModal()}
 
-      {/* Sidebar */}
-      <div className="w-64 bg-white border-r flex flex-col p-5 overflow-y-auto">
-        <div className="flex items-center gap-2 mb-10 px-2">
-          <CheckCircle2 className="text-emerald-600" size={24} />
-          <h1 className="text-lg font-black tracking-tight uppercase">Trainer<span className="text-gray-300">_</span>Core</h1>
+      <div className="w-64 bg-white border-r flex flex-col p-5 overflow-y-auto relative z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+        <div className="flex items-center gap-3 mb-10 px-2 mt-4 cursor-pointer hover:scale-[1.02] transition-transform">
+          <div className="bg-emerald-50 text-emerald-600 p-2 rounded-xl border border-emerald-100 shadow-sm">
+            <CheckCircle2 size={20} strokeWidth={3} />
+          </div>
+          <h1 className="text-[13px] font-black tracking-[0.2em] uppercase text-gray-900 leading-tight">Trainer<br/><span className="text-gray-400">Core_</span></h1>
         </div>
-        <nav className="flex-1 space-y-1">
-          {[{ icon: <LayoutGrid size={16}/>, label: 'OVERVIEW' }, { icon: <FileText size={16}/>, label: 'EXAMS' }, { icon: <ShieldAlert size={16}/>, label: 'MONITORING' }].map(item => (
+        
+        <nav className="flex-1 space-y-2">
+          {[{ icon: <LayoutGrid size={18}/>, label: 'OVERVIEW' }, { icon: <FileText size={18}/>, label: 'EXAMS' }, { icon: <ShieldAlert size={18}/>, label: 'MONITORING' }].map(item => (
             <button key={item.label} onClick={() => { setTab(item.label); setViewExam(null); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-xs tracking-wide transition-all ${tab === item.label ? 'bg-[#4B775E] text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}>
+              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-black text-[10px] tracking-[0.15em] transition-all shadow-sm border ${tab === item.label ? 'bg-[#4B775E] text-white border-[#4B775E] shadow-emerald-900/20 translate-x-1' : 'bg-white text-gray-400 border-transparent hover:border-gray-100 hover:bg-gray-50 hover:text-gray-600'}`}>
               {item.icon}{item.label}
             </button>
           ))}
         </nav>
-        <div className="mt-6 pt-6 border-t">
-          <div className="flex items-center gap-2 mb-4 px-2">
-            <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 font-bold text-xs border">{user?.name?.[0] || 'A'}</div>
-            <div><p className="text-xs font-bold">{user?.name}</p><p className="text-[9px] text-gray-400">Faculty</p></div>
+        
+        <div className="mt-auto pt-6 border-t border-gray-100 relative group mb-4">
+          <div className="absolute -top-14 left-0 right-0 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 translate-y-4 group-hover:translate-y-0 z-50">
+            <button onClick={() => { logout(); navigate('/'); }} className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-red-100 rounded-xl text-[10px] uppercase tracking-widest font-black text-red-500 shadow-xl hover:bg-red-50 hover:scale-[1.02] active:scale-[0.98] transition-all">
+              <span>🚪</span> Terminate
+            </button>
           </div>
-          <button onClick={() => { logout(); navigate('/'); }} className="w-full flex items-center justify-center gap-2 py-2.5 border rounded-xl text-xs font-bold text-gray-400 hover:bg-red-50 hover:text-red-500">
-            <LogOut size={12}/> Logout
-          </button>
+          
+          <div className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 border border-transparent hover:border-gray-100 cursor-pointer transition-all">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 flex items-center justify-center text-emerald-600 font-black text-sm border border-emerald-100/50 shadow-sm shrink-0">
+              {user?.name?.[0] || 'A'}
+            </div>
+            <div className="overflow-hidden">
+              <p className="text-xs font-bold text-gray-900 truncate">{user?.name}</p>
+              <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600/70 mt-0.5">Faculty Auth</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-10">
+      <div className="flex-1 overflow-y-auto bg-gray-50/50 p-8 lg:p-12 pb-24 relative">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none transform translate-x-1/3 -translate-y-1/3"></div>
+
         {viewExam ? <ExamDetail exam={viewExam} /> : (
-          <>
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="text-2xl font-black uppercase">{tab}</h2>
-              <button onClick={() => setModal(true)} className="bg-[#4B775E] hover:bg-[#3d614d] text-white px-6 py-3 rounded-xl font-bold text-xs uppercase flex items-center gap-2 shadow-lg">
-                <Plus size={18}/> Deploy New Exam
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative z-10">
+            <div className="flex justify-between items-end mb-10">
+              <div>
+                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-2 border-b border-emerald-100 inline-block pb-1">System Control</p>
+                <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tight">{tab}</h2>
+              </div>
+              <button onClick={() => { setEditingId(null); setForm(defaultForm); setModal(true); }} className="bg-gray-900 hover:bg-black text-white px-6 py-4 rounded-2xl font-black text-[10px] tracking-[0.1em] uppercase flex items-center gap-3 shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all">
+                <div className="bg-white/20 p-1 rounded-md"><Plus size={14}/></div> Generate Node
               </button>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-4 gap-6 mb-8">
-              {[{ l: 'Total Exams', v: exams.length, c: 'text-emerald-600' },
-                { l: 'Published/Active', v: exams.filter(e => e.status === 'active' || e.status === 'published').length, c: 'text-blue-500' },
-                { l: 'Drafts', v: exams.filter(e => e.status === 'draft').length, c: 'text-amber-500' },
-                { l: 'Ended', v: exams.filter(e => e.status === 'ended').length, c: 'text-gray-400' }
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+              {[{ l: 'Total Matrix', v: exams.length, c: 'text-gray-900', i: '📦' },
+                { l: 'Live Sector', v: exams.filter(e => e.status === 'active' || e.status === 'published').length, c: 'text-emerald-600', i: '📡' },
+                { l: 'Draft Vault', v: exams.filter(e => e.status === 'draft').length, c: 'text-amber-500', i: '📝' },
+                { l: 'Ended Ops', v: exams.filter(e => e.status === 'ended').length, c: 'text-gray-400', i: '🏁' }
               ].map((s, i) => (
-                <div key={i} className="bg-white p-8 rounded-2xl border">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-3">{s.l}</p>
-                  <h3 className={`text-4xl font-black ${s.c}`}>{s.v}</h3>
+                <div key={i} className="bg-white p-8 rounded-3xl border border-gray-100 shadow-[0_4px_24px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.04)] transition-all hover:-translate-y-1 group">
+                  <div className="flex justify-between items-start mb-6">
+                    <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-lg shadow-sm border border-gray-100 group-hover:scale-110 transition-transform">{s.i}</div>
+                  </div>
+                  <h3 className={`text-4xl font-black mb-2 ${s.c}`}>{s.v}</h3>
+                  <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em]">{s.l}</p>
                 </div>
               ))}
             </div>
 
-            {/* Exam List */}
-            <div className="bg-white rounded-2xl border overflow-hidden">
-              <div className="p-6 border-b"><h4 className="text-xs font-black text-gray-400 uppercase">Exam Registry</h4></div>
-              {loading ? <p className="p-6 text-gray-400">Loading…</p> : exams.length === 0 ? <p className="p-6 text-gray-400">No exams created yet.</p> : (
-                <table className="w-full text-left">
-                  <thead className="bg-gray-50"><tr className="text-[10px] font-black text-gray-400 uppercase">
-                    <th className="px-6 py-4">Title</th><th className="px-6 py-4">Course</th><th className="px-6 py-4">Questions</th><th className="px-6 py-4">Duration</th><th className="px-6 py-4">Status</th><th className="px-6 py-4">Actions</th>
-                  </tr></thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {exams.map(exam => (
-                      <tr key={exam._id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setViewExam(exam)}>
-                        <td className="px-6 py-4"><p className="font-bold text-sm">{exam.title}</p></td>
-                        <td className="px-6 py-4 text-xs text-gray-500">{exam.course || '—'}</td>
-                        <td className="px-6 py-4 font-bold text-sm">{exam.questions?.length || 0}</td>
-                        <td className="px-6 py-4 text-xs text-gray-500">{exam.durationMinutes}m</td>
-                        <td className="px-6 py-4">
-                          <span className={`text-[10px] font-black px-3 py-1 rounded-lg ${exam.status === 'active' ? 'bg-emerald-50 text-emerald-600' : exam.status === 'published' ? 'bg-blue-50 text-blue-600' : exam.status === 'draft' ? 'bg-amber-50 text-amber-600' : 'bg-gray-100 text-gray-400'}`}>{exam.status?.toUpperCase()}</span>
-                        </td>
-                        <td className="px-6 py-4" onClick={e => e.stopPropagation()}>
-                          <div className="flex gap-1">
-                            {exam.status === 'draft' && <button onClick={() => toggleStatus(exam, 'published')} className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded font-bold">Publish</button>}
-                            {exam.status === 'published' && <button onClick={() => toggleStatus(exam, 'draft')} className="text-xs bg-amber-50 text-amber-600 px-2 py-1 rounded font-bold">Unpublish</button>}
-                            {exam.status === 'active' && <button onClick={() => toggleStatus(exam, 'ended')} className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded font-bold">End</button>}
-                            <button onClick={() => deleteExam(exam._id)} className="text-xs text-gray-300 hover:text-red-500 px-2 py-1"><Trash2 size={14}/></button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-[0_8px_32px_rgba(0,0,0,0.02)] overflow-hidden">
+              <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+                <h4 className="text-xs font-black text-gray-900 uppercase tracking-[0.15em] flex items-center gap-3">
+                  <div className="w-2 h-8 bg-[#4B775E] rounded-full"></div>
+                  Assessment Registry
+                </h4>
+              </div>
+              
+              {loading ? (
+                <div className="p-16 flex flex-col items-center justify-center opacity-50">
+                   <div className="w-8 h-8 border-4 border-gray-200 border-t-[#4B775E] rounded-full animate-spin mb-4"></div>
+                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Querying Databanks...</p>
+                </div>
+              ) : exams.length === 0 ? (
+                <div className="p-20 text-center">
+                   <div className="text-5xl mb-4 opacity-20">📂</div>
+                   <p className="text-xs font-black text-gray-300 uppercase tracking-widest italic">No deployments found.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-white border-b border-gray-100"><tr className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em]">
+                      <th className="px-8 py-5">Assessment Profile</th><th className="px-6 py-5">Sector</th><th className="px-6 py-5">Payload</th><th className="px-6 py-5">Status Matrix</th><th className="px-8 py-5 text-right">Overrides</th>
+                    </tr></thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {exams.map(exam => (
+                        <tr key={exam._id} className="hover:bg-gray-50/80 cursor-pointer transition-colors group" onClick={() => setViewExam(exam)}>
+                          <td className="px-8 py-6">
+                            <p className="font-black text-sm text-gray-900 group-hover:text-[#4B775E] transition-colors">{exam.title}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                               <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Window: {exam.durationMinutes}m</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-6 text-xs font-bold text-gray-500">{exam.course || '—'}</td>
+                          <td className="px-6 py-6"><span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-lg text-[10px] font-black border border-gray-200">{exam.questions?.length || 0} Nodes</span></td>
+                          <td className="px-6 py-6">
+                            <div className="flex items-center gap-2">
+                              {exam.status === 'active' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>}
+                              <span className={`text-[9px] font-black px-3 py-1.5 rounded-md uppercase tracking-widest shadow-sm ${exam.status === 'active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : exam.status === 'published' ? 'bg-blue-50 text-blue-600 border border-blue-100' : exam.status === 'draft' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-gray-50 text-gray-400 border border-gray-200'}`}>{exam.status}</span>
+                            </div>
+                          </td>
+                          <td className="px-8 py-6 text-right" onClick={e => e.stopPropagation()}>
+                            <div className="flex gap-2 justify-end opacity-60 group-hover:opacity-100 transition-opacity">
+                              
+                              {(exam.status === 'draft' || exam.status === 'published') && (
+                                <button onClick={() => openEditModal(exam)} className="text-[10px] bg-white border border-gray-200 text-gray-600 hover:border-gray-400 hover:text-gray-900 px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm transition-all flex items-center gap-1">
+                                  <Edit size={12}/> Edit
+                                </button>
+                              )}
+
+                              {exam.status === 'draft' && <button onClick={() => toggleStatus(exam, 'published')} className="text-[10px] bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-100 px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm transition-all">Publish</button>}
+                              {exam.status === 'published' && <button onClick={() => toggleStatus(exam, 'draft')} className="text-[10px] bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-100 px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm transition-all">Revoke</button>}
+                              {exam.status === 'active' && <button onClick={() => toggleStatus(exam, 'ended')} className="text-[10px] bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm transition-all">End</button>}
+                              <button onClick={() => deleteExam(exam._id)} className="text-gray-300 hover:text-red-500 p-1.5 bg-white border border-transparent hover:border-red-100 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={14}/></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>

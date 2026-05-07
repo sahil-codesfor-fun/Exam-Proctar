@@ -2,8 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
-/* A little extra base styling for our dark exam theme */
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: white !important;
+}
+
 body {
-  background-color: #030712; /* Tailwind's gray-950 */
-  color: white;
+  overflow: hidden;
 }

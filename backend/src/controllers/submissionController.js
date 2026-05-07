@@ -8,8 +8,19 @@ export const startSubmission = async (req, res) => {
     const { examId } = req.params;
     const exam = await Exam.findById(examId);
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
-    if (exam.status !== 'active') {
-      return res.status(400).json({ success: false, message: 'Exam is not active' });
+
+    // ✅ THE SMART BOUNCER FIX: Respect the clock!
+    const now = new Date();
+    const isAutoStarted = exam.status === 'published' && exam.startTime && new Date(exam.startTime) <= now;
+
+    if (exam.status !== 'active' && !isAutoStarted) {
+      return res.status(400).json({ success: false, message: 'Exam is not active yet. Please wait for the start time.' });
+    }
+
+    // Optional but awesome: If the student triggers the auto-start, update the DB so the teacher sees it as "ACTIVE" too!
+    if (isAutoStarted && exam.status !== 'active') {
+      exam.status = 'active';
+      await exam.save();
     }
 
     // Check restrictions

@@ -5,24 +5,53 @@ import api from '../services/api';
 
 export const StudentDashboard = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  // We extract 'loading' from useAuth to prevent the white screen race condition
+  const { user, logout, loading: authLoading } = useAuth();
+  
   const [exams, setExams] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // --- 1. THE SAFETY GATE ---
+  // If Auth is still verifying the token or fetching the user, show this instead of a white screen
+  if (authLoading || (!user && localStorage.getItem('token'))) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Syncing Secure Node...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If no user and no token, kick them back to login
+  if (!user && !localStorage.getItem('token')) {
+    navigate('/');
+    return null;
+  }
+
   useEffect(() => {
-    const fetchData = () => {
-      Promise.all([
-        api.get('/exams').then(r => setExams(r.data.data || [])),
-        api.get('/submissions/my').then(r => setSubmissions(r.data.data || [])),
-      ]).catch(() => {}).finally(() => setLoading(false));
+    const fetchData = async () => {
+      try {
+        const [examsRes, subRes] = await Promise.all([
+          api.get('/exams'),
+          api.get('/submissions/my')
+        ]);
+        setExams(examsRes.data.data || []);
+        setSubmissions(subRes.data.data || []);
+      } catch (err) {
+        console.error("Data fetch failed, bro!", err);
+      } finally {
+        setLoading(false);
+      }
     };
     
     fetchData();
 
     // Listen for real-time exam deployments
     let socket;
-    import('../services/socket').then(({ connectSocket, disconnectSocket }) => {
+    import('../services/socket').then(({ connectSocket }) => {
       socket = connectSocket();
       socket.emit('join_dashboard', { role: 'student' });
       socket.on('exam_published', (newExam) => {
@@ -41,128 +70,238 @@ export const StudentDashboard = () => {
 
   const getSub = (examId) => submissions.find(s => s.exam?._id === examId);
 
-  // Categorize exams
+  // Categorize exams logic
   const now = new Date();
-  const activeExams = exams.filter(e => e.status === 'active' || (e.status === 'published' && (!e.startTime || new Date(e.startTime) <= now) && (!e.endTime || new Date(e.endTime) >= now)));
+  const activeExams = exams.filter(e => 
+    e.status === 'active' || 
+    (e.status === 'published' && (!e.startTime || new Date(e.startTime) <= now) && (!e.endTime || new Date(e.endTime) >= now))
+  );
   const upcomingExams = exams.filter(e => e.status === 'published' && e.startTime && new Date(e.startTime) > now);
 
   return (
-    <div className="max-w-6xl mx-auto mt-6 px-4">
-      {/* Header */}
-      <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm mb-8 flex justify-between items-center">
+    <div className="max-w-7xl mx-auto min-h-screen bg-gray-50/30 p-6 sm:p-10 animate-in fade-in duration-700">
+      
+      {/* Floating Bottom Left Logout Button */}
+      <div className="fixed bottom-6 left-6 z-50">
+        <button 
+          onClick={() => { logout(); navigate('/'); }} 
+          className="flex items-center gap-2 bg-white hover:bg-red-50 text-gray-500 hover:text-red-600 font-bold py-3 px-5 rounded-xl shadow-lg border border-gray-200 transition-all"
+        >
+          🚪 Logout
+        </button>
+      </div>
+
+      {/* Header Card */}
+      <div className="bg-white rounded-[2.5rem] p-8 xl:p-10 border border-gray-100 shadow-xl shadow-gray-200/20 mb-10 flex flex-col md:flex-row justify-between items-center gap-6">
         <div>
-          <h2 className="text-3xl font-extrabold text-gray-900 mb-1">Welcome, {user?.name} 👋</h2>
-          <p className="text-gray-500 font-medium">Student ID: {user?.studentId || 'N/A'} • <span className="text-green-600 bg-green-50 px-2 py-0.5 rounded text-sm">Verified</span></p>
+          <h2 className="text-3xl xl:text-4xl font-black text-gray-900 mb-2 uppercase tracking-tight">
+            Welcome, {user?.name?.split(' ')[0]} <span className="animate-pulse">👋</span>
+          </h2>
+          <div className="flex items-center gap-3">
+             <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Node ID: {user?.studentId || 'EXTERNAL'}</p>
+             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+             <span className="text-[10px] font-black text-emerald-600 uppercase tracking-tighter bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">Live Status: Verified</span>
+          </div>
         </div>
-        <div className="flex gap-3">
-          <button onClick={() => navigate('/compiler')} className="bg-gray-900 hover:bg-gray-800 text-white font-bold py-3 px-6 rounded-xl transition-all text-sm">
+        
+        <div className="flex items-center gap-4 w-full md:w-auto">
+          <button onClick={() => navigate('/compiler')} className="flex-1 md:flex-none bg-gray-900 hover:bg-black text-white font-black text-[10px] uppercase tracking-widest py-4 px-8 rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-lg shadow-gray-900/10">
             💻 Code Playground
           </button>
-          <button onClick={() => { logout(); navigate('/'); }} className="bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 px-6 rounded-xl transition-all text-sm border border-red-100">
-            Logout
+          <button onClick={() => { logout(); navigate('/'); }} className="flex-1 md:flex-none bg-red-50 hover:bg-red-100 text-red-600 font-black text-[10px] uppercase tracking-widest py-4 px-8 rounded-2xl transition-all border border-red-100">
+            Term Session
           </button>
         </div>
       </div>
 
       {loading ? (
-        <div className="text-center py-20 text-gray-400">Loading…</div>
+        <div className="flex flex-col items-center justify-center py-32 opacity-30">
+          <div className="w-10 h-10 border-2 border-gray-900 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-[10px] font-black uppercase tracking-widest">Querying Assessments...</p>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Available Exams */}
-          <div>
-            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">📝 Available Exams</h3>
-            {activeExams.length === 0 && upcomingExams.length === 0 ? (
-              <div className="bg-white rounded-2xl p-8 border border-gray-100 text-center text-gray-400 text-sm">No exams available.</div>
-            ) : (
-              <div className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+          
+          {/* Main Assessment Feed */}
+          <div className="lg:col-span-8 space-y-10 pb-20">
+            <section>
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-3">
+                <div className="h-1 w-8 bg-emerald-500 rounded-full"></div>
+                Active Assessments
+              </h3>
+              
+              {activeExams.length === 0 && upcomingExams.length === 0 ? (
+                <div className="bg-white rounded-[2rem] p-16 border border-gray-100 text-center">
+                  <div className="text-4xl mb-4 opacity-20">📂</div>
+                  <p className="text-xs font-black text-gray-300 uppercase tracking-widest italic">No deployments found in this sector.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {activeExams.map(exam => {
+                    const sub = getSub(exam._id);
+                    const done = sub && ['submitted', 'auto_submitted'].includes(sub.status);
+                    const inProgress = sub && sub.status === 'in_progress';
+                    
+                    return (
+                      <div key={exam._id} className="bg-white rounded-[2rem] border border-gray-100 p-8 hover:shadow-2xl hover:shadow-gray-200/50 transition-all group">
+                        <div className="flex justify-between items-start mb-6">
+                          <div>
+                            <h4 className="text-xl font-black text-gray-900 uppercase tracking-tight group-hover:text-emerald-700 transition-colors">{exam.title}</h4>
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className="bg-gray-100 text-gray-600 text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-widest">
+                                {exam.course || 'General'}
+                              </span>
+                              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                                • Faculty ID: {exam.creator?.name || 'Academic Core'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {done ? (
+                            <span className="bg-emerald-50 text-emerald-600 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-emerald-100">✓ Completed</span>
+                          ) : inProgress ? (
+                            <span className="bg-amber-50 text-amber-600 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-amber-100 animate-pulse">⏳ Session Open</span>
+                          ) : (
+                            <span className="bg-blue-50 text-blue-600 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-blue-100 italic">Ready to Initialize</span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between pt-6 border-t border-gray-50">
+                          <div className="flex gap-6">
+                            {exam.startTime && (
+                              <div className="flex flex-col">
+                                <span className="text-[9px] font-black text-gray-300 uppercase">Started At</span>
+                                <span className="text-xs font-black text-gray-700">{new Date(exam.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              </div>
+                            )}
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-black text-gray-300 uppercase">Window</span>
+                              <span className="text-xs font-black text-gray-700">{exam.durationMinutes}m</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-black text-gray-300 uppercase">Value</span>
+                              <span className="text-xs font-black text-gray-700">{exam.totalMarks}pts</span>
+                            </div>
+                          </div>
+                          
+                          {!done && (
+                            <button 
+                              onClick={() => navigate(`/exam/live/${exam._id}`)}
+                              className="bg-[#1A5F53] hover:bg-[#134d42] text-white font-black text-[10px] uppercase tracking-widest py-3 px-8 rounded-xl transition-all shadow-lg shadow-emerald-900/10 active:scale-95"
+                            >
+                              {inProgress ? 'Resume Terminal' : 'Initialize Exam'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* --- COMPLETELY UPGRADED UPCOMING SECTION --- */}
+            {upcomingExams.length > 0 && (
+              <section className="animate-in slide-in-from-bottom-4 duration-500 mt-12">
+                <h4 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-3">
+                  <div className="h-1 w-8 bg-blue-500 rounded-full"></div>
+                  Upcoming Nodes
+                </h4>
                 
-                {activeExams.length > 0 && (
-                  <div>
-                    <h4 className="text-xs font-black text-emerald-500 uppercase mb-2">Live Now</h4>
-                    <div className="space-y-3">
-                      {activeExams.map(exam => {
-                  const sub = getSub(exam._id);
-                  const done = sub && ['submitted', 'auto_submitted'].includes(sub.status);
-                  const inProgress = sub && sub.status === 'in_progress';
-                  return (
-                    <div key={exam._id} className="bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-md transition-all">
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className="text-lg font-bold text-gray-900">{exam.title}</h4>
-                        {done ? <span className="bg-green-50 text-green-600 text-xs font-bold px-3 py-1 rounded-lg">✅ Done</span>
-                         : inProgress ? <span className="bg-amber-50 text-amber-600 text-xs font-bold px-3 py-1 rounded-lg">⏳ In Progress</span>
-                         : <span className="bg-blue-50 text-blue-600 text-xs font-bold px-3 py-1 rounded-lg">{exam.status}</span>}
-                      </div>
-                      {exam.description && <p className="text-gray-500 text-sm mb-3 line-clamp-2">{exam.description}</p>}
-                      <div className="flex items-center justify-between pt-3 border-t border-gray-50">
-                        <div className="flex gap-4 text-xs text-gray-400">
-                          <span>⏱ {exam.durationMinutes}m</span>
-                          <span>📊 {exam.totalMarks} marks</span>
-                          <span>❓ {exam.questions?.length || 0} Q</span>
-                        </div>
-                        {!done && exam.status === 'active' && (
-                          <button onClick={() => navigate(`/exam/live/${exam._id}`)}
-                            className="bg-[#1A5F53] hover:bg-[#134d42] text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-all">
-                            {inProgress ? 'Resume' : 'Start Exam'} →
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-                    </div>
-                  </div>
-                )}
-
-                {upcomingExams.length > 0 && (
-                  <div className="mt-6">
-                    <h4 className="text-xs font-black text-blue-500 uppercase mb-2">Upcoming</h4>
-                    <div className="space-y-3">
-                      {upcomingExams.map(exam => (
-                        <div key={exam._id} className="bg-white rounded-2xl border border-gray-100 p-6 opacity-75">
-                          <div className="flex justify-between items-start mb-2">
-                            <h4 className="text-lg font-bold text-gray-900">{exam.title}</h4>
-                            <span className="bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-0.5 rounded-lg uppercase tracking-wider">Scheduled</span>
-                          </div>
-                          {exam.startTime && <p className="text-blue-500 text-xs font-bold mb-3">Starts at: {new Date(exam.startTime).toLocaleString()}</p>}
-                          <div className="flex gap-4 text-xs text-gray-400">
-                            <span>⏱ {exam.durationMinutes}m</span>
-                            <span>📊 {exam.totalMarks} marks</span>
+                {/* Changed to space-y-4 so it stacks identically to the Active Exams! */}
+                <div className="space-y-4">
+                  {upcomingExams.map(exam => (
+                    <div key={exam._id} className="bg-white rounded-[2rem] border border-gray-100 p-8 hover:shadow-2xl hover:shadow-gray-200/50 transition-all group opacity-80">
+                      
+                      <div className="flex justify-between items-start mb-6">
+                        <div>
+                          <h4 className="text-xl font-black text-gray-900 uppercase tracking-tight group-hover:text-blue-600 transition-colors">{exam.title}</h4>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="bg-gray-100 text-gray-600 text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-widest">
+                              {exam.course || 'General'}
+                            </span>
+                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                              • Faculty ID: {exam.creator?.name || 'Academic Core'}
+                            </span>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                        <span className="bg-blue-50 text-blue-600 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-blue-100 italic shadow-sm">Scheduled Node</span>
+                      </div>
 
-              </div>
+                      <div className="flex items-center justify-between pt-6 border-t border-gray-50">
+                        <div className="flex gap-6">
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-black text-gray-300 uppercase">Starts On</span>
+                            <span className="text-xs font-black text-blue-600">
+                              {new Date(exam.startTime).toLocaleDateString()} at {new Date(exam.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-black text-gray-300 uppercase">Window</span>
+                            <span className="text-xs font-black text-gray-700">{exam.durationMinutes}m</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-black text-gray-300 uppercase">Value</span>
+                            <span className="text-xs font-black text-gray-700">{exam.totalMarks}pts</span>
+                          </div>
+                        </div>
+                        
+                        <button disabled className="bg-gray-50 border border-gray-100 text-gray-400 font-black text-[10px] uppercase tracking-widest py-3 px-8 rounded-xl cursor-not-allowed shadow-inner flex items-center gap-2">
+                          <span>🔒</span> Locked
+                        </button>
+                      </div>
+
+                    </div>
+                  ))}
+                </div>
+              </section>
             )}
           </div>
 
-          {/* My Results */}
-          <div>
-            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">📊 My Results</h3>
-            {submissions.filter(s => ['submitted', 'auto_submitted'].includes(s.status)).length === 0 ? (
-              <div className="bg-white rounded-2xl p-8 border border-gray-100 text-center text-gray-400 text-sm">No completed exams yet.</div>
-            ) : (
-              <div className="space-y-3">
-                {submissions.filter(s => ['submitted', 'auto_submitted'].includes(s.status)).map(sub => (
-                  <div key={sub._id} className="bg-white rounded-2xl border border-gray-100 p-6 flex items-center justify-between">
-                    <div>
-                      <p className="font-bold text-gray-900">{sub.exam?.title || 'Exam'}</p>
-                      <p className="text-xs text-gray-400 mt-1">Score: {sub.totalScore} / {sub.maxScore}</p>
-                      <span className={`text-[10px] font-bold mt-1 inline-block px-2 py-0.5 rounded ${sub.status === 'auto_submitted' ? 'bg-amber-50 text-amber-600' : 'bg-green-50 text-green-600'}`}>
-                        {sub.status === 'auto_submitted' ? 'Auto-submitted' : 'Submitted'}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-3xl font-black text-emerald-600">{sub.percentage}%</p>
-                      <p className="text-xs text-gray-400">{sub.percentage >= (sub.exam?.passingMarks || 40) ? '✓ Pass' : '✗ Fail'}</p>
-                    </div>
+          {/* Sidebar - Results & Analytics */}
+          <div className="lg:col-span-4 space-y-10">
+            <section>
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Performance Vault</h3>
+              <div className="space-y-4">
+                {submissions.filter(s => ['submitted', 'auto_submitted'].includes(s.status)).length === 0 ? (
+                  <div className="bg-white rounded-[2rem] p-8 border border-gray-100 border-dashed text-center">
+                    <p className="text-[10px] font-bold text-gray-300 uppercase italic">No records in vault.</p>
                   </div>
-                ))}
+                ) : (
+                  submissions.filter(s => ['submitted', 'auto_submitted'].includes(s.status)).map(sub => (
+                    <div key={sub._id} className="bg-white rounded-[2rem] border border-gray-100 p-6 flex items-center justify-between shadow-sm">
+                      <div>
+                        <p className="text-xs font-black text-gray-900 uppercase tracking-tight">{sub.exam?.title || 'System Test'}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] font-bold text-gray-400">{sub.totalScore}/{sub.maxScore}</span>
+                          <span className="text-[10px] font-black text-emerald-500 uppercase italic">{sub.percentage}%</span>
+                        </div>
+                      </div>
+                      <div className={`h-10 w-10 rounded-xl flex items-center justify-center text-xs font-black border ${sub.percentage >= 40 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
+                        {sub.percentage >= 40 ? 'P' : 'F'}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
-            )}
+            </section>
+
+            {/* Quick Analytics Card */}
+            <div className="bg-[#1A5F53] rounded-[2.5rem] p-8 text-white shadow-2xl shadow-emerald-900/20">
+              <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-6">Aggregate Stats</p>
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <h5 className="text-3xl font-black">{submissions.length}</h5>
+                  <p className="text-[9px] font-bold uppercase opacity-50">Total Attempts</p>
+                </div>
+                <div>
+                  <h5 className="text-3xl font-black">{activeExams.length}</h5>
+                  <p className="text-[9px] font-bold uppercase opacity-50">Live Ops</p>
+                </div>
+              </div>
+            </div>
           </div>
+
         </div>
       )}
     </div>

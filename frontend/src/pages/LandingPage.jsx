@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext'; // <-- ADDED THIS
 
 export const LandingPage = () => {
   const navigate = useNavigate();
+  const { login } = useAuth(); // <-- ADDED THIS
   const [activeTab, setActiveTab] = useState('student');
   const [isSignUp, setIsSignUp] = useState(false);
   const [status, setStatus] = useState({ message: '', type: 'info' });
@@ -25,8 +27,8 @@ export const LandingPage = () => {
       if (res.data.success) {
         setStatus({ message: isSignUp ? 'Account created! Please sign in.' : '✅ Login successful!', type: 'success' });
         if (!isSignUp) {
-          localStorage.setItem('token', res.data.token);
-          localStorage.setItem('role', res.data.role);
+          // CRITICAL FIX: Tell AuthContext we logged in. This updates state instantly and prevents the blank screen.
+          login(res.data); 
           setTimeout(() => navigate(res.data.role === 'student' ? '/student-dashboard' : '/teacher-dashboard'), 800);
         } else {
           setTimeout(() => { setIsSignUp(false); setStatus({ message: 'Now sign in with your new account.', type: 'info' }); }, 2000);
@@ -95,10 +97,10 @@ export const LandingPage = () => {
                 </div>
                 {activeTab === 'student' && (
                   <div>
-                    <label className="block text-xs font-bold text-gray-800 mb-1 uppercase tracking-wider">Student ID</label>
+                    <label className="block text-xs font-bold text-gray-800 mb-1 uppercase tracking-wider">Roll No.</label>
                     <input type="text" name="studentId" value={credentials.studentId} onChange={handleChange} required
                       className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white outline-none transition-all focus:border-emerald-400"
-                      placeholder="e.g. GU-2026-001" />
+                      placeholder="e.g. 2401301059" />
                   </div>
                 )}
               </>
@@ -108,7 +110,7 @@ export const LandingPage = () => {
               <label className="block text-xs font-bold text-gray-800 mb-1 uppercase tracking-wider">Email Address</label>
               <input type="email" name="email" value={credentials.email} onChange={handleChange} required
                 className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white outline-none transition-all focus:border-emerald-400"
-                placeholder="you@university.edu" />
+                placeholder="2401301059@geetauniversity.edu.in" />
             </div>
 
             <div>
