@@ -1,17 +1,23 @@
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import app from './app.js';
 import dotenv from 'dotenv';
-import { connectDB } from './config/db.js'; // 1. Import your custom connection logic
+import { connectDB } from './config/db.js';
+import { setupProctorSockets } from './sockets/proctorSocket.js';
 
-// Load environment variables from .env
 dotenv.config();
-
-// 2. Fire up the Database Connection
-// This will use the MONGO_URI from your .env file
 connectDB();
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
+const httpServer = createServer(app);
 
-// Start the engine
-app.listen(PORT, () => {
-  console.log(`¡Fuego! 🔥 Server running in development mode on port ${PORT}`);
+const io = new Server(httpServer, {
+  cors: { origin: '*', methods: ['GET', 'POST'] },
+});
+
+setupProctorSockets(io);
+
+httpServer.listen(PORT, () => {
+  console.log(`🚀 NEXUS PROCTOR backend running on port ${PORT}`);
+  console.log(`📡 Socket.io ready for real-time proctoring`);
 });

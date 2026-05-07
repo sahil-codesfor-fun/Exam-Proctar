@@ -11,9 +11,11 @@ export const registerUser = async (req, res) => {
 
   try {
     // 2. Check for existing user by Email or ID
-    const userExists = await User.findOne({ $or: [{ email }, { studentId }] });
+    const query = [{ email }];
+    if (studentId && studentId.trim() !== '') query.push({ studentId });
+    const userExists = await User.findOne({ $or: query });
     if (userExists) {
-      return res.status(400).json({ success: false, message: 'User already exists, bro!' });
+      return res.status(400).json({ success: false, message: 'User already exists!' });
     }
 
     // 3. Create user with the role sent from Frontend

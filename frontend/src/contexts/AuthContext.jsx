@@ -1,14 +1,49 @@
-import React, { createContext, useState } from 'react';
+import React, { createContext, useState, useEffect, useContext } from 'react';
+import api from '../services/api';
 
-export const AuthContext = createContext();
+const AuthContext = createContext();
+
+export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  // Hardcoded to true just for your frontend testing, bro!
-  const [isAuthenticated, setIsAuthenticated] = useState(true); 
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (token) {
+      api.get('/auth/profile')
+        .then(res => { setUser(res.data); })
+        .catch(() => { localStorage.removeItem('token'); localStorage.removeItem('role'); setToken(null); })
+        .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
+  }, [token]);
+
+  const login = (userData) => {
+    localStorage.setItem('token', userData.token);
+    localStorage.setItem('role', userData.role);
+    setToken(userData.token);
+    setUser(userData);
+  };
+
+  const logout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    setToken(null);
+    setUser(null);
+  };
+
+  const isAuthenticated = !!token && !!user;
+  const isTeacher = user?.role === 'teacher';
+  const isStudent = user?.role === 'student';
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated }}>
+    <AuthContext.Provider value={{ user, token, loading, isAuthenticated, isTeacher, isStudent, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
 };
+
+export { AuthContext };

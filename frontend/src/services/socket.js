@@ -1,19 +1,18 @@
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+const SOCKET_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5001';
 
-export const socket = io(SOCKET_URL, {
-  autoConnect: false, // Only connect when the exam starts!
-  transports: ['websocket'],
-});
+let socket = null;
 
-export const connectSocket = (examToken) => {
-  socket.auth = { token: examToken };
-  socket.connect();
+export const connectSocket = () => {
+  if (!socket) {
+    socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+  }
+  return socket;
 };
 
+export const getSocket = () => socket;
+
 export const disconnectSocket = () => {
-  if (socket.connected) {
-    socket.disconnect();
-  }
+  if (socket) { socket.disconnect(); socket = null; }
 };

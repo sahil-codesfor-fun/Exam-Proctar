@@ -1,21 +1,32 @@
 import express from 'express';
 import cors from 'cors';
-import authRoutes from './routes/auth.routes.js'; // 1. Import your real routes
+import authRoutes from './routes/auth.routes.js';
+import compilerRoutes from './routes/compiler.routes.js';
+import examRoutes from './routes/exam.routes.js';
+import submissionRoutes from './routes/submission.routes.js';
+import violationRoutes from './routes/violation.routes.js';
 
 const app = express();
+
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 
-// 2. Mount your real Auth Routes
-// This makes all routes inside auth.routes.js start with /api/auth
-app.use('/api/auth', authRoutes); 
+// ── API Routes ────────────────────────────────────────────────
+app.use('/api/auth',        authRoutes);
+app.use('/api/compiler',    compilerRoutes);
+app.use('/api/exams',       examRoutes);
+app.use('/api/submissions', submissionRoutes);
+app.use('/api/violations',  violationRoutes);
 
-// 3. Keep the test route to verify the connection
-app.get('/api/test', (req, res) => {
-  res.json({ message: "Bro, the backend is loud and clear! 🚀" });
+// ── Health check ──────────────────────────────────────────────
+app.get('/api/test', (_req, res) => {
+  res.json({ message: 'NEXUS PROCTOR backend is live 🚀', timestamp: new Date().toISOString() });
 });
 
-// 🛑 REMOVE the old app.post('/api/auth/login', ...) block!
-// Your logic now lives in authController.js and auth.routes.js.
+// ── Global error handler ──────────────────────────────────────
+app.use((err, _req, res, _next) => {
+  console.error('Global error:', err.message);
+  res.status(500).json({ success: false, message: err.message || 'Internal server error' });
+});
 
 export default app;
