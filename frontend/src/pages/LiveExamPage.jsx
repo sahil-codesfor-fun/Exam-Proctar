@@ -5,7 +5,6 @@ import api from '../services/api';
 import { connectSocket, disconnectSocket, getSocket } from '../services/socket';
 import useProctoring from '../hooks/useProctoring';
 import Editor from '@monaco-editor/react';
-import useAIVision from '../hooks/useAIVision';
 
 const LANGS = [
   { id:'javascript', name:'JavaScript', m:'javascript' },{ id:'typescript', name:'TypeScript', m:'typescript' },
@@ -39,16 +38,27 @@ export const LiveExamPage = () => {
   const timerRef = useRef(null);
   const submittedRef = useRef(false);
 
-  const camCheckRef = useRef(null);
-  const examCamRef = useRef(null);
+  const [warning, setWarning] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [confirmModal, setConfirmModal] = useState(null); // { message, onConfirm }
+
+  const showToast = (message, type = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  const showConfirm = (message, onConfirm) => {
+    setConfirmModal({ message, onConfirm });
+  };
 
   const [proctorReady, setProctorReady] = useState(false);
   useEffect(() => {
     if (phase === 'exam') {
-      const timer = setTimeout(() => setProctorReady(true), 3000);
-      return () => clearTimeout(timer);
+      // Immediate ready for fullscreen tracking, but keep a delay for other proctoring if needed
+      setProctorReady(true);
+    } else {
+      setProctorReady(false);
     }
-    setProctorReady(false);
   }, [phase]);
 
   const handleRestricted = useCallback((msg) => { setPhase('restricted'); setError(msg); }, []);
@@ -57,69 +67,58 @@ export const LiveExamPage = () => {
   const proctoring = useProctoring({
     examId, 
     enabled: ['exam', 'fullscreen'].includes(phase) && proctorReady && !submittedRef.current,
-    maxViolations: exam?.proctoring?.maxViolations || 3,
+    maxViolations: 99, // Disable auto-submit via hook to handle custom penalty logic here
     onRestricted: handleRestricted, 
     onAutoSubmit: handleAutoSubmit,
   });
 
-  const aiVision = useAIVision({
-    enabled: ['exam', 'camera_check', 'fullscreen'].includes(phase) && !submittedRef.current,
-    onViolation: proctoring.logViolation
-  });
-
-  const stopCamera = useCallback(() => {
-    if (aiVision.videoRef?.current?.srcObject) {
-      aiVision.videoRef.current.srcObject.getTracks().forEach(t => t.stop());
-      aiVision.videoRef.current.srcObject = null;
-    }
-  }, [aiVision.videoRef]);
-
-  useEffect(() => {
-    if (['submitted', 'error', 'restricted'].includes(phase)) {
-      stopCamera();
-    }
-  }, [phase, stopCamera]);
-
-  // ── FIX: Robust Camera Stream Mirroring ──
-  // Continuously checks and ensures the visible videos have the stream
-  useEffect(() => {
-    const mirrorInterval = setInterval(() => {
-      const src = aiVision.videoRef?.current?.srcObject;
-      if (src) {
-        if (camCheckRef.current && camCheckRef.current.srcObject !== src) {
-          camCheckRef.current.srcObject = src;
-        }
-        if (examCamRef.current && examCamRef.current.srcObject !== src) {
-          examCamRef.current.srcObject = src;
-        }
-      }
-    }, 500);
-    return () => clearInterval(mirrorInterval);
-  }, []);
+  // Camera stream mirroring removed per user request.
 
   // ── Security & Lockdown ──
+  const phaseRef = useRef(phase);
+  const vCountRef = useRef(0);
+  const proctoringRef = useRef(proctoring);
+
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
+  useEffect(() => { vCountRef.current = proctoring.violationCount; }, [proctoring.violationCount]);
+  useEffect(() => { proctoringRef.current = proctoring; }, [proctoring]);
+
   useEffect(() => {
     const preventBack = () => window.history.forward();
     window.history.pushState(null, null, window.location.href);
     window.addEventListener('popstate', preventBack);
 
     const handleBeforeUnload = (e) => {
-      if ((phase === 'exam' || phase === 'fullscreen') && !submittedRef.current) {
+      if ((phaseRef.current === 'exam' || phaseRef.current === 'fullscreen') && !submittedRef.current) {
         e.preventDefault();
         e.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
 
-    const handleFullscreenChange = () => {
-      if (phase === 'exam' && exam?.proctoring?.requireFullscreen && !document.fullscreenElement && !submittedRef.current) {
+    const handleFullscreenChange = async () => {
+      // Use refs to avoid stale closures
+      if (phaseRef.current === 'exam' && !document.fullscreenElement && !submittedRef.current) {
+        // Increment count immediately
+        vCountRef.current += 1;
+        const newCount = vCountRef.current;
+
+        // 1. Log violation via ref
+        proctoringRef.current.logViolation('fullscreen_exit', 'critical', `Student exited fullscreen mode (Total: ${newCount})`);
         
-        // ── FIX: Explicitly log the violation BEFORE locking the screen ──
-        if (proctoring && proctoring.logViolation) {
-          proctoring.logViolation('fullscreen_exit', 'Student exited fullscreen mode');
+        // 2. Show warning popup immediately
+        setWarning(`Fullscreen exited.\nViolation Count: ${newCount}`);
+        
+        // 3. Force fullscreen again
+        try {
+          await document.documentElement.requestFullscreen();
+        } catch (err) {
+          console.error("Failed to re-enter fullscreen", err);
+          // Only change phase if we absolutely can't recover
+          if (!document.fullscreenElement) {
+             // We can optionally setPhase('fullscreen') here, but let's try to stay in 'exam'
+          }
         }
-        
-        setPhase('fullscreen');
       }
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -129,7 +128,78 @@ export const LiveExamPage = () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
-  }, [phase, exam, proctoring]);
+  }, []); // Only attach once, use refs inside
+
+  // ── Permanent Fullscreen Enforcement ──
+  useEffect(() => {
+    if (phase !== 'exam' || submittedRef.current) return;
+
+    const interval = setInterval(() => {
+      if (!document.fullscreenElement && phaseRef.current === 'exam' && !submittedRef.current) {
+        // Try auto-recovery every 2 seconds if failed
+        document.documentElement.requestFullscreen?.().catch(() => {});
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [phase]);
+
+  // ── Anti Copy-Paste & Shortcut Protection ──
+  useEffect(() => {
+    if (phase !== 'exam' || submittedRef.current) return;
+
+    const blockAction = (e) => {
+      e.preventDefault();
+      const type = e.type.toUpperCase();
+      showToast(`${type} is strictly disabled during this exam.`, 'error');
+      
+      // Explicitly log as clipboard violation
+      proctoring.logViolation(
+        `${type}_ATTEMPT`, 
+        'medium', 
+        `Student attempted to ${e.type} content in the exam environment.`
+      );
+    };
+
+    const blockShortcuts = (e) => {
+      const key = e.key.toLowerCase();
+      const ctrl = e.ctrlKey || e.metaKey;
+      
+      // Block Ctrl+C, V, X, A and Shift+V
+      if (ctrl && (['c', 'v', 'x', 'a'].includes(key))) {
+        e.preventDefault();
+        e.stopPropagation();
+        showToast('Shortcuts (Copy/Paste/Select-All) are disabled.', 'error');
+        proctoring.logViolation('shortcut_attempt', 'medium', `Attempted Ctrl+${key.toUpperCase()}`);
+      }
+      
+      // Block Ctrl+Shift+V
+      if (ctrl && e.shiftKey && key === 'v') {
+        e.preventDefault();
+        e.stopPropagation();
+        showToast('Paste shortcut is disabled.', 'error');
+        proctoring.logViolation('shortcut_attempt', 'medium', 'Attempted Ctrl+Shift+V');
+      }
+    };
+
+    window.addEventListener('copy', blockAction);
+    window.addEventListener('paste', blockAction);
+    window.addEventListener('cut', blockAction);
+    window.addEventListener('contextmenu', blockAction);
+    window.addEventListener('keydown', blockShortcuts, true);
+    window.addEventListener('dragover', blockAction);
+    window.addEventListener('drop', blockAction);
+
+    return () => {
+      window.removeEventListener('copy', blockAction);
+      window.removeEventListener('paste', blockAction);
+      window.removeEventListener('cut', blockAction);
+      window.removeEventListener('contextmenu', blockAction);
+      window.removeEventListener('keydown', blockShortcuts, true);
+      window.removeEventListener('dragover', blockAction);
+      window.removeEventListener('drop', blockAction);
+    };
+  }, [phase, proctoring]);
 
   // ── Init exam ──
   useEffect(() => {
@@ -168,11 +238,11 @@ export const LiveExamPage = () => {
         socket.emit('join_exam', { examId, studentId: user?._id, studentName: user?.name });
 
         socket.on('force_submit', (data) => {
-          alert(`Your exam was terminated by the proctor. Reason: ${data.reason}`);
+          showToast(`Your exam was terminated by the proctor. Reason: ${data.reason}`, 'error');
           doSubmit(true, data.reason);
         });
 
-        setPhase(e.proctoring?.enableWebcam !== false ? 'camera_check' : (e.proctoring?.requireFullscreen ? 'fullscreen' : 'exam'));
+        setPhase(e.proctoring?.requireFullscreen ? 'fullscreen' : 'exam');
       } catch (err) {
         let msg = err.response?.data?.message || err.message || 'Failed to load exam';
         setError(msg);
@@ -208,18 +278,7 @@ export const LiveExamPage = () => {
     return () => clearInterval(iv);
   }, [phase, answers, submission]);
 
-  // ── Live Monitoring Broadcaster ──
-  useEffect(() => {
-    if (phase !== 'exam' && phase !== 'fullscreen') return;
-    const interval = setInterval(() => {
-      const socket = getSocket();
-      if (socket && window.examCameraStream) { // Use the global stream to verify active camera
-        const frame = aiVision.captureScreenshot ? aiVision.captureScreenshot() : null;
-        if (frame) socket.emit('live_frame', { frame });
-      }
-    }, 1500); // 1.5 FPS keeps bandwidth extremely low while still providing live visuals
-    return () => clearInterval(interval);
-  }, [phase, aiVision.captureScreenshot]);
+  // Camera monitoring removed per user request.
 
   const enterFullscreen = () => {
     document.documentElement.requestFullscreen?.()
@@ -233,16 +292,24 @@ export const LiveExamPage = () => {
 
   const doSubmit = async (auto = false, reason = '') => {
     if (submittedRef.current) return;
-    if (!auto && !confirm('Submit this exam? This cannot be undone.')) return;
+    
+    if (!auto) {
+      showConfirm('Are you sure you want to submit this exam? This action cannot be undone.', () => {
+        performSubmit(auto, reason);
+      });
+    } else {
+      performSubmit(auto, reason);
+    }
+  };
+
+  const performSubmit = async (auto = false, reason = '') => {
     submittedRef.current = true;
     setSubmitting(true);
     try {
       await api.put(`/submissions/${submission._id}/submit`, { answers, autoSubmit: auto, reason });
-      document.exitFullscreen?.().catch(() => {});
-      stopCamera(); 
-      setPhase('submitted');
+      document.exitFullscreen?.().catch(() => {});      setPhase('submitted');
     } catch (err) {
-      alert('Submit failed: ' + (err.response?.data?.message || err.message));
+      showToast('Submit failed: ' + (err.response?.data?.message || err.message), 'error');
       submittedRef.current = false;
       setSubmitting(false);
     }
@@ -337,10 +404,27 @@ export const LiveExamPage = () => {
   const q = exam?.questions?.[currentQ];
   const ans = q ? (answers.find(a => a.questionId === q._id) || {}) : {};
 
+  // ── Penalty Logic ──
+  const vCount = proctoring.violationCount;
+  const lastPenalizedRef = useRef(0);
+
+  useEffect(() => {
+    if (vCount > 3 && vCount > lastPenalizedRef.current && phase === 'exam') {
+      lastPenalizedRef.current = vCount;
+      setTimeLeft(prev => Math.max(0, Math.floor(prev * 0.75))); // Deduct 1/4 (Keep 75%)
+    }
+  }, [vCount, phase]);
+  
+  // Auto-submit after 6 violations (on the 7th violation attempt)
+  useEffect(() => {
+    if (vCount > 6 && !submittedRef.current && phase === 'exam') {
+      doSubmit(true, 'Exceeded maximum fullscreen exit violations (6)');
+    }
+  }, [vCount, phase]);
+
   return (
     <React.Fragment>
-      {/* PERSISTENT HIDDEN AI CAMERA */}
-      <video ref={aiVision.videoRef} className="hidden" playsInline muted autoPlay />
+      {/* Camera elements removed */}
 
       {phase === 'loading' && (
         <div className="h-screen flex items-center justify-center bg-gray-950 text-white">
@@ -358,64 +442,7 @@ export const LiveExamPage = () => {
         </div>
       )}
 
-      {phase === 'camera_check' && (
-        <div className="h-screen flex items-center justify-center bg-gray-950 text-white p-4">
-          <div className="text-center max-w-2xl w-full p-8 bg-gray-900 rounded-3xl border border-gray-800 shadow-2xl">
-            <div className="text-5xl mb-4">📷</div>
-            <h2 className="text-3xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Environment Verification</h2>
-            <p className="text-gray-400 mb-8 text-sm">Please ensure your face is clearly visible and your environment is clear of prohibited items.</p>
-            
-            <div className="bg-black rounded-2xl overflow-hidden mb-8 mx-auto w-full max-w-md h-72 border border-gray-700 relative shadow-inner">
-              <video ref={camCheckRef} className="w-full h-full object-cover" style={{ transform: 'scaleX(-1)' }} autoPlay muted playsInline />
-            </div>
-
-            <button 
-              onClick={async () => {
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                  alert("Camera API not supported");
-                  return;
-                }
-
-                try {
-                  console.log("Requesting webcam permission...");
-
-                  const stream = await navigator.mediaDevices.getUserMedia({
-                    video: true,
-                    audio: false,
-                  });
-
-                  console.log("Camera permission granted");
-
-                  window.examCameraStream = stream;
-
-                  if (aiVision.videoRef.current) {
-                    aiVision.videoRef.current.srcObject = stream;
-                    await aiVision.videoRef.current.play();
-                  }
-                  if (camCheckRef.current) {
-                    camCheckRef.current.srcObject = stream;
-                    await camCheckRef.current.play();
-                  }
-
-                  console.log("Camera stream active");
-
-                  if (exam?.proctoring?.requireFullscreen) {
-                    await document.documentElement.requestFullscreen();
-                  }
-
-                  setPhase('exam');
-                } catch (err) {
-                  console.error("Camera permission error:", err);
-                  alert("Camera access is required to start the exam.");
-                }
-              }} 
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 px-8 rounded-xl w-full max-w-md mx-auto transition-all transform active:scale-[0.98] shadow-lg shadow-emerald-500/20"
-            >
-              Start Exam
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Camera Check Phase Removed */}
 
       {phase === 'fullscreen' && (
         <div className="h-screen flex items-center justify-center bg-gray-950 text-white">
@@ -444,7 +471,43 @@ export const LiveExamPage = () => {
       )}
 
       {phase === 'exam' && exam && answers.length > 0 && q && (
-        <div className="h-screen flex flex-col bg-gray-950 text-white overflow-hidden select-none" style={{ fontFamily: "'Inter', sans-serif" }}>
+        <div 
+          className="h-screen flex flex-col bg-gray-950 text-white overflow-hidden select-none transition-all duration-700" 
+          style={{ fontFamily: "'Inter', sans-serif" }}
+        >
+          {/* Permanent Fullscreen Blocking Overlay */}
+          {!document.fullscreenElement && !submittedRef.current && (
+            <div className="fixed inset-0 z-[500] bg-gray-950 flex items-center justify-center p-6 text-center animate-in fade-in duration-300">
+              <div className="max-w-md">
+                <div className="text-7xl mb-6">🚫</div>
+                <h2 className="text-3xl font-black text-white mb-4 uppercase tracking-tighter">EXAM LOCKED</h2>
+                <p className="text-gray-400 mb-10 font-medium leading-relaxed">
+                  Fullscreen exit detected. The exam environment is locked to prevent unauthorized access. 
+                  Please return to fullscreen to resume.
+                </p>
+                <button 
+                  onClick={() => document.documentElement.requestFullscreen().catch(() => {})}
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-5 rounded-2xl shadow-2xl shadow-emerald-900/40 transition-all transform active:scale-95 text-lg"
+                >
+                  RETURN TO FULLSCREEN
+                </button>
+                <p className="mt-6 text-[10px] font-black text-red-500 uppercase tracking-[0.3em] animate-pulse">Violation Logged • Proctor Notified</p>
+              </div>
+            </div>
+          )}
+
+          {/* Warning Popup */}
+          {warning && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+              <div className="bg-red-600 text-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center border-4 border-red-400 animate-in zoom-in-95 duration-300">
+                <div className="text-6xl mb-4">⚠️</div>
+                <h3 className="text-2xl font-black mb-2 uppercase">Integrity Alert</h3>
+                <p className="font-bold text-red-100 mb-6 whitespace-pre-line">{warning}</p>
+                {vCount >= 3 && <p className="text-xs font-black bg-black/20 p-2 rounded-lg mb-6 text-red-200 uppercase tracking-widest animate-pulse">Penalty: 25% Time Deducted!</p>}
+                <button onClick={() => setWarning(null)} className="w-full bg-white text-red-600 font-black py-4 rounded-xl hover:bg-red-50 transition-all">I UNDERSTAND</button>
+              </div>
+            </div>
+          )}
 
           {/* ── Top Bar ── */}
           <div className="flex items-center justify-between px-6 py-3 bg-gray-900 border-b border-gray-800 flex-shrink-0">
@@ -474,25 +537,7 @@ export const LiveExamPage = () => {
             {/* Left Sidebar — Question Navigator */}
             <div className="w-56 flex-shrink-0 bg-gray-900/50 border-r border-gray-800 flex flex-col overflow-y-auto p-4">
               
-              {/* AI Webcam Preview Mirrored here */}
-              <div className="mb-4 bg-gray-800 rounded-lg overflow-hidden border border-gray-700 relative h-32 flex-shrink-0">
-                <video ref={examCamRef} className="w-full h-full object-cover" style={{ transform: 'scaleX(-1)' }} playsInline muted autoPlay />
-                
-                {!aiVision.streamActive && (
-                  <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-400">Connecting Camera…</div>
-                )}
-                {aiVision.streamActive && !aiVision.modelsLoaded && (
-                  <div className="absolute bottom-1 left-1 right-1 bg-black/70 text-[10px] text-center text-emerald-400 rounded p-1 font-bold animate-pulse">
-                    Loading AI Models…
-                  </div>
-                )}
-                {aiVision.modelsLoaded && (
-                  <div className="absolute top-1 right-1 flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                  </div>
-                )}
-              </div>
+              {/* Camera Preview Removed */}
 
               <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Questions ({exam?.questions?.length || 0})</h3>
               <div className="grid grid-cols-4 gap-1.5">
@@ -605,9 +650,28 @@ export const LiveExamPage = () => {
                       <Editor height="100%" language={(LANGS.find(l => l.id === (ans.language || 'python'))?.m) || 'python'}
                         value={ans.code || ''} theme="vs-dark"
                         onChange={v => updateAnswer(q._id, 'code', v || '')}
+                        onMount={(editor) => {
+                          // Disable internal clipboard actions
+                          editor.onKeyDown((e) => {
+                            const ctrl = e.ctrlKey || e.metaKey;
+                            const key = e.browserEvent.key.toLowerCase();
+                            if (ctrl && ['c', 'v', 'x', 'a'].includes(key)) {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              
+                              const type = key === 'v' ? 'PASTE' : key === 'c' ? 'COPY' : key === 'x' ? 'CUT' : 'SELECT_ALL';
+                              showToast(`${type} shortcut is disabled.`, 'error');
+                              proctoring.logViolation(`${type}_SHORTCUT`, 'medium', `Attempted ${type} via keyboard.`);
+                            }
+                          });
+                        }}
                         options={{ fontSize: 14, fontFamily: "'JetBrains Mono',monospace", minimap: { enabled: false },
                           scrollBeyondLastLine: false, automaticLayout: true, padding: { top: 12 },
-                          lineNumbers: 'on', wordWrap: 'on', tabSize: 2, cursorBlinking: 'smooth', smoothScrolling: true }} />
+                          lineNumbers: 'on', wordWrap: 'on', tabSize: 2, cursorBlinking: 'smooth', smoothScrolling: true,
+                          contextmenu: false,
+                          dragAndDrop: false,
+                          copyWithSyntaxHighlighting: false,
+                        }} />
                     </div>
 
                     <div className="h-40 border-t border-gray-800 bg-[#0d1117] overflow-auto p-3 flex-shrink-0">
@@ -683,6 +747,34 @@ export const LiveExamPage = () => {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Custom Confirmation Modal */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center bg-gray-900/60 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl border border-gray-100 text-center animate-in zoom-in-95 duration-300">
+            <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center text-3xl mx-auto mb-6 shadow-sm border border-emerald-100">🏁</div>
+            <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-4">Final Submission</h3>
+            <p className="text-gray-500 font-medium leading-relaxed mb-10 px-4">{confirmModal.message}</p>
+            <div className="flex gap-4">
+              <button onClick={() => setConfirmModal(null)} className="flex-1 px-6 py-4 bg-gray-100 hover:bg-gray-200 text-gray-600 font-black text-[10px] uppercase tracking-widest rounded-2xl transition-all">Go Back</button>
+              <button onClick={() => { confirmModal.onConfirm(); setConfirmModal(null); }} className="flex-1 px-6 py-4 bg-[#1A5F53] hover:bg-[#134d42] text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-lg shadow-emerald-900/20 transition-all">Submit Now</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Toast Notification */}
+      {toast && (
+        <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[300] animate-in slide-in-from-top-10 duration-500">
+          <div className={`px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-4 border backdrop-blur-md ${
+            toast.type === 'error' ? 'bg-red-600/90 border-red-400 text-white' : 
+            toast.type === 'success' ? 'bg-emerald-600/90 border-emerald-400 text-white' : 
+            'bg-gray-900/90 border-gray-700 text-white'
+          }`}>
+            <span className="font-bold text-sm">{toast.message}</span>
+            <button onClick={() => setToast(null)} className="hover:opacity-70 transition-opacity font-bold">×</button>
           </div>
         </div>
       )}

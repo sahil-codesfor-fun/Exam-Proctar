@@ -36,7 +36,6 @@ export const startSubmission = async (req, res) => {
       });
     }
 
-    // Check if already submitted
     let sub = await Submission.findOne({ exam: examId, student: req.user._id });
     if (sub && (sub.status === 'submitted' || sub.status === 'auto_submitted')) {
       return res.status(400).json({ success: false, message: 'Exam already submitted' });
@@ -49,19 +48,30 @@ export const startSubmission = async (req, res) => {
     if (sub) {
       resumed = true;
     } else {
-      // Create new submission with empty answers
-      const answers = exam.questions.map(q => ({
-        questionId: q._id.toString(),
-        questionType: q.type,
-        selectedOption: -1,
-        code: '',
-        language: 'python',
-        textAnswer: '',
-        maxScore: q.points,
-      }));
-      sub = await Submission.create({
-        exam: examId, student: req.user._id, answers, maxScore: exam.totalMarks,
-      });
+      try {
+        // Create new submission with empty answers
+        const answers = exam.questions.map(q => ({
+          questionId: q._id.toString(),
+          questionType: q.type,
+          selectedOption: -1,
+          code: '',
+          language: 'python',
+          textAnswer: '',
+          maxScore: q.points,
+        }));
+        sub = await Submission.create({
+          exam: examId, student: req.user._id, answers, maxScore: exam.totalMarks,
+        });
+      } catch (err) {
+        // Handle race condition where two requests try to create the same submission simultaneously
+        if (err.code === 11000) {
+          sub = await Submission.findOne({ exam: examId, student: req.user._id });
+          resumed = true;
+          if (!sub) throw err; // Should not happen given the error code
+        } else {
+          throw err;
+        }
+      }
     }
 
     res.json({ success: true, resumed, data: sub });
