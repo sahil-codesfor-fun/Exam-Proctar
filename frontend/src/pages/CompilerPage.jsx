@@ -78,7 +78,7 @@ function VerdictBadge({ verdict }) {
 
 export function CompilerPage() {
   const [lang, setLang]         = useState('python');
-  const [code, setCode]         = useState(TEMPLATES['python']);
+  const [code, setCode]         = useState('');
   const [stdin, setStdin]       = useState('');
   const [fontSize, setFontSize] = useState(14);
   const [tab, setTab]           = useState('output'); // output | testcases | judge
@@ -90,14 +90,38 @@ export function CompilerPage() {
   const [tcResults, setTcResults]   = useState([]);
   const [selectedTc, setSelectedTc] = useState(0);
   const [langOpen, setLangOpen]     = useState(false);
+  const [backendLangs, setBackendLangs] = useState([]);
+  const [backendTemplates, setBackendTemplates] = useState({});
   const langRef = useRef(null);
 
-  const currentLang = LANGUAGES.find(l => l.id === lang) || LANGUAGES[2];
+  const currentLang = backendLangs.find(l => l.id === lang) || LANGUAGES.find(l => l.id === lang) || LANGUAGES[2];
 
   useEffect(() => {
-    setCode(TEMPLATES[lang] || '// Start coding here');
+    const fetchConfigs = async () => {
+      try {
+        const [langRes, tempRes] = await Promise.all([
+          api.get('/compiler/languages'),
+          api.get('/compiler/templates')
+        ]);
+        setBackendLangs(langRes.data.data || []);
+        setBackendTemplates(tempRes.data.data || {});
+        
+        // Update code if it was empty
+        if (!code && tempRes.data.data?.python) {
+          setCode(tempRes.data.data.python);
+        }
+      } catch (err) {
+        console.error("Failed to fetch compiler configs:", err);
+      }
+    };
+    fetchConfigs();
+  }, []);
+
+  useEffect(() => {
+    const template = backendTemplates[lang] || TEMPLATES[lang] || '// Start coding here';
+    setCode(template);
     setRunResult(null); setJudgeResult(null); setTcResults([]);
-  }, [lang]);
+  }, [lang, backendTemplates]);
 
   useEffect(() => {
     const handler = (e) => { if (langRef.current && !langRef.current.contains(e.target)) setLangOpen(false); };
@@ -108,19 +132,57 @@ export function CompilerPage() {
   const handleRun = async () => {
     setRunning(true); setRunResult(null); setTab('output');
     try {
+      // 1. Run with custom stdin
       const r = await api.post('/compiler/execute', { language: lang, code, stdin });
-      setRunResult(r.data.data);
+      const resData = r.data;
+      let runRes = null;
+      
+      if (resData.success) {
+        runRes = {
+          verdict: 'accepted',
+          output: resData.output,
+          runtime: parseFloat(resData.executionTime) * 1000,
+          error: null
+        };
+      } else {
+        runRes = {
+          verdict: (resData.errorType || 'runtime_error').toLowerCase().replace(/ /g, '_'),
+          error: resData.stderr,
+          output: '',
+          runtime: 0
+        };
+      }
+
+      // 2. Automatically run test cases if they exist
+      if (testCases.length > 0) {
+        const tr = await api.post('/compiler/judge', { language: lang, code, testCases });
+        const judgeData = tr.data.data;
+        setTcResults(judgeData.results || []);
+        runRes.testSummary = `Passed ${judgeData.passed} / ${judgeData.total} test cases`;
+        runRes.passedCount = judgeData.passed;
+        runRes.totalCount = judgeData.total;
+      }
+      
+      setRunResult(runRes);
     } catch (e) {
-      setRunResult({ verdict: 'runtime_error', error: e.response?.data?.message || 'Execution failed', output: '', runtime: 0 });
+      setRunResult({ 
+        verdict: 'runtime_error', 
+        error: e.response?.data?.message || e.message || 'Execution failed', 
+        output: '', 
+        runtime: 0 
+      });
     } finally { setRunning(false); }
   };
+
 
   const handleRunTests = async () => {
     setRunning(true); setTcResults([]); setTab('testcases');
     try {
       const r = await api.post('/compiler/judge', { language: lang, code, testCases });
+      // Judge API returns { success: true, data: { verdict, passed, total, results } }
       setTcResults(r.data.data.results || []);
     } catch (e) {
+      console.error("Run tests failed:", e);
       setTcResults([]);
     } finally { setRunning(false); }
   };
@@ -131,9 +193,11 @@ export function CompilerPage() {
       const r = await api.post('/compiler/judge', { language: lang, code, testCases });
       setJudgeResult(r.data.data);
     } catch (e) {
+      console.error("Judge failed:", e);
       setJudgeResult({ verdict: 'runtime_error', passed: 0, total: testCases.length, results: [] });
     } finally { setJudging(false); }
   };
+
 
   const addTestCase = () => setTestCases(prev => [...prev, { input: '', expectedOutput: '', isHidden: false }]);
   const updateTc = (i, field, val) => setTestCases(prev => prev.map((tc, idx) => idx === i ? { ...tc, [field]: val } : tc));
@@ -242,8 +306,32 @@ export function CompilerPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <VerdictBadge verdict={runResult.verdict || (runResult.error ? 'runtime_error' : 'accepted')} />
                       {runResult.runtime > 0 && <span style={{ fontSize: 11, color: '#8b949e' }}>⏱ {runResult.runtime}ms</span>}
-                      {runResult.memory > 0 && <span style={{ fontSize: 11, color: '#8b949e' }}>💾 {(runResult.memory/1024).toFixed(1)}MB</span>}
+                      {runResult.testSummary && (
+                        <span style={{ 
+                          marginLeft: 'auto', 
+                          fontSize: 12, 
+                          fontWeight: 'bold', 
+                          color: runResult.passedCount === runResult.totalCount ? '#3fb950' : '#f85149',
+                          background: runResult.passedCount === runResult.totalCount ? 'rgba(63, 185, 80, 0.1)' : 'rgba(248, 81, 73, 0.1)',
+                          padding: '2px 8px',
+                          borderRadius: 6,
+                          border: '1px solid currentColor'
+                        }}>
+                          {runResult.testSummary}
+                        </span>
+                      )}
                     </div>
+                    {runResult.testSummary && (
+                      <div style={{ width: '100%', height: 4, background: '#30363d', borderRadius: 2, overflow: 'hidden' }}>
+                        <div style={{ 
+                          width: `${(runResult.passedCount / runResult.totalCount) * 100}%`, 
+                          height: '100%', 
+                          background: runResult.passedCount === runResult.totalCount ? '#238636' : '#da3633',
+                          transition: 'width 0.5s ease-out'
+                        }} />
+                      </div>
+                    )}
+
                     {runResult.error && (
                       <pre style={{ background: '#1a0000', border: '1px solid #5c1a1a', borderRadius: 8, padding: 10, color: '#f85149', fontSize: 12, whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0 }}>{runResult.error}</pre>
                     )}

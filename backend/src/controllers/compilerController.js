@@ -1,64 +1,31 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
+import { runLocalCode } from '../services/compiler/localCompiler.service.js';
 dotenv.config();
 
-// ── Judge0 CE Language IDs ────────────────────────────────────────────────────
+// ── Language Configuration ───────────────────────────────────────────────────
 export const LANGUAGE_CONFIG = {
-  javascript: { id: 93,  ext: 'js',    name: 'JavaScript (Node.js 18)', monacoLang: 'javascript' },
-  typescript: { id: 94,  ext: 'ts',    name: 'TypeScript 5',            monacoLang: 'typescript' },
-  python:     { id: 92,  ext: 'py',    name: 'Python 3.11',             monacoLang: 'python'     },
-  java:       { id: 91,  ext: 'java',  name: 'Java 17',                 monacoLang: 'java'       },
-  c:          { id: 50,  ext: 'c',     name: 'C (GCC 9.2)',             monacoLang: 'c'          },
-  cpp:        { id: 54,  ext: 'cpp',   name: 'C++ 17',                  monacoLang: 'cpp'        },
-  csharp:     { id: 51,  ext: 'cs',    name: 'C# (Mono 6.6)',           monacoLang: 'csharp'     },
-  go:         { id: 60,  ext: 'go',    name: 'Go 1.18',                 monacoLang: 'go'         },
-  rust:       { id: 73,  ext: 'rs',    name: 'Rust 1.67',               monacoLang: 'rust'       },
-  php:        { id: 68,  ext: 'php',   name: 'PHP 8.1',                 monacoLang: 'php'        },
-  ruby:       { id: 72,  ext: 'rb',    name: 'Ruby 2.7',                monacoLang: 'ruby'       },
-  kotlin:     { id: 78,  ext: 'kt',    name: 'Kotlin 1.8',              monacoLang: 'kotlin'     },
-  swift:      { id: 83,  ext: 'swift', name: 'Swift 5.8',               monacoLang: 'swift'      },
-  perl:       { id: 85,  ext: 'pl',    name: 'Perl 5.28',               monacoLang: 'perl'       },
-  bash:       { id: 46,  ext: 'sh',    name: 'Bash 5.0',                monacoLang: 'shell'      },
-  r:          { id: 80,  ext: 'r',     name: 'R 4.2',                   monacoLang: 'r'          },
-  sql:        { id: 82,  ext: 'sql',   name: 'SQL (SQLite 3.36)',       monacoLang: 'sql'        },
-  scala:      { id: 81,  ext: 'scala', name: 'Scala 3.2',               monacoLang: 'scala'      },
-  haskell:    { id: 61,  ext: 'hs',    name: 'Haskell GHC 8.8',        monacoLang: 'haskell'    },
-  lua:        { id: 64,  ext: 'lua',   name: 'Lua 5.3',                 monacoLang: 'lua'        },
-  dart:       { id: 90,  ext: 'dart',  name: 'Dart 2.19',               monacoLang: 'dart'       },
-  elixir:     { id: 57,  ext: 'ex',    name: 'Elixir 1.9',              monacoLang: 'elixir'     },
+  javascript: { id: 93,  ext: 'js',    name: 'JavaScript (Node.js)', monacoLang: 'javascript' },
+  python:     { id: 92,  ext: 'py',    name: 'Python 3',             monacoLang: 'python'     },
+  java:       { id: 91,  ext: 'java',  name: 'Java 24',              monacoLang: 'java'       },
+  c:          { id: 50,  ext: 'c',     name: 'C (GCC)',              monacoLang: 'c'          },
+  cpp:        { id: 54,  ext: 'cpp',   name: 'C++ (G++)',            monacoLang: 'cpp'        },
 };
 
-// ── Starter code templates ────────────────────────────────────────────────────
+// ── Starter code templates (Cross-platform optimized) ─────────────────────────
 export const TEMPLATES = {
-  javascript: `// JavaScript (Node.js)\nconst lines = require('fs').readFileSync('/dev/stdin','utf8').trim().split('\\n');\n// Your solution here\nconsole.log(lines[0]);`,
-  typescript: `// TypeScript\nimport * as fs from 'fs';\nconst lines = fs.readFileSync('/dev/stdin','utf8').trim().split('\\n');\nconsole.log(lines[0]);`,
-  python:     `# Python 3\nimport sys\ndata = sys.stdin.read().split()\n# Your solution here\nprint(data[0])`,
-  java:       `import java.util.*;\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        // Your solution here\n        System.out.println(sc.nextLine());\n    }\n}`,
-  c:          `#include <stdio.h>\nint main() {\n    char line[256];\n    scanf("%s", line);\n    printf("%s\\n", line);\n    return 0;\n}`,
-  cpp:        `#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    ios_base::sync_with_stdio(false);\n    cin.tie(NULL);\n    string s; cin >> s;\n    cout << s << "\\n";\n    return 0;\n}`,
-  csharp:     `using System;\nclass Main {\n    static void Main() {\n        string line = Console.ReadLine();\n        Console.WriteLine(line);\n    }\n}`,
-  go:         `package main\nimport ("bufio";"fmt";"os")\nfunc main() {\n    r := bufio.NewReader(os.Stdin)\n    var s string\n    fmt.Fscan(r, &s)\n    fmt.Println(s)\n}`,
-  rust:       `use std::io::{self, BufRead};\nfn main() {\n    let stdin = io::stdin();\n    if let Some(Ok(line)) = stdin.lock().lines().next() {\n        println!("{}", line);\n    }\n}`,
-  php:        `<?php\n$line = trim(fgets(STDIN));\necho $line . "\\n";`,
-  ruby:       `line = gets.chomp\nputs line`,
-  kotlin:     `import java.util.Scanner\nfun main() {\n    val sc = Scanner(System.\`in\`)\n    println(sc.nextLine())\n}`,
-  swift:      `import Foundation\nif let line = readLine() { print(line) }`,
-  perl:       `my $line = <STDIN>; chomp $line;\nprint "$line\\n";`,
-  bash:       `#!/bin/bash\nread line\necho "$line"`,
-  r:          `line <- readLines(file("stdin"), n=1)\ncat(line, "\\n")`,
-  sql:        `-- SQLite\nSELECT 'Hello, World!';`,
-  scala:      `import scala.io.StdIn\nobject Main extends App { println(StdIn.readLine()) }`,
-  haskell:    `main :: IO ()\nmain = do { line <- getLine; putStrLn line }`,
-  lua:        `local line = io.read()\nprint(line)`,
-  dart:       `import 'dart:io';\nvoid main() { print(stdin.readLineSync()); }`,
-  elixir:     `line = IO.gets("") |> String.trim()\nIO.puts(line)`,
+  javascript: `// JavaScript (Node.js)\nconst fs = require('fs');\nconst input = fs.readFileSync(0, 'utf8');\nconst lines = input.trim().split('\\n');\n\n// Your solution here\nif (lines[0]) {\n    console.log(lines[0]);\n} else {\n    console.log("Hello World");\n}`,
+  python:     `# Python 3\nimport sys\n\ndef solve():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        print("Hello World")\n        return\n    # Your solution here\n    print(input_data[0])\n\nif __name__ == "__main__":\n    solve()`,
+  java:       `import java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        if (sc.hasNextLine()) {\n            String line = sc.nextLine();\n            System.out.println(line);\n        } else {\n            System.out.println("Hello World");\n        }\n    }\n}`,
+  c:          `#include <stdio.h>\n\nint main() {\n    char line[256];\n    if (scanf("%s", line) != EOF) {\n        printf("%s\\n", line);\n    } else {\n        printf("Hello World\\n");\n    }\n    return 0;\n}`,
+  cpp:        `#include <iostream>\n#include <string>\nusing namespace std;\n\nint main() {\n    string s;\n    if (cin >> s) {\n        cout << s << endl;\n    } else {\n        cout << "Hello World" << endl;\n    }\n    return 0;\n}`,
 };
 
-// ── Judge0 helpers ────────────────────────────────────────────────────────────
+// ── Judge0 Fallback Configuration ─────────────────────────────────────────────
 const JUDGE0_BASE = process.env.JUDGE0_BASE_URL  || 'https://judge0-ce.p.rapidapi.com';
 const JUDGE0_KEY  = process.env.JUDGE0_API_KEY   || '';
 const JUDGE0_HOST = process.env.JUDGE0_API_HOST  || 'judge0-ce.p.rapidapi.com';
-const USE_JUDGE0  = process.env.USE_JUDGE0 !== 'false';
+const USE_JUDGE0  = process.env.USE_JUDGE0 === 'true';
 
 const judge0Headers = () => ({
   'content-type':    'application/json',
@@ -102,56 +69,135 @@ function mapJudgeResult(data) {
     3: 'accepted', 4: 'wrong_answer', 5: 'time_limit_exceeded',
     6: 'compilation_error', 7: 'runtime_error', 8: 'runtime_error',
   };
-  return { verdict: verdicts[sid] || 'runtime_error', output: out, error: err, runtime: rt, memory: mem };
+  return { 
+    success: sid === 3,
+    verdict: verdicts[sid] || 'runtime_error', 
+    output: out, 
+    error: err, 
+    runtime: rt, 
+    memory: mem 
+  };
 }
 
 async function runCode(language, code, stdin = '', timeSec = 5, memKb = 262144) {
-  const cfg = LANGUAGE_CONFIG[language];
-  if (!cfg) throw new Error(`Unsupported language: ${language}`);
+  console.log(`[Compiler] Running code for ${language}...`);
+  
+  // Try local execution first for supported languages
+  if (LANGUAGE_CONFIG[language]) {
+    try {
+      const localResult = await runLocalCode(language, code, stdin, timeSec * 1000);
+      return {
+        verdict: localResult.success ? 'accepted' : (localResult.errorType.toLowerCase().replace(/ /g, '_')),
+        output: localResult.output || '',
+        error: localResult.stderr || '',
+        runtime: localResult.runtime || 0,
+        memory: localResult.memory || 0,
+        success: localResult.success
+      };
+    } catch (err) {
+      console.error(`[Compiler] Local execution failed for ${language}:`, err.message);
+      // Fallback to Judge0 if allowed
+    }
+  }
 
   if (USE_JUDGE0 && JUDGE0_KEY && JUDGE0_KEY !== 'your_rapidapi_key_here') {
+    const cfg = LANGUAGE_CONFIG[language];
+    if (!cfg) throw new Error(`Unsupported language: ${language}`);
     const token  = await submitToJudge0(cfg.id, code, stdin, timeSec, memKb);
     const result = await pollJudge0(token, (timeSec + 12) * 1000);
     return mapJudgeResult(result);
   }
-  return { verdict: 'runtime_error', output: '', error: 'Judge0 API key not configured. Set JUDGE0_API_KEY in .env', runtime: 0, memory: 0 };
+  
+  return { 
+    verdict: 'internal_server_error', 
+    output: '', 
+    error: 'No execution engine available for this language.', 
+    runtime: 0, 
+    memory: 0,
+    success: false 
+  };
 }
 
 // ── Controllers ───────────────────────────────────────────────────────────────
 
 /** POST /api/compiler/execute */
 export const executeCode = async (req, res) => {
+  const { language, code, stdin = '' } = req.body;
+  console.log("========================================");
+  console.log("INCOMING EXECUTION REQUEST");
+  console.log("LANGUAGE:", language);
+  console.log("CODE PREVIEW:", code?.substring(0, 50) + "...");
+  console.log("STDIN:", stdin);
+  console.log("========================================");
+
   try {
-    const { language, code, stdin = '' } = req.body;
     if (!language || !code) return res.status(400).json({ success: false, message: 'language and code required' });
+    
     const result = await runCode(language, code, stdin);
-    res.json({ success: true, data: result });
+    
+    console.log("EXECUTION RESULT:", result.verdict);
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        output: result.output,
+        executionTime: `${(result.runtime / 1000).toFixed(2)}s`
+      });
+    } else {
+      res.json({
+        success: false,
+        errorType: result.verdict.replace(/_/g, ' ').toUpperCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' '),
+        stderr: result.error || 'Execution failed'
+      });
+    }
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    console.error("CONTROLLER ERROR:", err);
+    res.status(500).json({ success: false, message: err.message, errorType: 'Internal Server Error' });
   }
 };
 
+
 /** POST /api/compiler/judge — run against multiple test cases */
 export const judgeCode = async (req, res) => {
+  const { language, code, testCases = [], timeLimitSec = 5 } = req.body;
+  console.log("========================================");
+  console.log("INCOMING JUDGE REQUEST");
+  console.log("LANGUAGE:", language);
+  console.log("TEST CASES COUNT:", testCases.length);
+  console.log("========================================");
+
   try {
-    const { language, code, testCases = [], timeLimitSec = 5 } = req.body;
     if (!language || !code) return res.status(400).json({ success: false, message: 'language and code required' });
     if (!LANGUAGE_CONFIG[language]) return res.status(400).json({ success: false, message: `Unsupported: ${language}` });
 
     const results = [];
     let passed = 0;
-    let verdict = 'accepted';
+    let finalVerdict = 'accepted';
 
     for (let i = 0; i < testCases.length; i++) {
       const tc = testCases[i];
-      const r  = await runCode(language, code, tc.input || '', timeLimitSec);
+      console.log(`[Judge] Running Test Case ${i + 1}...`);
+      
+      const r = await runCode(language, code, tc.input || '', timeLimitSec);
       let v = r.verdict;
+      
       if (v === 'accepted') {
-        if ((r.output || '').trim() !== (tc.expectedOutput || '').trim()) v = 'wrong_answer';
+        const actual = (r.output || '').trim();
+        const expected = (tc.expectedOutput || '').trim();
+        if (actual !== expected) {
+          v = 'wrong_answer';
+          console.log(`[Judge] TC ${i+1} FAILED (WA). Expected: "${expected}", Got: "${actual}"`);
+        } else {
+          console.log(`[Judge] TC ${i+1} PASSED.`);
+        }
+      } else {
+        console.log(`[Judge] TC ${i+1} FAILED (${v}). Error: ${r.error}`);
       }
+
       const ok = v === 'accepted';
       if (ok) passed++;
-      else if (verdict === 'accepted') verdict = v;
+      else if (finalVerdict === 'accepted') finalVerdict = v;
+
       results.push({
         index:    i + 1,
         passed:   ok,
@@ -165,9 +211,19 @@ export const judgeCode = async (req, res) => {
       });
     }
 
-    res.json({ success: true, data: { verdict, passed, total: testCases.length, results } });
+    console.log("JUDGE COMPLETE:", finalVerdict, `(${passed}/${testCases.length} passed)`);
+    res.json({ 
+      success: true, 
+      data: { 
+        verdict: finalVerdict, 
+        passed, 
+        total: testCases.length, 
+        results 
+      } 
+    });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    console.error("JUDGE CONTROLLER ERROR:", err);
+    res.status(500).json({ success: false, message: err.message, errorType: 'INTERNAL SERVER ERROR' });
   }
 };
 
@@ -183,3 +239,4 @@ export const getLanguages = (_req, res) => {
 export const getTemplates = (_req, res) => {
   res.json({ success: true, data: TEMPLATES });
 };
+

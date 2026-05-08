@@ -84,6 +84,17 @@ export const setupProctorSockets = (io) => {
       io.to(`student_${studentId}`).emit('force_submit', { reason });
     });
 
+    // Student streams a live frame
+    socket.on('live_frame', ({ frame }) => {
+      if (socket.examId && socket.studentId) {
+        // Broadcast the frame directly to the faculty monitoring the exam
+        io.to(`faculty_${socket.examId}`).emit('student_frame', {
+          studentId: socket.studentId,
+          frame
+        });
+      }
+    });
+
     socket.on('disconnect', () => {
       if (socket.examId && socket.studentId) {
         const sessions = activeSessions.get(socket.examId);

@@ -56,14 +56,14 @@ export const LiveExamPage = () => {
   
   const proctoring = useProctoring({
     examId, 
-    enabled: phase === 'exam' && proctorReady && !submittedRef.current,
+    enabled: ['exam', 'fullscreen'].includes(phase) && proctorReady && !submittedRef.current,
     maxViolations: exam?.proctoring?.maxViolations || 3,
     onRestricted: handleRestricted, 
     onAutoSubmit: handleAutoSubmit,
   });
 
   const aiVision = useAIVision({
-    enabled: (phase === 'exam' || phase === 'camera_check') && !submittedRef.current,
+    enabled: ['exam', 'camera_check', 'fullscreen'].includes(phase) && !submittedRef.current,
     onViolation: proctoring.logViolation
   });
 
@@ -208,6 +208,19 @@ export const LiveExamPage = () => {
     return () => clearInterval(iv);
   }, [phase, answers, submission]);
 
+  // ── Live Monitoring Broadcaster ──
+  useEffect(() => {
+    if (phase !== 'exam' && phase !== 'fullscreen') return;
+    const interval = setInterval(() => {
+      const socket = getSocket();
+      if (socket && window.examCameraStream) { // Use the global stream to verify active camera
+        const frame = aiVision.captureScreenshot ? aiVision.captureScreenshot() : null;
+        if (frame) socket.emit('live_frame', { frame });
+      }
+    }, 1500); // 1.5 FPS keeps bandwidth extremely low while still providing live visuals
+    return () => clearInterval(interval);
+  }, [phase, aiVision.captureScreenshot]);
+
   const enterFullscreen = () => {
     document.documentElement.requestFullscreen?.()
       .then(() => setPhase('exam'))
@@ -237,14 +250,57 @@ export const LiveExamPage = () => {
 
   const handleRunCode = async () => {
     const ans = answers[currentQ];
+    const q = exam?.questions?.[currentQ];
     if (!ans?.code) return;
     setRunning(true); setRunResult(null);
     try {
       const r = await api.post('/compiler/execute', { language: ans.language, code: ans.code, stdin: codeStdin });
-      setRunResult(r.data.data);
-    } catch (e) { setRunResult({ error: e.response?.data?.message || 'Execution failed', output: '' }); }
+      const resData = r.data;
+      let runRes = null;
+
+      if (resData.success) {
+        runRes = {
+          output: resData.output,
+          error: null,
+          executionTime: resData.executionTime,
+          success: true
+        };
+      } else {
+        runRes = {
+          error: resData.stderr,
+          output: '',
+          errorType: resData.errorType,
+          success: false
+        };
+      }
+
+      // Automatically run tests if they exist
+      if (q?.testCases?.length > 0) {
+        const tr = await api.post('/compiler/judge', {
+          language: ans.language, code: ans.code,
+          testCases: q.testCases, timeLimitSec: q.timeLimitSeconds || 5,
+        });
+        const d = tr.data.data;
+        runRes.testSummary = `Passed ${d.passed} / ${d.total} test cases`;
+        runRes.passedCount = d.passed;
+        runRes.totalCount = d.total;
+        runRes.verdict = d.verdict;
+        
+        // Update global answer state for score tracking
+        const score = d.verdict === 'accepted' ? q.points : Math.round((d.passed / d.total) * q.points);
+        updateAnswer(ans.questionId, 'score', score);
+        updateAnswer(ans.questionId, 'verdict', d.verdict);
+        updateAnswer(ans.questionId, 'passedTests', d.passed);
+        updateAnswer(ans.questionId, 'totalTests', d.total);
+      }
+
+      setRunResult(runRes);
+    } catch (e) { 
+      setRunResult({ error: e.response?.data?.message || e.message || 'Execution failed', output: '' }); 
+    }
     finally { setRunning(false); }
   };
+
 
   const handleJudge = async () => {
     const ans = answers[currentQ];
@@ -263,9 +319,13 @@ export const LiveExamPage = () => {
       updateAnswer(ans.questionId, 'verdict', d.verdict);
       updateAnswer(ans.questionId, 'passedTests', d.passed);
       updateAnswer(ans.questionId, 'totalTests', d.total);
-    } catch (e) { setJudgeResult(null); }
+    } catch (e) { 
+      console.error("Judge failed:", e);
+      setJudgeResult(null); 
+    }
     finally { setJudging(false); }
   };
+
 
   const fmtTime = (s) => `${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
   const isLow = timeLeft < 300;
@@ -303,42 +363,55 @@ export const LiveExamPage = () => {
           <div className="text-center max-w-2xl w-full p-8 bg-gray-900 rounded-3xl border border-gray-800 shadow-2xl">
             <div className="text-5xl mb-4">📷</div>
             <h2 className="text-3xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Environment Verification</h2>
-            <p className="text-gray-400 mb-8 text-sm">Please ensure your face is clearly visible and your environment is clear of prohibited items (phones, books, etc).</p>
+            <p className="text-gray-400 mb-8 text-sm">Please ensure your face is clearly visible and your environment is clear of prohibited items.</p>
             
             <div className="bg-black rounded-2xl overflow-hidden mb-8 mx-auto w-full max-w-md h-72 border border-gray-700 relative shadow-inner">
-              <video ref={camCheckRef} className="w-full h-full object-cover" style={{ transform: 'scaleX(-1)' }} playsInline muted autoPlay />
-              {!aiVision.streamActive && (
-                <div className="absolute inset-0 flex items-center justify-center text-gray-500 font-medium">Connecting to Web Camera...</div>
-              )}
-              {aiVision.streamActive && !aiVision.modelsLoaded && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-md">
-                   <div className="text-emerald-400 font-bold animate-pulse text-lg tracking-wide">Initializing AI Models...</div>
-                   <div className="text-xs text-gray-400 mt-2">Downloading neural networks (may take a moment)</div>
-                </div>
-              )}
-              {aiVision.modelsLoaded && (
-                <div className="absolute top-4 right-4 bg-black/50 px-3 py-1 rounded-full border border-emerald-500/50 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span className="text-[10px] font-bold text-emerald-400 tracking-wider">AI ACTIVE</span>
-                </div>
-              )}
+              <video ref={camCheckRef} className="w-full h-full object-cover" style={{ transform: 'scaleX(-1)' }} autoPlay muted playsInline />
             </div>
 
-            {aiVision.alerts?.length > 0 && (
-              <div className="mb-6 space-y-2 text-left">
-                {aiVision.alerts.map((a, i) => (
-                  <div key={i} className="bg-red-500/10 border border-red-500/50 text-red-400 text-sm font-bold px-4 py-3 rounded-xl flex items-center gap-3">
-                    <span className="text-xl">⚠️</span> {a.msg}
-                  </div>
-                ))}
-              </div>
-            )}
-
             <button 
-              onClick={() => setPhase(exam?.proctoring?.requireFullscreen ? 'fullscreen' : 'exam')} 
-              disabled={!aiVision.streamActive || !aiVision.modelsLoaded || aiVision.alerts?.length > 0}
-              className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:hover:bg-blue-600 text-white font-bold py-4 px-8 rounded-xl w-full max-w-md mx-auto transition-all transform active:scale-[0.98]">
-              {!aiVision.streamActive ? 'Waiting for Camera...' : !aiVision.modelsLoaded ? 'Loading AI...' : aiVision.alerts?.length > 0 ? 'Clear warnings to proceed' : 'Verification Complete — Begin Exam'}
+              onClick={async () => {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                  alert("Camera API not supported");
+                  return;
+                }
+
+                try {
+                  console.log("Requesting webcam permission...");
+
+                  const stream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: false,
+                  });
+
+                  console.log("Camera permission granted");
+
+                  window.examCameraStream = stream;
+
+                  if (aiVision.videoRef.current) {
+                    aiVision.videoRef.current.srcObject = stream;
+                    await aiVision.videoRef.current.play();
+                  }
+                  if (camCheckRef.current) {
+                    camCheckRef.current.srcObject = stream;
+                    await camCheckRef.current.play();
+                  }
+
+                  console.log("Camera stream active");
+
+                  if (exam?.proctoring?.requireFullscreen) {
+                    await document.documentElement.requestFullscreen();
+                  }
+
+                  setPhase('exam');
+                } catch (err) {
+                  console.error("Camera permission error:", err);
+                  alert("Camera access is required to start the exam.");
+                }
+              }} 
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 px-8 rounded-xl w-full max-w-md mx-auto transition-all transform active:scale-[0.98] shadow-lg shadow-emerald-500/20"
+            >
+              Start Exam
             </button>
           </div>
         </div>
@@ -545,10 +618,27 @@ export const LiveExamPage = () => {
                       </div>
                       {running && <p className="text-gray-500 text-xs">⏳ Running…</p>}
                       {runResult && (
-                        <pre className={`font-mono text-xs whitespace-pre-wrap p-2 rounded ${runResult.error ? 'text-red-400 bg-red-500/5' : 'text-emerald-400 bg-emerald-500/5'}`}>
-                          {runResult.error || runResult.output || '(no output)'}
-                        </pre>
+                        <div className="flex flex-col gap-2">
+                          {runResult.testSummary && (
+                            <div className="flex items-center justify-between mb-1">
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${runResult.passedCount === runResult.totalCount ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                                {runResult.testSummary}
+                              </span>
+                              {runResult.executionTime && <span className="text-[10px] text-gray-500">{runResult.executionTime}</span>}
+                            </div>
+                          )}
+                          {runResult.testSummary && (
+                            <div className="w-full h-1 bg-gray-800 rounded-full overflow-hidden mb-2">
+                              <div className={`h-full transition-all duration-500 ${runResult.passedCount === runResult.totalCount ? 'bg-emerald-500' : 'bg-red-500'}`}
+                                style={{ width: `${(runResult.passedCount / runResult.totalCount) * 100}%` }} />
+                            </div>
+                          )}
+                          <pre className={`font-mono text-[11px] whitespace-pre-wrap p-3 rounded-lg border ${runResult.error ? 'text-red-400 bg-red-500/5 border-red-500/20' : 'text-emerald-400 bg-emerald-500/5 border-emerald-500/20'}`}>
+                            {runResult.error || runResult.output || '(no output)'}
+                          </pre>
+                        </div>
                       )}
+
                       {judgeResult && (
                         <div className="mt-2">
                           <div className={`text-xs font-bold mb-1 ${judgeResult.verdict === 'accepted' ? 'text-emerald-400' : 'text-red-400'}`}>

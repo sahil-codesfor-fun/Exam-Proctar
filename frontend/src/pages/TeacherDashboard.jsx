@@ -343,6 +343,7 @@ export const TeacherDashboard = () => {
   const ExamDetail = ({ exam }) => {
     const [liveStudents, setLiveStudents] = useState([]);
     const [liveViolations, setLiveViolations] = useState([]);
+    const [liveFrames, setLiveFrames] = useState({});
 
     useEffect(() => { loadSubs(exam._id); }, [exam._id]);
     const es = subs[exam._id] || [];
@@ -355,8 +356,15 @@ export const TeacherDashboard = () => {
 
         socket.on('active_students', (data) => setLiveStudents(data.students || []));
         socket.on('student_joined', (data) => setLiveStudents(p => [...p.filter(s => s.studentId !== data.studentId), data]));
-        socket.on('student_left', (data) => setLiveStudents(p => p.filter(s => s.studentId !== data.studentId)));
+        socket.on('student_left', (data) => {
+          setLiveStudents(p => p.filter(s => s.studentId !== data.studentId));
+          setLiveFrames(p => { const newFrames = { ...p }; delete newFrames[data.studentId]; return newFrames; });
+        });
         
+        socket.on('student_frame', ({ studentId, frame }) => {
+          setLiveFrames(p => ({ ...p, [studentId]: frame }));
+        });
+
         socket.on('violation_alert', (data) => {
           setLiveViolations(p => [data, ...p]);
         });
@@ -365,6 +373,7 @@ export const TeacherDashboard = () => {
           socket.off('active_students');
           socket.off('student_joined');
           socket.off('student_left');
+          socket.off('student_frame');
           socket.off('violation_alert');
         };
       });
@@ -426,16 +435,31 @@ export const TeacherDashboard = () => {
               <div>
                 <h4 className="text-[10px] text-gray-400 uppercase tracking-[0.2em] mb-4 font-bold border-b border-gray-800 pb-2">Active Connections ({liveStudents.length})</h4>
                 {liveStudents.length === 0 ? <p className="text-xs text-gray-600 italic font-medium mt-4">Awaiting incoming student nodes...</p> : (
-                  <div className="space-y-3 max-h-72 overflow-y-auto pr-2 custom-scrollbar">
+                  <div className="grid grid-cols-2 gap-4 max-h-[30rem] overflow-y-auto pr-2 custom-scrollbar">
                     {liveStudents.map(s => (
-                      <div key={s.studentId} className="flex items-center justify-between bg-gray-800/50 backdrop-blur-sm p-4 rounded-2xl border border-gray-700/50 hover:border-gray-600 transition-all group">
-                        <div className="flex items-center gap-4">
-                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
-                          <span className="text-sm font-bold text-gray-100">{s.name}</span>
+                      <div key={s.studentId} className="bg-gray-800/50 backdrop-blur-sm p-3 rounded-2xl border border-gray-700/50 hover:border-gray-600 transition-all group flex flex-col gap-3 relative">
+                        <div className="w-full aspect-video bg-black rounded-lg overflow-hidden border border-gray-700 relative">
+                           {liveFrames[s.studentId] ? (
+                             <img src={liveFrames[s.studentId]} alt="Student Camera" className="w-full h-full object-cover" style={{ transform: 'scaleX(-1)' }} />
+                           ) : (
+                             <div className="flex flex-col items-center justify-center h-full text-gray-500 text-[9px] font-bold gap-2 uppercase tracking-widest">
+                               <div className="w-4 h-4 rounded-full border-2 border-t-emerald-500 border-gray-700 animate-spin"></div>
+                               Awaiting Stream
+                             </div>
+                           )}
+                           <div className="absolute bottom-2 left-2 flex items-center gap-2">
+                             <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></span>
+                             <span className="text-[10px] font-bold text-white bg-black/60 px-2 py-0.5 rounded shadow-sm backdrop-blur-md">LIVE</span>
+                           </div>
                         </div>
-                        <button onClick={() => forceSubmit(s.studentId)} className="text-[9px] font-black bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500 hover:text-white px-3 py-2 rounded-lg transition-all uppercase tracking-widest opacity-0 group-hover:opacity-100">
-                          Force Kill
-                        </button>
+                        <div className="flex items-center justify-between px-1">
+                          <div className="flex flex-col">
+                            <span className="text-xs font-bold text-gray-100 truncate max-w-[120px]">{s.name}</span>
+                          </div>
+                          <button onClick={() => forceSubmit(s.studentId)} className="text-[9px] font-black bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500 hover:text-white px-2 py-1.5 rounded transition-all uppercase tracking-widest opacity-0 group-hover:opacity-100">
+                            Kill
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
