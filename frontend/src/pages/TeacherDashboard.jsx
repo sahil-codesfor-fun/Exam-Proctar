@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import { Plus, X, Trash2, CheckCircle2, LayoutGrid, FileText, ShieldAlert, Upload, Edit } from 'lucide-react';
+import * as XLSX from 'xlsx'; // 📦 IMPORTED XLSX FOR SPREADSHEETS
 
 const EMPTY_Q = { type: 'mcq', title: '', description: '', points: 10, options: [{ text: '', isCorrect: false },{ text: '', isCorrect: false },{ text: '', isCorrect: false },{ text: '', isCorrect: false }], testCases: [{ input: '', expectedOutput: '', isHidden: false }], timeLimitSeconds: 5, constraints: '' };
 
@@ -26,8 +27,13 @@ export const TeacherDashboard = () => {
   
   const [editingId, setEditingId] = useState(null);
   const fileInputRef = useRef(null);
+  
+  // Ref and State for Bulk Test Cases
+  const tcFileInputRef = useRef(null);
+  const [activeTcIndex, setActiveTcIndex] = useState(null);
 
-  const defaultForm = { title: '', description: '', course: '', startTime: '', endTime: '', durationMinutes: 60, proctoring: { maxViolations: 3, restrictionMinutes: 30, requireFullscreen: true, disableCopyPaste: true, autoSubmitOnMax: true, enableWebcam: false }, questions: [{ ...EMPTY_Q }] };
+  // Removed endTime from the default form
+  const defaultForm = { title: '', description: '', course: '', startTime: '', durationMinutes: 60, proctoring: { maxViolations: 3, restrictionMinutes: 30, requireFullscreen: true, disableCopyPaste: true, autoSubmitOnMax: true, enableWebcam: false }, questions: [{ ...EMPTY_Q }] };
   const [form, setForm] = useState(defaultForm);
 
   const load = () => {
@@ -66,66 +72,122 @@ export const TeacherDashboard = () => {
     updQ(qi, 'testCases', tcs);
   };
 
-  // ── FIX: THE ULTIMATE SMART BULK PARSER ──
-  const handleFileUpload = (e) => {
+  // ── THE OMNI-PARSER (TXT, CSV, XLSX for Questions) ──
+  const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const text = evt.target.result;
-      const blocks = text.split('---').map(b => b.trim()).filter(Boolean);
-      const parsedQs = [];
+    const ext = file.name.split('.').pop().toLowerCase();
 
-      blocks.forEach(block => {
-        const lines = block.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-        let q = { type: 'subjective', title: '', description: '', points: 10, options: [], testCases: [], constraints: '', timeLimitSeconds: 5 };
-
-        lines.forEach(line => {
-          const upper = line.toUpperCase();
-          if (upper.startsWith('TYPE:')) q.type = line.substring(5).trim().toLowerCase();
-          else if (upper.startsWith('TITLE:')) q.title = line.substring(6).trim();
-          else if (upper.startsWith('DESC:')) q.description = line.substring(5).trim();
-          else if (upper.startsWith('POINTS:')) q.points = parseInt(line.substring(7).trim()) || 10;
-          else if (upper.startsWith('OPT:')) {
-            let optText = line.substring(4).trim();
-            let isCorrect = optText.startsWith('*');
-            if (isCorrect) optText = optText.substring(1).trim();
-            q.options.push({ text: optText, isCorrect });
-          }
-          else if (upper.startsWith('CONSTRAINTS:')) q.constraints = line.substring(12).trim();
-          else if (upper.startsWith('TC_IN:')) {
-            q.testCases.push({ input: line.substring(6).trim().replace(/\\n/g, '\n'), expectedOutput: '', isHidden: false });
-          }
-          else if (upper.startsWith('TC_OUT:')) {
-            if (q.testCases.length > 0) q.testCases[q.testCases.length - 1].expectedOutput = line.substring(7).trim().replace(/\\n/g, '\n');
-          }
-          else if (upper.startsWith('TC_HIDDEN:')) {
-            if (q.testCases.length > 0) q.testCases[q.testCases.length - 1].isHidden = line.substring(10).trim().toLowerCase() === 'true';
-          }
+    try {
+      let parsedQs = [];
+      if (ext === 'txt') {
+        const text = await file.text();
+        const blocks = text.split('---').map(b => b.trim()).filter(Boolean);
+        blocks.forEach(block => {
+          const lines = block.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+          let q = { type: 'subjective', title: '', description: '', points: 10, options: [], testCases: [], constraints: '', timeLimitSeconds: 5 };
+          lines.forEach(line => {
+            const upper = line.toUpperCase();
+            if (upper.startsWith('TYPE:')) q.type = line.substring(5).trim().toLowerCase();
+            else if (upper.startsWith('TITLE:')) q.title = line.substring(6).trim();
+            else if (upper.startsWith('DESC:')) q.description = line.substring(5).trim();
+            else if (upper.startsWith('POINTS:')) q.points = parseInt(line.substring(7).trim()) || 10;
+            else if (upper.startsWith('OPT:')) {
+              let optText = line.substring(4).trim();
+              let isCorrect = optText.startsWith('*');
+              if (isCorrect) optText = optText.substring(1).trim();
+              q.options.push({ text: optText, isCorrect });
+            }
+            else if (upper.startsWith('CONSTRAINTS:')) q.constraints = line.substring(12).trim();
+            else if (upper.startsWith('TC_IN:')) q.testCases.push({ input: line.substring(6).trim().replace(/\\n/g, '\n'), expectedOutput: '', isHidden: false });
+            else if (upper.startsWith('TC_OUT:')) { if (q.testCases.length > 0) q.testCases[q.testCases.length - 1].expectedOutput = line.substring(7).trim().replace(/\\n/g, '\n'); }
+            else if (upper.startsWith('TC_HIDDEN:')) { if (q.testCases.length > 0) q.testCases[q.testCases.length - 1].isHidden = line.substring(10).trim().toLowerCase() === 'true'; }
+          });
+          parsedQs.push(q);
         });
-
-        // Smart Fallbacks
-        if (!q.title && q.description) q.title = q.description.substring(0, 30) + '...';
-        if (!q.title) q.title = 'Imported Question';
-        if (q.type === 'mcq' && q.options.length === 0) q.options = [{text:'Option 1', isCorrect:true}, {text:'Option 2', isCorrect:false}];
-        if (q.type === 'coding' && q.testCases.length === 0) q.testCases = [{input:'', expectedOutput:'', isHidden:false}];
+      } else if (ext === 'csv' || ext === 'xlsx') {
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data);
+        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
         
-        parsedQs.push(q);
-      });
+        rows.forEach(row => {
+          const type = (row['Type'] || 'subjective').toLowerCase().trim();
+          let q = { ...EMPTY_Q, type, title: row['Title'] || 'Imported Question', description: row['Description'] || '', points: Number(row['Points']) || 10, options: [], testCases: [] };
+          
+          if (type === 'mcq') {
+            const correctIndex = Number(row['Correct Option']) || 1;
+            [1, 2, 3, 4].forEach(i => {
+              if (row[`Option ${i}`]) q.options.push({ text: String(row[`Option ${i}`]), isCorrect: i === correctIndex });
+            });
+            if (q.options.length === 0) q.options = [{text:'Option A', isCorrect:true}, {text:'Option B', isCorrect:false}];
+          } else if (type === 'coding') {
+            q.constraints = row['Constraints'] || '';
+          }
+          parsedQs.push(q);
+        });
+      }
 
       if (parsedQs.length > 0) {
         setForm(p => ({ ...p, questions: [...p.questions, ...parsedQs] }));
-        alert(`¡Ay, Mi Amor! ✅ Successfully imported ${parsedQs.length} advanced questions!`);
+        alert(`¡Ay, Mi Amor! ✅ Imported ${parsedQs.length} questions from ${file.name}!`);
       } else {
-        alert('❌ No valid questions found. Click "Format Guide" to see how to structure your text file!');
+        alert('❌ No valid questions found.');
       }
-    };
-    reader.readAsText(file);
+    } catch (err) {
+      alert('❌ Error reading file. Ensure it is formatted correctly.');
+    }
     e.target.value = null;
   };
 
+  // ── BULK TEST CASE PARSER (TXT, CSV, XLSX) ──
+  const handleTcUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || activeTcIndex === null) return;
+    const ext = file.name.split('.').pop().toLowerCase();
+
+    try {
+      let newTcs = [];
+      if (ext === 'txt') {
+        const text = await file.text();
+        const blocks = text.split('---').map(b => b.trim()).filter(Boolean);
+        blocks.forEach(block => {
+          const lines = block.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+          let tc = { input: '', expectedOutput: '', isHidden: false };
+          lines.forEach(line => {
+            const upper = line.toUpperCase();
+            if (upper.startsWith('IN:')) tc.input = line.substring(3).trim().replace(/\\n/g, '\n');
+            else if (upper.startsWith('OUT:')) tc.expectedOutput = line.substring(4).trim().replace(/\\n/g, '\n');
+            else if (upper.startsWith('HIDDEN:')) tc.isHidden = line.substring(7).trim().toLowerCase() === 'true';
+          });
+          if (tc.input || tc.expectedOutput) newTcs.push(tc);
+        });
+      } else if (ext === 'csv' || ext === 'xlsx') {
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data);
+        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+        
+        rows.forEach(row => {
+          newTcs.push({
+            input: String(row['Input'] || '').replace(/\\n/g, '\n'),
+            expectedOutput: String(row['Expected Output'] || '').replace(/\\n/g, '\n'),
+            isHidden: String(row['Is Hidden'] || '').toLowerCase() === 'true'
+          });
+        });
+      }
+
+      if (newTcs.length > 0) {
+        updQ(activeTcIndex, 'testCases', [...form.questions[activeTcIndex].testCases, ...newTcs]);
+        alert(`✅ Automatically added ${newTcs.length} test cases!`);
+      }
+    } catch (err) {
+      alert('❌ Error reading test case file.');
+    }
+    e.target.value = null;
+    setActiveTcIndex(null);
+  };
+
   const showFormatGuide = () => {
-    alert(`TEXT FILE FORMAT GUIDE:\nSeparate questions with 3 dashes: ---\n\nTYPE: mcq (or coding, subjective)\nTITLE: Question Title\nDESC: Question description\nPOINTS: 10\n\nFor MCQ:\nOPT: Option 1\nOPT: *Correct Option (use * for correct)\n\nFor Coding:\nCONSTRAINTS: 1 <= n <= 10\nTC_IN: input\\nnewline\nTC_OUT: expected output\nTC_HIDDEN: true`);
+    alert(`CSV/EXCEL FORMAT:\nHeaders: Type, Title, Description, Points, Option 1, Option 2, Option 3, Option 4, Correct Option, Constraints\n\nTEST CASE CSV/EXCEL FORMAT:\nHeaders: Input, Expected Output, Is Hidden`);
   };
 
   const openEditModal = (examData) => {
@@ -135,7 +197,6 @@ export const TeacherDashboard = () => {
       description: examData.description || '',
       course: examData.course || '',
       startTime: formatForInput(examData.startTime),
-      endTime: formatForInput(examData.endTime),
       durationMinutes: examData.durationMinutes || 60,
       proctoring: examData.proctoring || { maxViolations: 3, restrictionMinutes: 30, requireFullscreen: true, disableCopyPaste: true, autoSubmitOnMax: true, enableWebcam: false },
       questions: examData.questions && examData.questions.length > 0 ? examData.questions.map(q => ({
@@ -152,9 +213,14 @@ export const TeacherDashboard = () => {
     if (!form.title.trim()) return alert('Exam title is required.');
 
     for (let i = 0; i < form.questions.length; i++) {
-      if (!form.questions[i].title.trim()) {
-        return alert(`Question ${i + 1} title is required.`);
-      }
+      if (!form.questions[i].title.trim()) return alert(`Question ${i + 1} title is required.`);
+    }
+
+    // ── AUTO CALCULATE END TIME ──
+    let computedEndTime = undefined;
+    if (form.startTime && form.durationMinutes) {
+      const st = new Date(form.startTime);
+      computedEndTime = new Date(st.getTime() + form.durationMinutes * 60000).toISOString();
     }
 
     const cleanedQuestions = form.questions.map(q => {
@@ -172,18 +238,15 @@ export const TeacherDashboard = () => {
       ...form,
       questions: cleanedQuestions,
       startTime: form.startTime || undefined,
-      endTime:   form.endTime   || undefined,
+      endTime: computedEndTime, // Injected calculated time
     };
     
     if (!editingId || status === 'draft') payload.status = status;
 
     setSaving(true);
     try {
-      if (editingId) {
-        await api.put(`/exams/${editingId}`, payload); 
-      } else {
-        await api.post('/exams', payload); 
-      }
+      if (editingId) await api.put(`/exams/${editingId}`, payload); 
+      else await api.post('/exams', payload); 
       
       setModal(false);
       setEditingId(null);
@@ -204,9 +267,7 @@ export const TeacherDashboard = () => {
   const toggleStatus = async (exam, status) => {
     await api.patch(`/exams/${exam._id}/status`, { status }).catch(() => {});
     load();
-    if (viewExam && viewExam._id === exam._id) {
-       setViewExam({...viewExam, status});
-    }
+    if (viewExam && viewExam._id === exam._id) setViewExam({...viewExam, status});
   };
 
   const deleteExam = async (id) => {
@@ -225,17 +286,15 @@ export const TeacherDashboard = () => {
         </div>
         <div className="p-8 overflow-y-auto flex-1 space-y-6">
           <input value={form.title} onChange={e => setForm(p => ({...p, title: e.target.value}))} placeholder="Exam Title *" className="w-full px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
-          <div className="grid grid-cols-2 gap-4">
+          
+          <div className="grid grid-cols-3 gap-4">
             <input value={form.course} onChange={e => setForm(p => ({...p, course: e.target.value}))} placeholder="Course" className="px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
             <input type="number" value={form.durationMinutes} onChange={e => setForm(p => ({...p, durationMinutes: +e.target.value}))} placeholder="Duration (min)" className="px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
             <div className="flex flex-col">
-              <label className="text-[10px] font-bold text-gray-500 uppercase ml-2 mb-1">Start Time (Optional)</label>
+              <label className="text-[10px] font-bold text-gray-500 uppercase ml-2 mb-1">Start Time</label>
               <input type="datetime-local" value={form.startTime} onChange={e => setForm(p => ({...p, startTime: e.target.value}))} className="px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none text-gray-600 border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
             </div>
-            <div className="flex flex-col">
-              <label className="text-[10px] font-bold text-gray-500 uppercase ml-2 mb-1">End Time (Optional)</label>
-              <input type="datetime-local" value={form.endTime} onChange={e => setForm(p => ({...p, endTime: e.target.value}))} className="px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none text-gray-600 border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
-            </div>
+            {/* REMOVED END TIME - Auto Calculated Now */}
           </div>
           <textarea value={form.description} onChange={e => setForm(p => ({...p, description: e.target.value}))} placeholder="Description" className="w-full px-4 py-3 bg-gray-50 rounded-xl outline-none h-20 resize-none border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
 
@@ -257,15 +316,18 @@ export const TeacherDashboard = () => {
               <button onClick={showFormatGuide} className="text-xs font-bold text-gray-500 flex items-center gap-1 bg-gray-100 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition-all border border-gray-200 shadow-sm">
                  ❔ Format Guide
               </button>
-              <input type="file" accept=".txt" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
+              <input type="file" accept=".txt,.csv,.xlsx" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
               <button onClick={() => fileInputRef.current?.click()} className="text-xs font-bold text-blue-600 flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-all border border-blue-100 shadow-sm">
-                 <Upload size={14} /> Bulk Upload (.txt)
+                 <Upload size={14} /> Bulk Upload Qs
               </button>
               <button onClick={addQ} className="text-xs font-bold text-emerald-600 flex items-center gap-1 bg-emerald-50 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-all border border-emerald-100 shadow-sm">
                  <Plus size={14} /> Add Question
               </button>
             </div>
           </div>
+
+          {/* Hidden input for bulk Test Cases */}
+          <input type="file" accept=".txt,.csv,.xlsx" ref={tcFileInputRef} className="hidden" onChange={handleTcUpload} />
 
           {form.questions.map((q, qi) => (
             <div key={qi} className="bg-gray-50 rounded-2xl p-6 space-y-4 border">
@@ -301,7 +363,10 @@ export const TeacherDashboard = () => {
                   <textarea value={q.constraints} onChange={e => updQ(qi, 'constraints', e.target.value)} placeholder="Constraints (e.g. 1 ≤ n ≤ 10^5)" className="w-full bg-white border rounded-lg p-3 text-sm outline-none h-14 resize-none font-mono" />
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold text-gray-400 uppercase">Test Cases ({q.testCases.length})</span>
-                    <button onClick={() => addTc(qi)} className="text-xs font-bold text-blue-600 flex items-center gap-1 bg-white border px-2 py-1 rounded-lg shadow-sm"><Plus size={12} /> Add TC</button>
+                    <div className="flex gap-2">
+                      <button onClick={() => { setActiveTcIndex(qi); tcFileInputRef.current?.click(); }} className="text-xs font-bold text-emerald-600 flex items-center gap-1 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-lg shadow-sm hover:bg-emerald-100 transition-all"><Upload size={12} /> Bulk TCs</button>
+                      <button onClick={() => addTc(qi)} className="text-xs font-bold text-blue-600 flex items-center gap-1 bg-white border px-3 py-1.5 rounded-lg shadow-sm hover:bg-gray-50 transition-all"><Plus size={12} /> Add TC</button>
+                    </div>
                   </div>
                   {q.testCases.map((tc, ti) => (
                     <div key={ti} className="bg-white rounded-xl border p-4 space-y-3 shadow-sm">
