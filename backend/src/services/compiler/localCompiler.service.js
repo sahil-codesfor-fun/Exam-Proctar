@@ -126,8 +126,8 @@ export const runLocalCode = async (language, code, stdin = '', timeout = 5000) =
             if (stdin) {
                 console.log(`[Spawn] Writing to stdin: ${stdin.substring(0, 50)}...`);
                 child.stdin.write(stdin);
-                child.stdin.end();
             }
+            child.stdin.end();
 
 
             child.stdout.on('data', (data) => {

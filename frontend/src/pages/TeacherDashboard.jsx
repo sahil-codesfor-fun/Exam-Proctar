@@ -24,6 +24,17 @@ export const TeacherDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [viewExam, setViewExam] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [confirmModal, setConfirmModal] = useState(null); // { message, onConfirm }
+  
+  const showToast = (message, type = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  const showConfirm = (message, onConfirm) => {
+    setConfirmModal({ message, onConfirm });
+  };
   
   const [editingId, setEditingId] = useState(null);
   const fileInputRef = useRef(null);
@@ -129,12 +140,12 @@ export const TeacherDashboard = () => {
 
       if (parsedQs.length > 0) {
         setForm(p => ({ ...p, questions: [...p.questions, ...parsedQs] }));
-        alert(`¡Ay, Mi Amor! ✅ Imported ${parsedQs.length} questions from ${file.name}!`);
+        showToast(`¡Ay, Mi Amor! ✅ Imported ${parsedQs.length} questions from ${file.name}!`, 'success');
       } else {
-        alert('❌ No valid questions found.');
+        showToast('❌ No valid questions found.', 'error');
       }
     } catch (err) {
-      alert('❌ Error reading file. Ensure it is formatted correctly.');
+      showToast('❌ Error reading file. Ensure it is formatted correctly.', 'error');
     }
     e.target.value = null;
   };
@@ -177,17 +188,17 @@ export const TeacherDashboard = () => {
 
       if (newTcs.length > 0) {
         updQ(activeTcIndex, 'testCases', [...form.questions[activeTcIndex].testCases, ...newTcs]);
-        alert(`✅ Automatically added ${newTcs.length} test cases!`);
+        showToast(`✅ Automatically added ${newTcs.length} test cases!`, 'success');
       }
     } catch (err) {
-      alert('❌ Error reading test case file.');
+      showToast('❌ Error reading test case file.', 'error');
     }
     e.target.value = null;
     setActiveTcIndex(null);
   };
 
   const showFormatGuide = () => {
-    alert(`CSV/EXCEL FORMAT:\nHeaders: Type, Title, Description, Points, Option 1, Option 2, Option 3, Option 4, Correct Option, Constraints\n\nTEST CASE CSV/EXCEL FORMAT:\nHeaders: Input, Expected Output, Is Hidden`);
+    showToast(`CSV/EXCEL FORMAT: Headers: Type, Title, Description, Points, Option 1-4, Correct Option, Constraints`, 'info');
   };
 
   const openEditModal = (examData) => {
@@ -210,10 +221,10 @@ export const TeacherDashboard = () => {
   };
 
   const deploy = async (status = 'published') => {
-    if (!form.title.trim()) return alert('Exam title is required.');
+    if (!form.title.trim()) return showToast('Exam title is required.', 'error');
 
     for (let i = 0; i < form.questions.length; i++) {
-      if (!form.questions[i].title.trim()) return alert(`Question ${i + 1} title is required.`);
+      if (!form.questions[i].title.trim()) return showToast(`Question ${i + 1} title is required.`, 'error');
     }
 
     // ── AUTO CALCULATE END TIME ──
@@ -258,7 +269,7 @@ export const TeacherDashboard = () => {
         setViewExam(updatedRes.data.data);
       }
     } catch (e) { 
-      alert(e.response?.data?.message || 'Deployment failed. Check your fields.'); 
+      showToast(e.response?.data?.message || 'Deployment failed. Check your fields.', 'error'); 
     } finally { 
       setSaving(false); 
     }
@@ -271,10 +282,11 @@ export const TeacherDashboard = () => {
   };
 
   const deleteExam = async (id) => {
-    if (!confirm('Delete this exam?')) return;
-    await api.delete(`/exams/${id}`).catch(() => {});
-    if (viewExam?._id === id) setViewExam(null);
-    load();
+    showConfirm('Are you sure you want to delete this exam? This action is irreversible.', async () => {
+      await api.delete(`/exams/${id}`).catch(() => {});
+      if (viewExam?._id === id) setViewExam(null);
+      load();
+    });
   };
 
   const renderModal = () => (
@@ -445,12 +457,13 @@ export const TeacherDashboard = () => {
     }, [exam._id]);
 
     const forceSubmit = (studentId) => {
-      if (!confirm('Are you sure you want to forcibly submit and lock this student out of the exam?')) return;
-      import('../services/socket').then(({ getSocket }) => {
-        const socket = getSocket();
-        if (socket) {
-          socket.emit('force_submit_student', { examId: exam._id, studentId, reason: 'Manual termination by proctor' });
-        }
+      showConfirm('Are you sure you want to forcibly submit and lock this student out of the exam?', () => {
+        import('../services/socket').then(({ getSocket }) => {
+          const socket = getSocket();
+          if (socket) {
+            socket.emit('force_submit_student', { examId: exam._id, studentId, reason: 'Manual termination by proctor' });
+          }
+        });
       });
     };
 
@@ -730,6 +743,34 @@ export const TeacherDashboard = () => {
           </div>
         )}
       </div>
+      {/* Custom Confirmation Modal */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center bg-gray-900/60 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl border border-gray-100 text-center animate-in zoom-in-95 duration-300">
+            <div className="w-20 h-20 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center text-3xl mx-auto mb-6 shadow-sm border border-red-100">⚠️</div>
+            <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-4">Confirm Action</h3>
+            <p className="text-gray-500 font-medium leading-relaxed mb-10 px-4">{confirmModal.message}</p>
+            <div className="flex gap-4">
+              <button onClick={() => setConfirmModal(null)} className="flex-1 px-6 py-4 bg-gray-100 hover:bg-gray-200 text-gray-600 font-black text-[10px] uppercase tracking-widest rounded-2xl transition-all">Cancel</button>
+              <button onClick={() => { confirmModal.onConfirm(); setConfirmModal(null); }} className="flex-1 px-6 py-4 bg-red-600 hover:bg-red-700 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-lg shadow-red-600/20 transition-all">Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Toast Notification */}
+      {toast && (
+        <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[300] animate-in slide-in-from-top-10 duration-500">
+          <div className={`px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-4 border backdrop-blur-md ${
+            toast.type === 'error' ? 'bg-red-600/90 border-red-400 text-white' : 
+            toast.type === 'success' ? 'bg-emerald-600/90 border-emerald-400 text-white' : 
+            'bg-gray-900/90 border-gray-700 text-white'
+          }`}>
+            <span className="font-bold text-sm">{toast.message}</span>
+            <button onClick={() => setToast(null)} className="hover:opacity-70 transition-opacity"><X size={16} /></button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

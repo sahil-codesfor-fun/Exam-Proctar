@@ -11,6 +11,7 @@ export const StudentDashboard = () => {
   const [exams, setExams] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState('DASHBOARD');
 
   // --- 1. THE SAFETY GATE ---
   // If Auth is still verifying the token or fetching the user, show this instead of a white screen
@@ -105,11 +106,23 @@ export const StudentDashboard = () => {
         </div>
         
         <div className="flex items-center gap-4 w-full md:w-auto">
-          <button onClick={() => navigate('/compiler')} className="flex-1 md:flex-none bg-gray-900 hover:bg-black text-white font-black text-[10px] uppercase tracking-widest py-4 px-8 rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-lg shadow-gray-900/10">
+          <button 
+            onClick={() => setTab('DASHBOARD')} 
+            className={`flex-1 md:flex-none font-black text-[10px] uppercase tracking-widest py-4 px-8 rounded-2xl transition-all shadow-lg active:scale-95 ${tab === 'DASHBOARD' ? 'bg-gray-900 text-white shadow-gray-900/10' : 'bg-white text-gray-400 border border-gray-100'}`}
+          >
+            🏠 Dashboard
+          </button>
+          <button 
+            onClick={() => navigate('/compiler')} 
+            className="flex-1 md:flex-none bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-black text-[10px] uppercase tracking-widest py-4 px-8 rounded-2xl transition-all border border-emerald-100 active:scale-95"
+          >
             💻 Code Playground
           </button>
-          <button onClick={() => { logout(); navigate('/'); }} className="flex-1 md:flex-none bg-red-50 hover:bg-red-100 text-red-600 font-black text-[10px] uppercase tracking-widest py-4 px-8 rounded-2xl transition-all border border-red-100">
-            Term Session
+          <button 
+            onClick={() => setTab('PROFILE')} 
+            className={`flex-1 md:flex-none font-black text-[10px] uppercase tracking-widest py-4 px-8 rounded-2xl transition-all shadow-lg active:scale-95 ${tab === 'PROFILE' ? 'bg-emerald-600 text-white shadow-emerald-900/10' : 'bg-white text-gray-400 border border-gray-100'}`}
+          >
+            👤 Profile
           </button>
         </div>
       </div>
@@ -118,6 +131,76 @@ export const StudentDashboard = () => {
         <div className="flex flex-col items-center justify-center py-32 opacity-30">
           <div className="w-10 h-10 border-2 border-gray-900 border-t-transparent rounded-full animate-spin mb-4"></div>
           <p className="text-[10px] font-black uppercase tracking-widest">Querying Assessments...</p>
+        </div>
+      ) : tab === 'PROFILE' ? (
+        <div className="max-w-4xl mx-auto animate-in slide-in-from-bottom-4 duration-500">
+          <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden">
+            <div className="h-32 bg-gradient-to-r from-emerald-600 to-teal-500 relative">
+              <div className="absolute -bottom-16 left-12">
+                <div className="w-32 h-32 rounded-[2rem] bg-white p-2 shadow-2xl">
+                  <div className="w-full h-full rounded-[1.5rem] bg-emerald-50 flex items-center justify-center text-4xl font-black text-emerald-600 border border-emerald-100">
+                    {user?.name?.[0]}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="pt-20 px-12 pb-12 space-y-10">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="text-3xl font-black text-gray-900 mb-1">{user?.name}</h3>
+                  <p className="text-sm font-bold text-gray-400">{user?.email}</p>
+                </div>
+                <div className="flex flex-col items-end">
+                   <span className="bg-emerald-50 text-emerald-600 text-[10px] font-black px-4 py-1.5 rounded-full uppercase border border-emerald-100 tracking-widest">Active Academic Core</span>
+                   <p className="text-[9px] font-bold text-gray-300 mt-2 uppercase tracking-widest">System Status: Secure</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-8">
+                <div className="space-y-6">
+                  <h4 className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] border-b pb-2">Academic Identity</h4>
+                  <div className="space-y-4">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-gray-400 uppercase">Student Node ID</span>
+                      <span className="text-sm font-bold text-gray-700">{user?.studentId || 'N/A'}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-gray-400 uppercase">Department / Sector</span>
+                      <span className="text-sm font-bold text-gray-700">Engineering & Tech</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <h4 className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] border-b pb-2">System Analytics</h4>
+                  <div className="space-y-4">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-gray-400 uppercase">Assessment Success Rate</span>
+                      <span className="text-sm font-bold text-emerald-600">
+                        {submissions.length > 0 ? Math.round((submissions.filter(s => s.percentage >= 40).length / submissions.length) * 100) : 0}%
+                      </span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-gray-400 uppercase">Total Logged Hours</span>
+                      <span className="text-sm font-bold text-gray-700">14.28 Nodes</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-white border flex items-center justify-center text-xl shadow-sm">🔑</div>
+                  <div>
+                    <p className="text-xs font-black text-gray-900 uppercase">Security Credentials</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase">Last updated: 3 cycles ago</p>
+                  </div>
+                </div>
+                <button className="text-[10px] font-black text-emerald-600 uppercase tracking-widest bg-white border border-emerald-100 px-4 py-2 rounded-lg hover:bg-emerald-50 transition-all">Update Access</button>
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">

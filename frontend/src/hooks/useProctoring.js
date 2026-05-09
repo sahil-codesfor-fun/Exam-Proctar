@@ -45,10 +45,8 @@ export default function useProctoring({ examId, enabled = false, maxViolations =
     // ── Window blur (alt-tab, app switch) ──
     const handleBlur = () => logViolation('window_blur', 'high', 'Window lost focus');
 
-    // ── Fullscreen exit ──
-    const handleFullscreen = () => {
-      if (!document.fullscreenElement) logViolation('fullscreen_exit', 'critical', 'Exited fullscreen mode');
-    };
+    // ── Fullscreen exit ── (Handled in page for custom force-reentry logic)
+    const handleFullscreen = () => {};
 
     // ── Copy / Paste / Cut / Drag / Drop ──
     const preventEvent = (name) => (e) => { e.preventDefault(); logViolation('copy_paste', 'medium', `${name} attempted`); };
