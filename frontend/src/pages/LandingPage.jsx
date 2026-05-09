@@ -48,7 +48,11 @@ export const LandingPage = () => {
         }
       }
     } catch (err) {
-      setStatus({ message: `❌ ${err.response?.data?.message || 'Cannot reach server on port 5002'}`, type: 'error' });
+      console.error("LOGIN ERROR:", err); // Prints the real error to your F12 console
+      setStatus({ 
+        message: `❌ ${err.response?.data?.message || err.message || 'Cannot reach cloud server. Check console.'}`, 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
     }
