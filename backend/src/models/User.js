@@ -3,10 +3,15 @@ import bcrypt from 'bcryptjs';
 
 const userSchema = mongoose.Schema({
   name: { type: String, required: true },
-  studentId: { type: String, required: true, unique: true },
+  studentId: { type: String, unique: true, sparse: true },
+  facultyId: { type: String, unique: true, sparse: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: { type: String, default: 'student' }
+  role: { type: String, enum: ['student', 'teacher', 'admin', 'faculty'], default: 'student' },
+  department: { type: String },
+  isActive: { type: Boolean, default: true },
+  lastLogin: { type: Date },
+  passwordResetRequired: { type: Boolean, default: false }
 }, { timestamps: true });
 
 userSchema.pre('save', async function (next) {

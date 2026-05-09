@@ -20,16 +20,29 @@ export const LandingPage = () => {
     setStatus({ message: isSignUp ? 'Creating account…' : 'Authenticating…', type: 'info' });
     const endpoint = isSignUp ? '/auth/signup' : '/auth/login';
     try {
+      const payload = { ...credentials, role: activeTab };
+      // If logging in and email field doesn't look like an email, send it as 'id'
+      if (!isSignUp && !credentials.email.includes('@')) {
+        payload.id = credentials.email;
+        delete payload.email;
+      }
+
       const res = await axios.post(
         `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5002/api'}${endpoint}`,
-        { ...credentials, role: activeTab }
+        payload
       );
       if (res.data.success) {
         setStatus({ message: isSignUp ? 'Account created! Please sign in.' : '✅ Login successful!', type: 'success' });
         if (!isSignUp) {
-          // CRITICAL FIX: Tell AuthContext we logged in. This updates state instantly and prevents the blank screen.
           login(res.data); 
-          setTimeout(() => navigate(res.data.role === 'student' ? '/student-dashboard' : '/teacher-dashboard'), 800);
+          setTimeout(() => {
+            if (res.data.passwordResetRequired) {
+              navigate('/change-password');
+            } else {
+              const routes = { student: '/student-dashboard', teacher: '/teacher-dashboard', admin: '/admin' };
+              navigate(routes[res.data.role] || '/');
+            }
+          }, 800);
         } else {
           setTimeout(() => { setIsSignUp(false); setStatus({ message: 'Now sign in with your new account.', type: 'info' }); }, 2000);
         }
@@ -69,10 +82,10 @@ export const LandingPage = () => {
         <div className="w-full max-w-md py-10">
 
           {/* Role Tabs */}
-          <div className="flex border-b border-gray-200 mb-8">
-            {[['student', 'Student'], ['teacher', 'Faculty']].map(([val, label]) => (
+          <div className="flex border-b border-gray-200 mb-8 overflow-x-auto">
+            {[['student', 'Student'], ['teacher', 'Faculty'], ['admin', 'Admin']].map(([val, label]) => (
               <button key={val} type="button" onClick={() => setActiveTab(val)}
-                className={`pb-4 px-6 text-sm font-bold transition-all relative ${activeTab === val ? 'text-emerald-700' : 'text-gray-400 hover:text-gray-600'}`}>
+                className={`pb-4 px-6 text-sm font-bold transition-all whitespace-nowrap relative ${activeTab === val ? 'text-emerald-700' : 'text-gray-400 hover:text-gray-600'}`}>
                 {label} {isSignUp ? 'Register' : 'Login'}
                 {activeTab === val && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-700" />}
               </button>
@@ -107,10 +120,12 @@ export const LandingPage = () => {
             )}
 
             <div>
-              <label className="block text-xs font-bold text-gray-800 mb-1 uppercase tracking-wider">Email Address</label>
-              <input type="email" name="email" value={credentials.email} onChange={handleChange} required
+              <label className="block text-xs font-bold text-gray-800 mb-1 uppercase tracking-wider">
+                {isSignUp ? 'Email Address' : `${activeTab === 'student' ? 'Roll No. or ' : activeTab === 'teacher' ? 'Faculty ID or ' : ''}Email Address`}
+              </label>
+              <input type="text" name="email" value={credentials.email} onChange={handleChange} required
                 className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white outline-none transition-all focus:border-emerald-400"
-                placeholder="2401301059@geetauniversity.edu.in" />
+                placeholder={isSignUp ? "email@example.com" : "ID or Email"} />
             </div>
 
             <div>
@@ -127,10 +142,12 @@ export const LandingPage = () => {
           </form>
 
           <div className="mt-8 text-center">
-            <button type="button" onClick={() => { setIsSignUp(!isSignUp); setStatus({ message: '', type: 'info' }); }}
-              className="text-sm font-bold text-emerald-700 hover:underline">
-              {isSignUp ? 'Already have an account? Sign In' : 'New here? Create a Student or Faculty account'}
-            </button>
+            {activeTab !== 'admin' && (
+              <button type="button" onClick={() => { setIsSignUp(!isSignUp); setStatus({ message: '', type: 'info' }); }}
+                className="text-sm font-bold text-emerald-700 hover:underline">
+                {isSignUp ? 'Already have an account? Sign In' : 'New here? Create a Student or Faculty account'}
+              </button>
+            )}
           </div>
         </div>
       </div>

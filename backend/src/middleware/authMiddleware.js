@@ -27,3 +27,12 @@ export const teacherOnly = (req, res, next) => {
   }
   next();
 };
+
+export const adminOnly = (req, res, next) => {
+  if (req.user?.role !== 'admin') {
+    return res.status(403).json({ message: 'Admin access only' });
+  }
+  next();
+};
+
+export const facultyOnly = teacherOnly;

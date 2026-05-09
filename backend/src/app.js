@@ -5,6 +5,8 @@ import compilerRoutes from './routes/compiler.routes.js';
 import examRoutes from './routes/exam.routes.js';
 import submissionRoutes from './routes/submission.routes.js';
 import violationRoutes from './routes/violation.routes.js';
+import adminRoutes from './routes/admin.routes.js';
+import { sendTestEmail } from './services/emailService.js';
 
 const app = express();
 
@@ -17,10 +19,25 @@ app.use('/api/compiler',    compilerRoutes);
 app.use('/api/exams',       examRoutes);
 app.use('/api/submissions', submissionRoutes);
 app.use('/api/violations',  violationRoutes);
+app.use('/api/admin',       adminRoutes);
 
 // ── Health check ──────────────────────────────────────────────
 app.get('/api/test', (_req, res) => {
   res.json({ message: 'NEXUS PROCTOR backend is live 🚀', timestamp: new Date().toISOString() });
+});
+
+// ── SMTP Diagnostic ───────────────────────────────────────────
+app.get('/test-email', async (_req, res) => {
+  try {
+    const user = process.env.EMAIL_USER;
+    if (!user) throw new Error("EMAIL_USER not configured in .env");
+    
+    await sendTestEmail(user);
+    res.send("MAIL SENT");
+  } catch (err) {
+    console.error(err);
+    res.send(err.message);
+  }
 });
 
 // ── Global error handler ──────────────────────────────────────

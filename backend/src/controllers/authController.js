@@ -19,13 +19,20 @@ export const registerUser = async (req, res) => {
     }
 
     // 3. Create user with the role sent from Frontend
-    const user = await User.create({ 
-      name, 
-      studentId: role === 'teacher' ? `FAC-${Date.now()}` : studentId, 
-      email, 
+    const userData = {
+      name,
+      email,
       password,
-      role: role || 'student' 
-    });
+      role: role || 'student'
+    };
+
+    if (userData.role === 'teacher') {
+      userData.facultyId = `FAC-${Date.now()}`;
+    } else {
+      userData.studentId = studentId;
+    }
+
+    const user = await User.create(userData);
 
     if (user) {
       res.status(201).json({
@@ -45,25 +52,65 @@ export const registerUser = async (req, res) => {
 };
 
 export const loginUser = async (req, res) => {
-  // 4. Changed to email for login flexibility
-  const { email, password } = req.body;
+  const { email, password, id } = req.body; // 'id' can be studentId or facultyId
+  const loginIdentifier = email || id;
 
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({
+      $or: [
+        { email: loginIdentifier },
+        { studentId: loginIdentifier },
+        { facultyId: loginIdentifier }
+      ]
+    });
 
-    if (user && (await user.matchPassword(password))) {
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ success: false, message: 'Account is disabled. Please contact admin.' });
+    }
+
+    if (await user.matchPassword(password)) {
+      user.lastLogin = new Date();
+      await user.save();
+
       res.json({
         success: true,
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
+        studentId: user.studentId,
+        facultyId: user.facultyId,
+        passwordResetRequired: user.passwordResetRequired,
         token: generateToken(user._id),
       });
     } else {
-      res.status(401).json({ success: false, message: 'Invalid credentials, ¡inténtalo de nuevo!' });
+      res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const changePassword = async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    if (currentPassword && !(await user.matchPassword(currentPassword))) {
+      return res.status(400).json({ success: false, message: 'Current password incorrect' });
+    }
+
+    user.password = newPassword;
+    user.passwordResetRequired = false;
+    await user.save();
+
+    res.json({ success: true, message: 'Password updated successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };
