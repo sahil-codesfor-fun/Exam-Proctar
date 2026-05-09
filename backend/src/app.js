@@ -1,46 +1,52 @@
-import { createServer } from 'http';
-import { Server } from 'socket.io';
-import app from './app.js';
-import dotenv from 'dotenv';
-import { connectDB } from './config/db.js';
-import { setupProctorSockets } from './sockets/proctorSocket.js';
+import express from 'express';
+import cors from 'cors';
+import authRoutes from './routes/auth.routes.js';
+import compilerRoutes from './routes/compiler.routes.js';
+import examRoutes from './routes/exam.routes.js';
+import submissionRoutes from './routes/submission.routes.js';
+import violationRoutes from './routes/violation.routes.js';
+import adminRoutes from './routes/admin.routes.js';
+import { sendTestEmail } from './services/emailService.js';
 
-dotenv.config();
+const app = express();
 
-const startServer = async () => {
-  // 1. Validate ENV
-  if (!process.env.MONGO_URI || !process.env.JWT_SECRET) {
-    console.error("❌ FATAL ERROR: Missing MONGO_URI or JWT_SECRET in environment variables.");
-    process.exit(1);
+app.use(cors({
+  origin: ['http://localhost:5173', 'https://your-brand-new-vercel-url.vercel.app'],
+  credentials: true
+}));
+app.use(express.json({ limit: '5mb' }));
+
+// ── API Routes ────────────────────────────────────────────────
+app.use('/api/auth',        authRoutes);
+app.use('/api/compiler',    compilerRoutes);
+app.use('/api/exams',       examRoutes);
+app.use('/api/submissions', submissionRoutes);
+app.use('/api/violations',  violationRoutes);
+app.use('/api/admin',       adminRoutes);
+
+// ── Health check ──────────────────────────────────────────────
+app.get('/api/test', (_req, res) => {
+  res.json({ message: 'NEXUS PROCTOR backend is live 🚀', timestamp: new Date().toISOString() });
+});
+
+// ── SMTP Diagnostic ───────────────────────────────────────────
+app.get('/test-email', async (_req, res) => {
+  try {
+    const user = process.env.EMAIL_USER;
+    if (!user) throw new Error("EMAIL_USER not configured in .env");
+    
+    await sendTestEmail(user);
+    res.send("MAIL SENT");
+  } catch (err) {
+    console.error(err);
+    res.send(err.message);
   }
+});
 
-  // 2. Connect MongoDB
-  await connectDB();
+// ── Global error handler ──────────────────────────────────────
+app.use((err, _req, res, _next) => {
+  console.error('Global error:', err.message);
+  res.status(500).json({ success: false, message: err.message || 'Internal server error' });
+});
 
-  // 3. Start Express server
-  const PORT = process.env.PORT || 5001;
-  const httpServer = createServer(app);
-
-  // 4. Initialize Socket.IO with Strict Vercel CORS
-  const allowedOrigins = [
-    'http://localhost:5173', 
-    'https://exam-proctar.vercel.app' // YOUR VERCEL CLOUD URL
-  ];
-
-  const io = new Server(httpServer, {
-    cors: { 
-      origin: allowedOrigins, 
-      methods: ['GET', 'POST', 'PUT', 'DELETE'],
-      credentials: true // Crucial for passing secure tokens/cookies!
-    },
-  });
-
-  setupProctorSockets(io);
-
-  httpServer.listen(PORT, () => {
-    console.log(`🚀 NEXUS PROCTOR backend running on port ${PORT}`);
-    console.log(`📡 Socket.io ready for real-time proctoring`);
-  });
-};
-
-startServer();
+export default app;
