@@ -21,9 +21,18 @@ const startServer = async () => {
   const PORT = process.env.PORT || 5001;
   const httpServer = createServer(app);
 
-  // 4. Initialize Socket.IO
+  // 4. Initialize Socket.IO with Strict Vercel CORS
+  const allowedOrigins = [
+    'http://localhost:5173', 
+    'https://exam-proctar.vercel.app' // YOUR VERCEL CLOUD URL
+  ];
+
   const io = new Server(httpServer, {
-    cors: { origin: '*', methods: ['GET', 'POST'] },
+    cors: { 
+      origin: allowedOrigins, 
+      methods: ['GET', 'POST', 'PUT', 'DELETE'],
+      credentials: true // Crucial for passing secure tokens/cookies!
+    },
   });
 
   setupProctorSockets(io);
