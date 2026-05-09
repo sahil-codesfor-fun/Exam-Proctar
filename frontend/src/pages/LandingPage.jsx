@@ -28,7 +28,7 @@ export const LandingPage = () => {
       }
 
       const res = await axios.post(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5002/api'}${endpoint}`,
+        `${import.meta.env.VITE_API_BASE_URL}${endpoint}`,
         payload
       );
       if (res.data.success) {
