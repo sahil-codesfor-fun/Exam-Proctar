@@ -10,10 +10,25 @@ import { sendTestEmail } from './services/emailService.js';
 
 const app = express();
 
+// 🚨 THE REAL VIP LIST 🚨
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://exam-proctar.vercel.app' // NO trailing slash!
+];
+
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://your-brand-new-vercel-url.vercel.app'],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like Postman) or allowed origins
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.error('CORS Blocked:', origin); // Prints to Render logs if someone gets blocked
+      callback(new Error('CORS Policy Blocked this request'));
+    }
+  },
   credentials: true
 }));
+
 app.use(express.json({ limit: '5mb' }));
 
 // ── API Routes ────────────────────────────────────────────────
