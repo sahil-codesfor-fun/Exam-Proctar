@@ -10,7 +10,17 @@ const EMPTY_Q = { type: 'mcq', title: '', description: '', points: 10, options: 
 const formatForInput = (dateString) => {
   if (!dateString) return '';
   const d = new Date(dateString);
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  if (isNaN(d.getTime())) return '';
+  
+  // Use local time components to build YYYY-MM-DDTHH:mm
+  const pad = (n) => String(n).padStart(2, '0');
+  const y = d.getFullYear();
+  const m = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const h = pad(d.getHours());
+  const min = pad(d.getMinutes());
+  
+  return `${y}-${m}-${day}T${h}:${min}`;
 };
 
 export const TeacherDashboard = () => {
@@ -227,11 +237,18 @@ export const TeacherDashboard = () => {
       if (!form.questions[i].title.trim()) return showToast(`Question ${i + 1} title is required.`, 'error');
     }
 
-    // ── AUTO CALCULATE END TIME ──
+    // ── AUTO CALCULATE END TIME & NORMALIZE START TIME ──
     let computedEndTime = undefined;
-    if (form.startTime && form.durationMinutes) {
+    let isoStartTime = undefined;
+    
+    if (form.startTime) {
       const st = new Date(form.startTime);
-      computedEndTime = new Date(st.getTime() + form.durationMinutes * 60000).toISOString();
+      if (!isNaN(st.getTime())) {
+        isoStartTime = st.toISOString(); // Always send UTC to backend
+        if (form.durationMinutes) {
+          computedEndTime = new Date(st.getTime() + form.durationMinutes * 60000).toISOString();
+        }
+      }
     }
 
     const cleanedQuestions = form.questions.map(q => {
@@ -248,7 +265,7 @@ export const TeacherDashboard = () => {
     const payload = {
       ...form,
       questions: cleanedQuestions,
-      startTime: form.startTime || undefined,
+      startTime: isoStartTime, // Overwrite with normalized ISO string
       endTime: computedEndTime, // Injected calculated time
     };
     
@@ -304,7 +321,7 @@ export const TeacherDashboard = () => {
             <input type="number" value={form.durationMinutes} onChange={e => setForm(p => ({...p, durationMinutes: +e.target.value}))} placeholder="Duration (min)" className="px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
             <div className="flex flex-col">
               <label className="text-[10px] font-bold text-gray-500 uppercase ml-2 mb-1">Start Time</label>
-              <input type="datetime-local" value={form.startTime} onChange={e => setForm(p => ({...p, startTime: e.target.value}))} className="px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none text-gray-600 border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
+              <input type="datetime-local" step="60" value={form.startTime} onChange={e => setForm(p => ({...p, startTime: e.target.value}))} className="px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none text-gray-600 border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
             </div>
             {/* REMOVED END TIME - Auto Calculated Now */}
           </div>
