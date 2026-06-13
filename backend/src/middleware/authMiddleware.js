@@ -22,7 +22,8 @@ export const protect = async (req, res, next) => {
 };
 
 export const teacherOnly = (req, res, next) => {
-  if (req.user?.role !== 'teacher') {
+  // 🚨 THE FIX: Allow BOTH 'teacher' and 'faculty' to enter the VIP section!
+  if (req.user?.role !== 'teacher' && req.user?.role !== 'faculty') {
     return res.status(403).json({ message: 'Teacher access only' });
   }
   next();
@@ -35,4 +36,5 @@ export const adminOnly = (req, res, next) => {
   next();
 };
 
+// Map facultyOnly directly to the updated teacherOnly middleware!
 export const facultyOnly = teacherOnly;

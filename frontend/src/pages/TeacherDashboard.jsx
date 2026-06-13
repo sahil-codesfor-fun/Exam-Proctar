@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import { Plus, X, Trash2, CheckCircle2, LayoutGrid, FileText, ShieldAlert, Upload, Edit } from 'lucide-react';
-import * as XLSX from 'xlsx'; // 📦 IMPORTED XLSX FOR SPREADSHEETS
+import * as XLSX from 'xlsx'; 
 
 const EMPTY_Q = { type: 'mcq', title: '', description: '', points: 10, options: [{ text: '', isCorrect: false },{ text: '', isCorrect: false },{ text: '', isCorrect: false },{ text: '', isCorrect: false }], testCases: [{ input: '', expectedOutput: '', isHidden: false }], timeLimitSeconds: 5, constraints: '' };
 
@@ -11,15 +11,12 @@ const formatForInput = (dateString) => {
   if (!dateString) return '';
   const d = new Date(dateString);
   if (isNaN(d.getTime())) return '';
-  
-  // Use local time components to build YYYY-MM-DDTHH:mm
   const pad = (n) => String(n).padStart(2, '0');
   const y = d.getFullYear();
   const m = pad(d.getMonth() + 1);
   const day = pad(d.getDate());
   const h = pad(d.getHours());
   const min = pad(d.getMinutes());
-  
   return `${y}-${m}-${day}T${h}:${min}`;
 };
 
@@ -35,7 +32,7 @@ export const TeacherDashboard = () => {
   const [saving, setSaving] = useState(false);
   const [viewExam, setViewExam] = useState(null);
   const [toast, setToast] = useState(null);
-  const [confirmModal, setConfirmModal] = useState(null); // { message, onConfirm }
+  const [confirmModal, setConfirmModal] = useState(null); 
   
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
@@ -48,12 +45,9 @@ export const TeacherDashboard = () => {
   
   const [editingId, setEditingId] = useState(null);
   const fileInputRef = useRef(null);
-  
-  // Ref and State for Bulk Test Cases
   const tcFileInputRef = useRef(null);
   const [activeTcIndex, setActiveTcIndex] = useState(null);
 
-  // Removed endTime from the default form
   const defaultForm = { title: '', description: '', course: '', startTime: '', durationMinutes: 60, proctoring: { maxViolations: 3, restrictionMinutes: 30, requireFullscreen: true, disableCopyPaste: true, autoSubmitOnMax: true, enableWebcam: false }, questions: [{ ...EMPTY_Q }] };
   const [form, setForm] = useState(defaultForm);
 
@@ -93,12 +87,10 @@ export const TeacherDashboard = () => {
     updQ(qi, 'testCases', tcs);
   };
 
-  // ── THE OMNI-PARSER (TXT, CSV, XLSX for Questions) ──
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const ext = file.name.split('.').pop().toLowerCase();
-
     try {
       let parsedQs = [];
       if (ext === 'txt') {
@@ -130,11 +122,9 @@ export const TeacherDashboard = () => {
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data);
         const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-        
         rows.forEach(row => {
           const type = (row['Type'] || 'subjective').toLowerCase().trim();
           let q = { ...EMPTY_Q, type, title: row['Title'] || 'Imported Question', description: row['Description'] || '', points: Number(row['Points']) || 10, options: [], testCases: [] };
-          
           if (type === 'mcq') {
             const correctIndex = Number(row['Correct Option']) || 1;
             [1, 2, 3, 4].forEach(i => {
@@ -147,25 +137,18 @@ export const TeacherDashboard = () => {
           parsedQs.push(q);
         });
       }
-
       if (parsedQs.length > 0) {
         setForm(p => ({ ...p, questions: [...p.questions, ...parsedQs] }));
-        showToast(`¡Ay, Mi Amor! ✅ Imported ${parsedQs.length} questions from ${file.name}!`, 'success');
-      } else {
-        showToast('❌ No valid questions found.', 'error');
-      }
-    } catch (err) {
-      showToast('❌ Error reading file. Ensure it is formatted correctly.', 'error');
-    }
+        showToast(`✅ Imported ${parsedQs.length} questions!`, 'success');
+      } else { showToast('❌ No valid questions found.', 'error'); }
+    } catch (err) { showToast('❌ Error reading file.', 'error'); }
     e.target.value = null;
   };
 
-  // ── BULK TEST CASE PARSER (TXT, CSV, XLSX) ──
   const handleTcUpload = async (e) => {
     const file = e.target.files[0];
     if (!file || activeTcIndex === null) return;
     const ext = file.name.split('.').pop().toLowerCase();
-
     try {
       let newTcs = [];
       if (ext === 'txt') {
@@ -186,7 +169,6 @@ export const TeacherDashboard = () => {
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data);
         const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-        
         rows.forEach(row => {
           newTcs.push({
             input: String(row['Input'] || '').replace(/\\n/g, '\n'),
@@ -195,21 +177,16 @@ export const TeacherDashboard = () => {
           });
         });
       }
-
       if (newTcs.length > 0) {
         updQ(activeTcIndex, 'testCases', [...form.questions[activeTcIndex].testCases, ...newTcs]);
         showToast(`✅ Automatically added ${newTcs.length} test cases!`, 'success');
       }
-    } catch (err) {
-      showToast('❌ Error reading test case file.', 'error');
-    }
+    } catch (err) { showToast('❌ Error reading test case file.', 'error'); }
     e.target.value = null;
     setActiveTcIndex(null);
   };
 
-  const showFormatGuide = () => {
-    showToast(`CSV/EXCEL FORMAT: Headers: Type, Title, Description, Points, Option 1-4, Correct Option, Constraints`, 'info');
-  };
+  const showFormatGuide = () => { showToast(`CSV/EXCEL FORMAT: Headers: Type, Title, Description, Points, Option 1-4, Correct Option, Constraints`, 'info'); };
 
   const openEditModal = (examData) => {
     setEditingId(examData._id);
@@ -232,25 +209,18 @@ export const TeacherDashboard = () => {
 
   const deploy = async (status = 'published') => {
     if (!form.title.trim()) return showToast('Exam title is required.', 'error');
-
     for (let i = 0; i < form.questions.length; i++) {
       if (!form.questions[i].title.trim()) return showToast(`Question ${i + 1} title is required.`, 'error');
     }
-
-    // ── AUTO CALCULATE END TIME & NORMALIZE START TIME ──
     let computedEndTime = undefined;
     let isoStartTime = undefined;
-    
     if (form.startTime) {
       const st = new Date(form.startTime);
       if (!isNaN(st.getTime())) {
-        isoStartTime = st.toISOString(); // Always send UTC to backend
-        if (form.durationMinutes) {
-          computedEndTime = new Date(st.getTime() + form.durationMinutes * 60000).toISOString();
-        }
+        isoStartTime = st.toISOString(); 
+        if (form.durationMinutes) computedEndTime = new Date(st.getTime() + form.durationMinutes * 60000).toISOString();
       }
     }
-
     const cleanedQuestions = form.questions.map(q => {
       const base = { type: q.type, title: q.title.trim(), description: q.description || '', points: q.points || 10 };
       if (q.type === 'mcq') base.options = q.options;
@@ -261,35 +231,19 @@ export const TeacherDashboard = () => {
       }
       return base;
     });
-
-    const payload = {
-      ...form,
-      questions: cleanedQuestions,
-      startTime: isoStartTime, // Overwrite with normalized ISO string
-      endTime: computedEndTime, // Injected calculated time
-    };
-    
+    const payload = { ...form, questions: cleanedQuestions, startTime: isoStartTime, endTime: computedEndTime };
     if (!editingId || status === 'draft') payload.status = status;
-
     setSaving(true);
     try {
       if (editingId) await api.put(`/exams/${editingId}`, payload); 
       else await api.post('/exams', payload); 
-      
-      setModal(false);
-      setEditingId(null);
-      setForm(defaultForm);
-      load();
-      
+      setModal(false); setEditingId(null); setForm(defaultForm); load();
       if (viewExam && editingId) {
         const updatedRes = await api.get(`/exams/${editingId}`);
         setViewExam(updatedRes.data.data);
       }
-    } catch (e) { 
-      showToast(e.response?.data?.message || 'Deployment failed. Check your fields.', 'error'); 
-    } finally { 
-      setSaving(false); 
-    }
+    } catch (e) { showToast(e.response?.data?.message || 'Deployment failed.', 'error'); } 
+    finally { setSaving(false); }
   };
 
   const toggleStatus = async (exam, status) => {
@@ -307,11 +261,11 @@ export const TeacherDashboard = () => {
   };
 
   const renderModal = () => (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/50 backdrop-blur-sm">
-      <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
-        <div className="px-8 py-5 border-b flex justify-between items-center">
-          <h2 className="text-lg font-black uppercase">{editingId ? '✏️ Edit Exam' : 'Deploy New Exam'}</h2>
-          <button onClick={() => { setModal(false); setEditingId(null); setForm(defaultForm); }}><X size={20} /></button>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm animate-in fade-in">
+      <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95">
+        <div className="px-8 py-5 border-b flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
+          <h2 className="text-lg font-black uppercase tracking-tight">{editingId ? '✏️ Edit Exam' : 'Deploy New Exam'}</h2>
+          <button onClick={() => { setModal(false); setEditingId(null); setForm(defaultForm); }} className="p-2 hover:bg-gray-200 rounded-lg transition-colors"><X size={20} /></button>
         </div>
         <div className="p-8 overflow-y-auto flex-1 space-y-6">
           <input value={form.title} onChange={e => setForm(p => ({...p, title: e.target.value}))} placeholder="Exam Title *" className="w-full px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
@@ -323,15 +277,14 @@ export const TeacherDashboard = () => {
               <label className="text-[10px] font-bold text-gray-500 uppercase ml-2 mb-1">Start Time</label>
               <input type="datetime-local" step="60" value={form.startTime} onChange={e => setForm(p => ({...p, startTime: e.target.value}))} className="px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none text-gray-600 border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
             </div>
-            {/* REMOVED END TIME - Auto Calculated Now */}
           </div>
           <textarea value={form.description} onChange={e => setForm(p => ({...p, description: e.target.value}))} placeholder="Description" className="w-full px-4 py-3 bg-gray-50 rounded-xl outline-none h-20 resize-none border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
 
-          <div className="bg-emerald-50 p-5 rounded-xl space-y-3">
-            <h3 className="text-xs font-black text-emerald-700 uppercase">Security Settings</h3>
+          <div className="bg-emerald-50/50 p-5 rounded-xl space-y-3 border border-emerald-100">
+            <h3 className="text-xs font-black text-emerald-700 uppercase tracking-widest">Security Settings</h3>
             <div className="grid grid-cols-2 gap-3 text-sm">
-              <label className="flex items-center gap-2 font-medium"><input type="number" value={form.proctoring.maxViolations} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, maxViolations: +e.target.value}}))} className="w-16 px-2 py-1 rounded border outline-none font-bold" /> Max Violations</label>
-              <label className="flex items-center gap-2 font-medium"><input type="number" value={form.proctoring.restrictionMinutes} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, restrictionMinutes: +e.target.value}}))} className="w-16 px-2 py-1 rounded border outline-none font-bold" /> Restriction (min)</label>
+              <label className="flex items-center gap-2 font-medium"><input type="number" value={form.proctoring.maxViolations} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, maxViolations: +e.target.value}}))} className="w-16 px-2 py-1.5 rounded-lg border outline-none font-bold shadow-sm" /> Max Violations</label>
+              <label className="flex items-center gap-2 font-medium"><input type="number" value={form.proctoring.restrictionMinutes} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, restrictionMinutes: +e.target.value}}))} className="w-16 px-2 py-1.5 rounded-lg border outline-none font-bold shadow-sm" /> Restriction (min)</label>
               <label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={form.proctoring.requireFullscreen} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, requireFullscreen: e.target.checked}}))} className="accent-emerald-600 w-4 h-4" /> Require Fullscreen</label>
               <label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={form.proctoring.disableCopyPaste} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, disableCopyPaste: e.target.checked}}))} className="accent-emerald-600 w-4 h-4" /> Disable Copy/Paste</label>
               <label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={form.proctoring.autoSubmitOnMax} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, autoSubmitOnMax: e.target.checked}}))} className="accent-emerald-600 w-4 h-4" /> Auto-submit on Max</label>
@@ -339,30 +292,22 @@ export const TeacherDashboard = () => {
           </div>
 
           <div className="flex justify-between items-center flex-wrap gap-3">
-            <h3 className="text-xs font-black text-gray-400 uppercase">Questions ({form.questions.length})</h3>
-            
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Questions ({form.questions.length})</h3>
             <div className="flex gap-2">
-              <button onClick={showFormatGuide} className="text-xs font-bold text-gray-500 flex items-center gap-1 bg-gray-100 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition-all border border-gray-200 shadow-sm">
-                 ❔ Format Guide
-              </button>
+              <button onClick={showFormatGuide} className="text-xs font-bold text-gray-500 flex items-center gap-1 bg-white px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-all border border-gray-200 shadow-sm">❔ Format Guide</button>
               <input type="file" accept=".txt,.csv,.xlsx" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
-              <button onClick={() => fileInputRef.current?.click()} className="text-xs font-bold text-blue-600 flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-all border border-blue-100 shadow-sm">
-                 <Upload size={14} /> Bulk Upload Qs
-              </button>
-              <button onClick={addQ} className="text-xs font-bold text-emerald-600 flex items-center gap-1 bg-emerald-50 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-all border border-emerald-100 shadow-sm">
-                 <Plus size={14} /> Add Question
-              </button>
+              <button onClick={() => fileInputRef.current?.click()} className="text-xs font-bold text-blue-600 flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-all border border-blue-100 shadow-sm"><Upload size={14} /> Bulk Upload Qs</button>
+              <button onClick={addQ} className="text-xs font-bold text-emerald-600 flex items-center gap-1 bg-emerald-50 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-all border border-emerald-100 shadow-sm"><Plus size={14} /> Add Question</button>
             </div>
           </div>
 
-          {/* Hidden input for bulk Test Cases */}
           <input type="file" accept=".txt,.csv,.xlsx" ref={tcFileInputRef} className="hidden" onChange={handleTcUpload} />
 
           {form.questions.map((q, qi) => (
-            <div key={qi} className="bg-gray-50 rounded-2xl p-6 space-y-4 border">
+            <div key={qi} className="bg-gray-50 rounded-2xl p-6 space-y-4 border border-gray-100">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-3">
-                  <span className="bg-white px-3 py-1 rounded-lg text-xs font-black border">Q{qi+1}</span>
+                  <span className="bg-white px-3 py-1 rounded-lg text-xs font-black border shadow-sm">Q{qi+1}</span>
                   <select value={q.type} onChange={e => updQ(qi, 'type', e.target.value)} className="bg-emerald-50 text-emerald-700 rounded-lg px-3 py-1.5 text-xs font-black border border-emerald-100 cursor-pointer outline-none">
                     <option value="mcq">MCQ</option>
                     <option value="coding">CODING</option>
@@ -418,15 +363,11 @@ export const TeacherDashboard = () => {
           ))}
         </div>
         <div className="px-8 py-5 border-t flex justify-end gap-3 bg-gray-50 rounded-b-2xl">
-          <button onClick={() => { setModal(false); setEditingId(null); setForm(defaultForm); }} className="px-6 py-3 text-gray-500 font-bold text-sm hover:text-gray-700 bg-white border border-gray-200 rounded-xl shadow-sm transition-all">Cancel</button>
-          
+          <button onClick={() => { setModal(false); setEditingId(null); setForm(defaultForm); }} className="px-6 py-3.5 text-gray-500 font-bold text-xs uppercase tracking-widest hover:text-gray-700 bg-white border border-gray-200 rounded-xl shadow-sm transition-all">Cancel</button>
           {(!editingId || form.status === 'draft') && (
-            <button onClick={() => deploy('draft')} disabled={saving} className="px-6 py-3 border border-amber-200 bg-amber-50 text-amber-700 rounded-xl font-bold text-sm disabled:opacity-50 hover:bg-amber-100 transition-all shadow-sm">
-              Save Draft
-            </button>
+            <button onClick={() => deploy('draft')} disabled={saving} className="px-6 py-3.5 border border-amber-200 bg-amber-50 text-amber-700 rounded-xl font-bold text-xs uppercase tracking-widest disabled:opacity-50 hover:bg-amber-100 transition-all shadow-sm">Save Draft</button>
           )}
-
-          <button onClick={() => deploy('published')} disabled={saving} className="px-8 py-3 bg-[#4B775E] text-white rounded-xl font-bold text-sm shadow-lg disabled:opacity-50 hover:bg-[#3d614d] hover:scale-[1.02] active:scale-[0.98] transition-all">
+          <button onClick={() => deploy('published')} disabled={saving} className="px-8 py-3.5 bg-emerald-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg disabled:opacity-50 hover:bg-emerald-700 transition-all active:scale-95">
             {saving ? '⏳ Processing…' : editingId ? '🔄 Update Exam' : '🚀 Publish Exam'}
           </button>
         </div>
@@ -437,11 +378,9 @@ export const TeacherDashboard = () => {
   const ExamDetail = ({ exam }) => {
     const [liveStudents, setLiveStudents] = useState([]);
     const [liveViolations, setLiveViolations] = useState([]);
-    const [liveFrames, setLiveFrames] = useState({});
 
     useEffect(() => { loadSubs(exam._id); }, [exam._id]);
     const es = subs[exam._id] || [];
-    const ev = violations[exam._id] || [];
 
     useEffect(() => {
       import('../services/socket').then(({ connectSocket }) => {
@@ -452,11 +391,6 @@ export const TeacherDashboard = () => {
         socket.on('student_joined', (data) => setLiveStudents(p => [...p.filter(s => s.studentId !== data.studentId), data]));
         socket.on('student_left', (data) => {
           setLiveStudents(p => p.filter(s => s.studentId !== data.studentId));
-          setLiveFrames(p => { const newFrames = { ...p }; delete newFrames[data.studentId]; return newFrames; });
-        });
-        
-        socket.on('student_frame', ({ studentId, frame }) => {
-          setLiveFrames(p => ({ ...p, [studentId]: frame }));
         });
 
         socket.on('violation_alert', (data) => {
@@ -467,7 +401,6 @@ export const TeacherDashboard = () => {
           socket.off('active_students');
           socket.off('student_joined');
           socket.off('student_left');
-          socket.off('student_frame');
           socket.off('violation_alert');
         };
       });
@@ -502,13 +435,11 @@ export const TeacherDashboard = () => {
           </div>
           
           <div className="flex gap-2">
-            
             {(exam.status === 'draft' || exam.status === 'published') && (
                <button onClick={() => openEditModal(exam)} className="flex items-center gap-2 bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">
                  <Edit size={14}/> Edit Details
                </button>
             )}
-
             {exam.status === 'draft' && <button onClick={() => toggleStatus(exam, 'published')} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-600/20">Publish Network</button>}
             {exam.status === 'published' && <button onClick={() => toggleStatus(exam, 'draft')} className="bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200 px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">Unpublish</button>}
             {(exam.status === 'published' || exam.status === 'draft') && <button onClick={() => toggleStatus(exam, 'active')} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-600/20">FORCE START NOW</button>}
@@ -530,31 +461,19 @@ export const TeacherDashboard = () => {
               <div>
                 <h4 className="text-[10px] text-gray-400 uppercase tracking-[0.2em] mb-4 font-bold border-b border-gray-800 pb-2">Active Connections ({liveStudents.length})</h4>
                 {liveStudents.length === 0 ? <p className="text-xs text-gray-600 italic font-medium mt-4">Awaiting incoming student nodes...</p> : (
-                  <div className="grid grid-cols-2 gap-4 max-h-[30rem] overflow-y-auto pr-2 custom-scrollbar">
+                  <div className="space-y-3 max-h-[30rem] overflow-y-auto pr-2 custom-scrollbar">
                     {liveStudents.map(s => (
-                      <div key={s.studentId} className="bg-gray-800/50 backdrop-blur-sm p-3 rounded-2xl border border-gray-700/50 hover:border-gray-600 transition-all group flex flex-col gap-3 relative">
-                        <div className="w-full aspect-video bg-black rounded-lg overflow-hidden border border-gray-700 relative">
-                           {liveFrames[s.studentId] ? (
-                             <img src={liveFrames[s.studentId]} alt="Student Camera" className="w-full h-full object-cover" style={{ transform: 'scaleX(-1)' }} />
-                           ) : (
-                             <div className="flex flex-col items-center justify-center h-full text-gray-500 text-[9px] font-bold gap-2 uppercase tracking-widest">
-                               <div className="w-4 h-4 rounded-full border-2 border-t-emerald-500 border-gray-700 animate-spin"></div>
-                               Awaiting Stream
-                             </div>
-                           )}
-                           <div className="absolute bottom-2 left-2 flex items-center gap-2">
-                             <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></span>
-                             <span className="text-[10px] font-bold text-white bg-black/60 px-2 py-0.5 rounded shadow-sm backdrop-blur-md">LIVE</span>
-                           </div>
-                        </div>
-                        <div className="flex items-center justify-between px-1">
-                          <div className="flex flex-col">
-                            <span className="text-xs font-bold text-gray-100 truncate max-w-[120px]">{s.name}</span>
+                      <div key={s.studentId} className="flex items-center justify-between bg-gray-800/50 backdrop-blur-sm p-4 rounded-2xl border border-gray-700/50 hover:border-gray-600 transition-all group">
+                        <div className="flex items-center gap-4">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></span>
+                          <div>
+                            <span className="text-sm font-bold text-gray-100 block">{s.name}</span>
+                            <span className="text-[10px] text-gray-400 font-mono tracking-tighter">ID: {s.studentId}</span>
                           </div>
-                          <button onClick={() => forceSubmit(s.studentId)} className="text-[9px] font-black bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500 hover:text-white px-2 py-1.5 rounded transition-all uppercase tracking-widest opacity-0 group-hover:opacity-100">
-                            Kill
-                          </button>
                         </div>
+                        <button onClick={() => forceSubmit(s.studentId)} className="text-[9px] font-black bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500 hover:text-white px-3 py-2 rounded-lg transition-all uppercase tracking-widest opacity-0 group-hover:opacity-100">
+                          Force Kill
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -624,9 +543,38 @@ export const TeacherDashboard = () => {
 
   return (
     <div className="flex h-[calc(100vh-8.5rem)] bg-gray-50 overflow-hidden font-sans relative rounded-xl border border-gray-100 shadow-sm">
-      
       {modal && renderModal()}
 
+      {/* ✨ SLEEK FLOATING PILL TOAST ✨ */}
+      {toast && (
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[600] animate-in slide-in-from-bottom-10 fade-in duration-300">
+          <div className={`px-6 py-3.5 rounded-full shadow-2xl border flex items-center gap-3 text-sm font-bold ${
+            toast.type === 'error' ? 'bg-red-600 text-white border-red-500 shadow-red-600/20' : 
+            'bg-gray-900 text-white border-gray-700 shadow-xl'
+          }`}>
+            <span className="text-lg">{toast.type === 'error' ? '⚠️' : '✨'}</span>
+            <span className="tracking-wide pr-2">{toast.message}</span>
+            <button onClick={() => setToast(null)} className="ml-2 opacity-50 hover:opacity-100 transition-opacity">✕</button>
+          </div>
+        </div>
+      )}
+
+      {/* ⚠️ NATIVE-LOOKING CONFIRM MODAL ⚠️ */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-gray-100 text-center animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-2xl mx-auto mb-5 shadow-inner">⚠️</div>
+            <h3 className="text-xl font-black text-gray-900 tracking-tight mb-2">Confirm Action</h3>
+            <p className="text-gray-500 text-sm font-medium leading-relaxed mb-8">{confirmModal.message}</p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmModal(null)} className="flex-1 px-4 py-3.5 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold text-xs uppercase tracking-widest rounded-xl transition-all">Cancel</button>
+              <button onClick={() => { confirmModal.onConfirm(); setConfirmModal(null); }} className="flex-1 px-4 py-3.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95">Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sidebar Navigation */}
       <div className="w-64 bg-white border-r flex flex-col p-5 overflow-y-auto relative z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-3 mb-10 px-2 mt-4 cursor-pointer hover:scale-[1.02] transition-transform">
           <div className="bg-emerald-50 text-emerald-600 p-2 rounded-xl border border-emerald-100 shadow-sm">
@@ -760,34 +708,6 @@ export const TeacherDashboard = () => {
           </div>
         )}
       </div>
-      {/* Custom Confirmation Modal */}
-      {confirmModal && (
-        <div className="fixed inset-0 z-[400] flex items-center justify-center bg-gray-900/60 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl border border-gray-100 text-center animate-in zoom-in-95 duration-300">
-            <div className="w-20 h-20 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center text-3xl mx-auto mb-6 shadow-sm border border-red-100">⚠️</div>
-            <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-4">Confirm Action</h3>
-            <p className="text-gray-500 font-medium leading-relaxed mb-10 px-4">{confirmModal.message}</p>
-            <div className="flex gap-4">
-              <button onClick={() => setConfirmModal(null)} className="flex-1 px-6 py-4 bg-gray-100 hover:bg-gray-200 text-gray-600 font-black text-[10px] uppercase tracking-widest rounded-2xl transition-all">Cancel</button>
-              <button onClick={() => { confirmModal.onConfirm(); setConfirmModal(null); }} className="flex-1 px-6 py-4 bg-red-600 hover:bg-red-700 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-lg shadow-red-600/20 transition-all">Confirm</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Custom Toast Notification */}
-      {toast && (
-        <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[300] animate-in slide-in-from-top-10 duration-500">
-          <div className={`px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-4 border backdrop-blur-md ${
-            toast.type === 'error' ? 'bg-red-600/90 border-red-400 text-white' : 
-            toast.type === 'success' ? 'bg-emerald-600/90 border-emerald-400 text-white' : 
-            'bg-gray-900/90 border-gray-700 text-white'
-          }`}>
-            <span className="font-bold text-sm">{toast.message}</span>
-            <button onClick={() => setToast(null)} className="hover:opacity-70 transition-opacity"><X size={16} /></button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

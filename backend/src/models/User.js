@@ -14,12 +14,21 @@ const userSchema = mongoose.Schema({
   passwordResetRequired: { type: Boolean, default: false }
 }, { timestamps: true });
 
-userSchema.pre('save', async function (next) {
+// 🚨 EXORCISM: Removed the 'next' parameter entirely! 
+// Now Mongoose relies purely on the async promise. It is mathematically impossible for it to hang!
+userSchema.pre('save', async function () {
+  
+  // 🚨 EXORCISM: Added "return"! If the password hasn't changed, STOP the function instantly!
   if (!this.isModified('password')) {
-    next();
+    return; 
   }
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+  
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+  } catch (error) {
+    throw error;
+  }
 });
 
 userSchema.methods.matchPassword = async function (enteredPassword) {

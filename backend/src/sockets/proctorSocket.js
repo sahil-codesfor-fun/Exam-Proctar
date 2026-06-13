@@ -13,12 +13,10 @@ export const setupProctorSockets = (io) => {
   io.on('connection', (socket) => {
     console.log(`Socket connected: ${socket.id}`);
 
-    // Global dashboard channel for real-time exam deployments
     socket.on('join_dashboard', ({ role }) => {
       if (role === 'student') socket.join('students_global');
     });
 
-    // Student joins exam room
     socket.on('join_exam', ({ examId, studentId, studentName }) => {
       socket.join(`exam_${examId}`);
       socket.join(`student_${studentId}`);
@@ -29,14 +27,12 @@ export const setupProctorSockets = (io) => {
       if (!activeSessions.has(examId)) activeSessions.set(examId, new Map());
       activeSessions.get(examId).set(studentId, { socketId: socket.id, name: studentName, joinedAt: new Date() });
 
-      // Notify faculty monitoring this exam
       io.to(`faculty_${examId}`).emit('student_joined', {
         studentId, studentName, timestamp: new Date(),
         activeCount: activeSessions.get(examId).size,
       });
     });
 
-    // Faculty joins monitoring room
     socket.on('join_monitoring', ({ examId }) => {
       socket.join(`faculty_${examId}`);
       const sessions = activeSessions.get(examId);
@@ -45,10 +41,8 @@ export const setupProctorSockets = (io) => {
       });
     });
 
-    // Student reports a violation
     socket.on('violation', (data) => {
       console.warn(`🚨 VIOLATION [${data.type}] from ${socket.studentName} (${socket.studentId})`);
-      // Broadcast to faculty monitoring
       io.to(`faculty_${socket.examId}`).emit('violation_alert', {
         studentId: socket.studentId,
         studentName: socket.studentName,
@@ -60,7 +54,6 @@ export const setupProctorSockets = (io) => {
       });
     });
 
-    // Student restricted / auto-submitted
     socket.on('student_restricted', (data) => {
       io.to(`faculty_${socket.examId}`).emit('student_restricted', {
         studentId: socket.studentId,
@@ -79,21 +72,11 @@ export const setupProctorSockets = (io) => {
       });
     });
 
-    // Faculty forces submission / freezes student
     socket.on('force_submit_student', ({ examId, studentId, reason }) => {
       io.to(`student_${studentId}`).emit('force_submit', { reason });
     });
 
-    // Student streams a live frame
-    socket.on('live_frame', ({ frame }) => {
-      if (socket.examId && socket.studentId) {
-        // Broadcast the frame directly to the faculty monitoring the exam
-        io.to(`faculty_${socket.examId}`).emit('student_frame', {
-          studentId: socket.studentId,
-          frame
-        });
-      }
-    });
+    // 🚨 ALL LIVE VIDEO STREAMING LOGIC HAS BEEN COMPLETELY REMOVED FROM HERE 🚨
 
     socket.on('disconnect', () => {
       if (socket.examId && socket.studentId) {

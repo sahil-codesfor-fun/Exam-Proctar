@@ -2,6 +2,8 @@ import React from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LandingPage } from './pages/LandingPage';
+import { FacultyLogin } from './pages/FacultyLogin';
+import { AdminLogin } from './pages/AdminLogin';
 import { StudentDashboard } from './pages/StudentDashboard';
 import { TeacherDashboard } from './pages/TeacherDashboard';
 import { CompilerPage } from './pages/CompilerPage';
@@ -27,15 +29,14 @@ function App() {
   const isAdmin = location.pathname === '/admin';
   const isChangePass = location.pathname === '/change-password';
   
-  // 1. Identify if we are on the Landing Page
-  const isLandingPage = location.pathname === '/';
+  // 🚨 Hide the header on ALL our VIP entrance pages!
+  const isAuthPage = ['/', '/fac', '/adm'].includes(location.pathname);
 
   return (
     <AuthProvider>
       <div className={`min-h-screen font-sans flex flex-col ${isLiveExam || isCompiler ? 'bg-gray-950 text-white' : 'bg-gray-50 text-gray-900'}`}>
         
-        {/* 2. Hide the header if we are on the exam, compiler, admin, change-password OR Landing Page */}
-        {!isLiveExam && !isCompiler && !isLandingPage && !isAdmin && !isChangePass && (
+        {!isLiveExam && !isCompiler && !isAuthPage && !isAdmin && !isChangePass && (
           <header className="px-6 py-4 bg-white border-b border-gray-200 flex justify-between items-center sticky top-0 z-50">
             <div className="flex items-center gap-3 cursor-pointer group" onClick={() => window.location.href = '/'}>
               <span className="text-2xl bg-blue-50 text-blue-600 p-2 rounded-lg">🛡️</span>
@@ -44,17 +45,19 @@ function App() {
           </header>
         )}
 
-        {/* 3. Remove the padding if we are on the Landing Page or Admin so it fits perfectly */}
-        <main className={`flex-grow ${isLiveExam || isCompiler || isLandingPage || isAdmin || isChangePass ? '' : 'p-4 md:p-8'}`}>
+        <main className={`flex-grow ${isLiveExam || isCompiler || isAuthPage || isAdmin || isChangePass ? '' : 'p-4 md:p-8'}`}>
           <Routes>
+            {/* 🚨 THE 3 EXCLUSIVE VIP DOORS */}
             <Route path="/" element={<LandingPage />} />
+            <Route path="/fac" element={<FacultyLogin />} />
+            <Route path="/adm" element={<AdminLogin />} />
 
             <Route path="/student-dashboard" element={
               <ProtectedRoute roles={['student']}><StudentDashboard /></ProtectedRoute>
             } />
 
             <Route path="/teacher-dashboard" element={
-              <ProtectedRoute roles={['teacher']}><TeacherDashboard /></ProtectedRoute>
+              <ProtectedRoute roles={['faculty','teacher']}><TeacherDashboard /></ProtectedRoute>
             } />
 
             <Route path="/admin" element={
