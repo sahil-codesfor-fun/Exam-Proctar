@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import User from '../models/User.js';
+import prisma from '../config/prisma.js';
 
 export const protect = async (req, res, next) => {
   let token;
@@ -8,10 +8,20 @@ export const protect = async (req, res, next) => {
     try {
       token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = await User.findById(decoded.id).select('-password');
-      if (!req.user) {
+      
+      // 🚨 PRISMA TRANSLATION
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.id }
+      });
+
+      if (!user) {
         return res.status(401).json({ message: 'User not found' });
       }
+      
+      // Remove password from memory for security
+      delete user.password;
+      req.user = user;
+      
       return next();
     } catch (error) {
       return res.status(401).json({ message: 'Not authorized, token failed' });
@@ -22,7 +32,6 @@ export const protect = async (req, res, next) => {
 };
 
 export const teacherOnly = (req, res, next) => {
-  // 🚨 THE FIX: Allow BOTH 'teacher' and 'faculty' to enter the VIP section!
   if (req.user?.role !== 'teacher' && req.user?.role !== 'faculty') {
     return res.status(403).json({ message: 'Teacher access only' });
   }
@@ -36,5 +45,4 @@ export const adminOnly = (req, res, next) => {
   next();
 };
 
-// Map facultyOnly directly to the updated teacherOnly middleware!
 export const facultyOnly = teacherOnly;

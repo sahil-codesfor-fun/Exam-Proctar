@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String       @id @default(uuid())
+  email                 String       @unique
+  password              String
+  name                  String
+  role                  String       @default("student")
+  studentId             String?
+  facultyId             String?      @unique
+  department            String?
+  isActive              Boolean      @default(true)
+  passwordResetRequired Boolean      @default(false)
+  lastLogin             DateTime?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  submissions           Submission[]
+  violations            Violation[]
+  examsCreated          Exam[]
+}
+
+model Exam {
+  id              String       @id @default(uuid())
+  title           String
+  description     String?      @db.Text
+  course          String?
+  startTime       DateTime?
+  durationMinutes Int
+  status          String       @default("draft")
+  proctoringRules Json?
+  createdAt       DateTime     @default(now())
+  creatorId       String
+  creator         User         @relation(fields: [creatorId], references: [id])
+  questions       Question[]
+  submissions     Submission[]
+  violations      Violation[]
+}
+
+model Question {
+  id               String   @id @default(uuid())
+  examId           String
+  type             String
+  title            String
+  description      String   @db.Text
+  points           Int
+  constraints      String?  @db.Text
+  timeLimitSeconds Int
+  exam             Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  options          Option[]
+  testCases        TestCase[]
+}
+
+model Option {
+  id         String   @id @default(uuid())
+  questionId String
+  text       String
+  isCorrect  Boolean
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model TestCase {
+  id             String   @id @default(uuid())
+  questionId     String
+  input          String   @db.Text
+  expectedOutput String   @db.Text
+  isHidden       Boolean
+  question       Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model Submission {
+  id             String   @id @default(uuid())
+  examId         String
+  studentId      String
+  answers        Json
+  totalScore     Int      @default(0)
+  maxScore       Int      @default(0)
+  percentage     Float    @default(0)
+  violationCount Int      @default(0)
+  status         String   @default("in_progress")
+  submittedAt    DateTime?
+  createdAt      DateTime @default(now())
+  exam           Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student        User     @relation(fields: [studentId], references: [id])
+}
+
+model Violation {
+  id        String   @id @default(uuid())
+  examId    String
+  studentId String
+  type      String
+  severity  String
+  details   String?
+  timestamp DateTime @default(now())
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student   User     @relation(fields: [studentId], references: [id])
+}

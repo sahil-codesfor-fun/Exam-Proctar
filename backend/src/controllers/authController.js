@@ -1,4 +1,4 @@
-import User from '../models/User.js';
+import prisma from '../config/prisma.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
@@ -10,17 +10,22 @@ export const registerUser = async (req, res) => {
   const { name, studentId, email, password, role } = req.body;
 
   try {
-    const query = [{ email }];
-    if (studentId && studentId.trim() !== '') query.push({ studentId });
-    const userExists = await User.findOne({ $or: query });
+    // 🚨 PRISMA OR QUERY
+    const userExists = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email },
+          ...(studentId && studentId.trim() !== '' ? [{ studentId }] : [])
+        ]
+      }
+    });
+
     if (userExists) {
       return res.status(400).json({ success: false, message: 'User already exists!' });
     }
 
-    // 🚨 MANUALLY HASH AND BYPASS BROKEN MONGOOSE HOOKS!
     const hashedPassword = bcrypt.hashSync(password, 10);
-
-    const userData = {
+    let newUserData = {
       name,
       email,
       password: hashedPassword,
@@ -29,23 +34,22 @@ export const registerUser = async (req, res) => {
       passwordResetRequired: false
     };
 
-    if (userData.role === 'teacher' || userData.role === 'faculty') {
-      userData.facultyId = `FAC-${Date.now()}`;
+    if (newUserData.role === 'teacher' || newUserData.role === 'faculty') {
+      newUserData.facultyId = `FAC-${Date.now()}`;
     } else {
-      userData.studentId = studentId;
+      newUserData.studentId = studentId;
     }
 
-    // 🚨 RAW MONGODB INSERT: This NEVER loops forever!
-    await User.collection.insertOne(userData);
-    const user = await User.findOne({ email });
+    // 🚨 PRISMA CREATE
+    const user = await prisma.user.create({ data: newUserData });
 
     res.status(201).json({
       success: true,
-      _id: user._id,
+      _id: user.id, // Mapped to _id for frontend compatibility
       name: user.name,
       email: user.email,
       role: user.role,
-      token: generateToken(user._id),
+      token: generateToken(user.id),
     });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error: ' + error.message });
@@ -57,35 +61,40 @@ export const loginUser = async (req, res) => {
   const loginIdentifier = email || id;
 
   try {
-    const user = await User.findOne({
-      $or: [
-        { email: loginIdentifier },
-        { studentId: loginIdentifier },
-        { facultyId: loginIdentifier }
-      ]
+    // 🚨 PRISMA MULTI-FIELD SEARCH
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: loginIdentifier },
+          { studentId: loginIdentifier },
+          { facultyId: loginIdentifier }
+        ]
+      }
     });
 
     if (!user) return res.status(401).json({ success: false, message: 'Invalid credentials' });
     if (!user.isActive) return res.status(403).json({ success: false, message: 'Account is disabled. Please contact admin.' });
 
-    if (await user.matchPassword(password)) {
-      
-      // 🚨 CRITICAL FIX: Bypass Mongoose save() to update lastLogin so it doesn't trigger the password hashing hook!
-      await User.collection.updateOne(
-        { _id: user._id },
-        { $set: { lastLogin: new Date() } }
-      );
+    // Directly use bcrypt to compare
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (isMatch) {
+      // 🚨 PRISMA UPDATE
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLogin: new Date() }
+      });
 
       res.json({
         success: true,
-        _id: user._id,
+        _id: user.id,
         name: user.name,
         email: user.email,
         role: user.role,
         studentId: user.studentId,
         facultyId: user.facultyId,
         passwordResetRequired: user.passwordResetRequired,
-        token: generateToken(user._id),
+        token: generateToken(user.id),
       });
     } else {
       res.status(401).json({ success: false, message: 'Invalid credentials' });
@@ -98,19 +107,19 @@ export const loginUser = async (req, res) => {
 export const changePassword = async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   try {
-    const user = await User.findById(req.user._id);
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    if (currentPassword && !(await user.matchPassword(currentPassword))) {
-      return res.status(400).json({ success: false, message: 'Current password incorrect' });
+    if (currentPassword) {
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) return res.status(400).json({ success: false, message: 'Current password incorrect' });
     }
 
-    // 🚨 MANUALLY HASH AND BYPASS BROKEN MONGOOSE HOOKS!
     const hashedPassword = bcrypt.hashSync(newPassword, 10);
-    await User.collection.updateOne(
-        { _id: user._id },
-        { $set: { password: hashedPassword, passwordResetRequired: false } }
-    );
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword, passwordResetRequired: false }
+    });
 
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (err) {
