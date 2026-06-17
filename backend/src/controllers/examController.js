@@ -1,7 +1,6 @@
 import prisma from '../config/prisma.js';
 import { getIO } from '../sockets/proctorSocket.js';
 
-/** POST /api/exams — Create exam (faculty only) */
 export const createExam = async (req, res) => {
   try {
     const { questions, proctoring, ...examData } = req.body;
@@ -27,6 +26,7 @@ export const createExam = async (req, res) => {
         description: examData.description,
         course: examData.course,
         startTime: examData.startTime ? new Date(examData.startTime) : null,
+        endTime: examData.endTime ? new Date(examData.endTime) : null,
         durationMinutes: examData.durationMinutes || 60,
         status: examData.status || 'draft',
         proctoringRules: proctoring || {}, 
@@ -41,7 +41,15 @@ export const createExam = async (req, res) => {
       }
     });
 
-    const responseData = { ...exam, _id: exam.id, faculty: exam.creator };
+    const responseData = { ...exam, _id: exam.id, faculty: exam.creator, proctoring: exam.proctoringRules };
+
+    if (responseData.status === 'published' || responseData.status === 'active') {
+      try {
+        const io = getIO();
+        io.to('students_global').emit('exam_published', responseData);
+      } catch (e) { console.error('Socket broadcast failed:', e); }
+    }
+
     res.status(201).json({ success: true, data: responseData });
   } catch (err) {
     console.error("Create Exam Error:", err);
@@ -49,7 +57,6 @@ export const createExam = async (req, res) => {
   }
 };
 
-/** GET /api/exams — List all exams */
 export const getExams = async (req, res) => {
   try {
     let filter = {};
@@ -68,22 +75,33 @@ export const getExams = async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
+    // 🚀 THE FIX: Bulletproof mapping so it NEVER crashes and returns empty!
     const formattedExams = exams.map(exam => {
-      const examCopy = { ...exam, _id: exam.id, faculty: { ...exam.creator, _id: exam.creator.id } };
-      
-      if (req.user.role === 'student') {
-        examCopy.questions = examCopy.questions.map(q => {
-          const qCopy = { ...q, _id: q.id };
-          if (qCopy.testCases) {
-            qCopy.testCases = qCopy.testCases.filter(tc => !tc.isHidden);
-          }
-          if (qCopy.options) {
-            qCopy.options = qCopy.options.map(opt => ({ ...opt, isCorrect: undefined }));
-          }
-          return qCopy;
-        });
+      try {
+        const examCopy = { 
+          ...exam, 
+          _id: exam.id, 
+          faculty: exam.creator ? { ...exam.creator, _id: exam.creator.id } : { name: 'Academic Core', _id: 'system' }, 
+          proctoring: exam.proctoringRules || {}
+        };
+        
+        if (req.user.role === 'student') {
+          examCopy.questions = (examCopy.questions || []).map(q => {
+            const qCopy = { ...q, _id: q.id };
+            if (qCopy.testCases) {
+              qCopy.testCases = qCopy.testCases.filter(tc => !tc.isHidden);
+            }
+            if (qCopy.options) {
+              qCopy.options = qCopy.options.map(opt => ({ ...opt, isCorrect: undefined }));
+            }
+            return qCopy;
+          });
+        }
+        return examCopy;
+      } catch (mappingError) {
+        console.error("Failed to map exam ID:", exam.id, mappingError);
+        return exam; // Return raw exam as ultimate fallback instead of crashing
       }
-      return examCopy;
     });
 
     res.json({ success: true, data: formattedExams });
@@ -93,7 +111,6 @@ export const getExams = async (req, res) => {
   }
 };
 
-/** GET /api/exams/:id — Get single exam */
 export const getExam = async (req, res) => {
   try {
     const exam = await prisma.exam.findUnique({
@@ -106,10 +123,16 @@ export const getExam = async (req, res) => {
 
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
 
-    const examCopy = { ...exam, _id: exam.id, faculty: { ...exam.creator, _id: exam.creator.id } };
+    // 🚀 THE FIX: Safe mapping here as well
+    const examCopy = { 
+      ...exam, 
+      _id: exam.id, 
+      faculty: exam.creator ? { ...exam.creator, _id: exam.creator.id } : { name: 'Academic Core', _id: 'system' }, 
+      proctoring: exam.proctoringRules || {}
+    };
 
     if (req.user.role === 'student') {
-      examCopy.questions = examCopy.questions.map(q => {
+      examCopy.questions = (examCopy.questions || []).map(q => {
         const qCopy = { ...q, _id: q.id };
         if (qCopy.testCases) qCopy.testCases = qCopy.testCases.filter(tc => !tc.isHidden);
         if (qCopy.options) qCopy.options = qCopy.options.map(opt => ({ ...opt, isCorrect: undefined }));
@@ -123,7 +146,6 @@ export const getExam = async (req, res) => {
   }
 };
 
-/** PUT /api/exams/:id — Update exam (faculty only) */
 export const updateExam = async (req, res) => {
   try {
     const examId = req.params.id;
@@ -153,6 +175,7 @@ export const updateExam = async (req, res) => {
         description: examData.description,
         course: examData.course,
         startTime: examData.startTime ? new Date(examData.startTime) : null,
+        endTime: examData.endTime ? new Date(examData.endTime) : null,
         durationMinutes: examData.durationMinutes || 60,
         status: examData.status || 'draft',
         proctoringRules: proctoring || {},
@@ -161,14 +184,22 @@ export const updateExam = async (req, res) => {
       include: { questions: { include: { options: true, testCases: true } }, creator: true }
     });
 
-    res.json({ success: true, data: { ...updatedExam, _id: updatedExam.id } });
+    const responseData = { ...updatedExam, _id: updatedExam.id, proctoring: updatedExam.proctoringRules };
+
+    if (responseData.status === 'published' || responseData.status === 'active') {
+      try {
+        const io = getIO();
+        io.to('students_global').emit('exam_published', responseData);
+      } catch (e) { console.error('Socket broadcast failed:', e); }
+    }
+
+    res.json({ success: true, data: responseData });
   } catch (err) {
     console.error("Update Exam Error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-/** DELETE /api/exams/:id — Delete exam (faculty only) */
 export const deleteExam = async (req, res) => {
   try {
     const exam = await prisma.exam.findUnique({ where: { id: req.params.id } });
@@ -182,7 +213,6 @@ export const deleteExam = async (req, res) => {
   }
 };
 
-/** PATCH /api/exams/:id/status — Change exam status */
 export const updateExamStatus = async (req, res) => {
   try {
     const { status } = req.body;
@@ -196,14 +226,14 @@ export const updateExamStatus = async (req, res) => {
       data: { status: status }
     });
     
-    if (status === 'published' || status === 'active') {
-      try {
-        const io = getIO();
-        io.to('students_global').emit('exam_published', { ...updatedExam, _id: updatedExam.id });
-      } catch (e) { console.error('Socket broadcast failed:', e); }
-    }
+    const responseData = { ...updatedExam, _id: updatedExam.id, proctoring: updatedExam.proctoringRules };
 
-    res.json({ success: true, data: { ...updatedExam, _id: updatedExam.id } });
+    try {
+      const io = getIO();
+      io.to('students_global').emit('exam_published', responseData);
+    } catch (e) { console.error('Socket broadcast failed:', e); }
+
+    res.json({ success: true, data: responseData });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

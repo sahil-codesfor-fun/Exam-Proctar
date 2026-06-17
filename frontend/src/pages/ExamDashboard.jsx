@@ -51,7 +51,7 @@ export const ExamDashboard = () => {
         {/* Right Column: Proctoring Sidebar */}
         <div className="flex flex-col gap-6">
           
-          {/* Mock Video Feed Container (Clean light theme) */}
+          {/* Mock Video Feed Container */}
           <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] relative overflow-hidden">
              <div className="flex justify-between items-center mb-3">
                <h3 className="text-gray-900 font-bold text-sm flex items-center gap-2">
@@ -63,7 +63,6 @@ export const ExamDashboard = () => {
                 </span>
              </div>
              
-             {/* The Video Element */}
              <div className="w-full aspect-video bg-gray-100 rounded-xl border border-gray-200 flex items-center justify-center">
                 <span className="text-gray-400 font-medium text-sm">🎥 Camera Active</span>
              </div>

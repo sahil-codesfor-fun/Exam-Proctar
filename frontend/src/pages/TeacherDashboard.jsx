@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
@@ -19,6 +19,190 @@ const formatForInput = (dateString) => {
   const min = pad(d.getMinutes());
   return `${y}-${m}-${day}T${h}:${min}`;
 };
+
+const ExamDetail = ({ exam, subs, loadSubs, setViewExam, openEditModal, toggleStatus, deleteExam, showConfirm }) => {
+  const [liveStudents, setLiveStudents] = useState([]);
+  const [liveViolations, setLiveViolations] = useState([]);
+
+  useEffect(() => { loadSubs(exam._id); }, [exam._id, loadSubs]);
+  const es = subs[exam._id] || [];
+
+  // 🚀 THE FIX: Deduplicate submissions! (Cleans up Strict Mode double-entries)
+  const uniqueSubsMap = new Map();
+  es.forEach(s => {
+    const sid = s.student?.id || s.student?._id || s.studentId;
+    if (!uniqueSubsMap.has(sid)) {
+      uniqueSubsMap.set(sid, s);
+    } else {
+      const existing = uniqueSubsMap.get(sid);
+      if (s.status === 'submitted' || s.status === 'auto_submitted') {
+        uniqueSubsMap.set(sid, s);
+      } else if (existing.status !== 'submitted' && existing.status !== 'auto_submitted') {
+        if (new Date(s.createdAt) > new Date(existing.createdAt)) uniqueSubsMap.set(sid, s);
+      }
+    }
+  });
+  const uniqueSubs = Array.from(uniqueSubsMap.values());
+
+  useEffect(() => {
+    import('../services/socket').then(({ connectSocket }) => {
+      const socket = connectSocket();
+      socket.emit('join_monitoring', { examId: exam._id });
+
+      socket.on('active_students', (data) => setLiveStudents(data.students || []));
+      socket.on('student_joined', (data) => setLiveStudents(p => [...p.filter(s => s.studentId !== data.studentId), data]));
+      socket.on('student_left', (data) => {
+        setLiveStudents(p => p.filter(s => s.studentId !== data.studentId));
+      });
+
+      socket.on('violation_alert', (data) => {
+        setLiveViolations(p => [data, ...p]);
+      });
+
+      return () => {
+        socket.off('active_students');
+        socket.off('student_joined');
+        socket.off('student_left');
+        socket.off('violation_alert');
+      };
+    });
+  }, [exam._id]);
+
+  const forceSubmit = (studentId) => {
+    showConfirm('Are you sure you want to forcibly submit and lock this student out of the exam?', () => {
+      import('../services/socket').then(({ getSocket }) => {
+        const socket = getSocket();
+        if (socket) {
+          socket.emit('force_submit_student', { examId: exam._id, studentId, reason: 'Manual termination by proctor' });
+        }
+      });
+    });
+  };
+
+  return (
+    <div className="space-y-6 pb-20 animate-in fade-in duration-500">
+      <button onClick={() => setViewExam(null)} className="text-sm font-bold text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-colors">← Back to Registry</button>
+      
+      <div className="flex justify-between items-start bg-white p-6 rounded-2xl border shadow-sm">
+        <div>
+          <h2 className="text-2xl font-black flex items-center gap-3">
+            {exam.title}
+            {exam.status === 'active' && <span className="bg-red-500 text-white text-[10px] uppercase px-3 py-1 rounded-full animate-pulse shadow-sm tracking-widest">LIVE NOW</span>}
+            {exam.status === 'published' && <span className="bg-blue-50 text-blue-600 text-[10px] uppercase px-3 py-1 rounded-full border border-blue-100 tracking-widest shadow-sm">PUBLISHED</span>}
+          </h2>
+          <div className="flex items-center gap-3 mt-2 text-sm">
+             <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg font-bold text-xs">{exam.course || 'General Sector'}</span>
+             <span className="text-gray-400 font-medium">• {exam.durationMinutes}min window • {exam.questions.length} total nodes • {exam.totalMarks} aggregate value</span>
+          </div>
+        </div>
+        
+        <div className="flex gap-2">
+          {(exam.status === 'draft' || exam.status === 'published') && (
+             <button onClick={() => openEditModal(exam)} className="flex items-center gap-2 bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">
+               <Edit size={14}/> Edit Details
+             </button>
+          )}
+          {exam.status === 'draft' && <button onClick={() => toggleStatus(exam, 'published')} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-600/20">Publish Network</button>}
+          {exam.status === 'published' && <button onClick={() => toggleStatus(exam, 'draft')} className="bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200 px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">Unpublish</button>}
+          {(exam.status === 'published' || exam.status === 'draft') && <button onClick={() => toggleStatus(exam, 'active')} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-600/20">FORCE START NOW</button>}
+          {exam.status === 'active' && <button onClick={() => toggleStatus(exam, 'ended')} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-red-600/20 animate-pulse">TERMINATE SESSION</button>}
+          <button onClick={() => deleteExam(exam._id)} className="bg-white text-red-500 hover:bg-red-50 border border-gray-200 hover:border-red-200 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1"><Trash2 size={14}/> Dump</button>
+        </div>
+      </div>
+
+      {exam.status === 'active' && (
+        <div className="bg-gray-900 text-white rounded-3xl border border-gray-800 p-8 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none transform translate-x-1/2 -translate-y-1/2"></div>
+          
+          <h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-6 flex items-center gap-3">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+            Live Proctoring Matrix
+          </h3>
+          
+          <div className="grid grid-cols-2 gap-8 relative z-10">
+            <div>
+              <h4 className="text-[10px] text-gray-400 uppercase tracking-[0.2em] mb-4 font-bold border-b border-gray-800 pb-2">Active Connections ({liveStudents.length})</h4>
+              {liveStudents.length === 0 ? <p className="text-xs text-gray-600 italic font-medium mt-4">Awaiting incoming student nodes...</p> : (
+                <div className="space-y-3 max-h-[30rem] overflow-y-auto pr-2 custom-scrollbar">
+                  {liveStudents.map(s => (
+                    <div key={s.studentId} className="flex items-center justify-between bg-gray-800/50 backdrop-blur-sm p-4 rounded-2xl border border-gray-700/50 hover:border-gray-600 transition-all group">
+                      <div className="flex items-center gap-4">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></span>
+                        <div>
+                          <span className="text-sm font-bold text-gray-100 block">{s.name}</span>
+                          <span className="text-[10px] text-gray-400 font-mono tracking-tighter">ID: {s.studentId}</span>
+                        </div>
+                      </div>
+                      <button onClick={() => forceSubmit(s.studentId)} className="text-[9px] font-black bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500 hover:text-white px-3 py-2 rounded-lg transition-all uppercase tracking-widest opacity-0 group-hover:opacity-100">
+                        Force Kill
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h4 className="text-[10px] text-gray-400 uppercase tracking-[0.2em] mb-4 font-bold border-b border-gray-800 pb-2">Vision AI Alert Log</h4>
+              {liveViolations.length === 0 ? <p className="text-xs text-gray-600 italic font-medium mt-4">Sector is currently secure. No infractions detected.</p> : (
+                <div className="space-y-3 max-h-72 overflow-y-auto pr-2 custom-scrollbar">
+                  {liveViolations.map((v, i) => (
+                    <div key={i} className="flex flex-col bg-gray-800/50 backdrop-blur-sm p-4 rounded-2xl border-l-4 border-gray-700 hover:bg-gray-800 transition-all" style={{ borderLeftColor: v.severity === 'critical' ? '#ef4444' : '#f97316' }}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-black text-gray-200 uppercase tracking-wide">{v.studentName}</span>
+                        <span className="text-[9px] text-gray-500 font-bold bg-gray-900 px-2 py-1 rounded-md border border-gray-800">{new Date(v.timestamp).toLocaleTimeString()}</span>
+                      </div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded shadow-sm ${v.severity === 'critical' ? 'bg-red-500 text-white' : 'bg-orange-500 text-white'}`}>
+                          {v.type?.replace(/_/g, ' ')}
+                        </span>
+                      </div>
+                      {v.details && <p className="text-[10px] text-gray-400 font-medium leading-relaxed">{v.details}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white rounded-3xl border shadow-sm p-8">
+        <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6 border-b border-gray-100 pb-4">Historical Submissions ({uniqueSubs.length})</h3>
+        {uniqueSubs.length === 0 ? <p className="text-gray-400 text-sm italic">No records in the vault.</p> : (
+          <div className="overflow-hidden rounded-xl border border-gray-200">
+            <table className="w-full text-left text-sm bg-white">
+              <thead className="bg-gray-50/80"><tr className="text-[10px] font-black text-gray-400 uppercase tracking-widest"><th className="py-4 px-6">Student Node</th><th className="px-6">Score Matrix</th><th className="px-6">Status Flag</th><th className="px-6">Infractions</th></tr></thead>
+              <tbody className="divide-y divide-gray-100">
+                {uniqueSubs.map(s => (
+                  <tr key={s._id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="py-4 px-6">
+                      <p className="font-bold text-gray-900">{s.student?.name}</p>
+                      <p className="text-[10px] text-gray-400 font-mono mt-0.5">{s.student?.studentId}</p>
+                    </td>
+                    <td className="px-6">
+                      <div className="flex items-center gap-2">
+                         <span className="font-black text-gray-700">{s.totalScore}</span><span className="text-gray-300">/</span><span className="text-xs text-gray-400">{s.maxScore}</span>
+                         <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${s.percentage >= 40 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>{s.percentage}%</span>
+                      </div>
+                    </td>
+                    <td className="px-6"><span className={`text-[9px] font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${s.status === 'submitted' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : s.status === 'auto_submitted' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>{s.status.replace('_', ' ')}</span></td>
+                    <td className="px-6">
+                      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-black ${s.violationCount > 0 ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-gray-50 text-gray-400'}`}>
+                        {s.violationCount}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 
 export const TeacherDashboard = () => {
   const { user, logout } = useAuth();
@@ -57,14 +241,14 @@ export const TeacherDashboard = () => {
   };
   useEffect(load, []);
 
-  const loadSubs = async (examId) => {
+  const loadSubs = useCallback(async (examId) => {
     const [s, v] = await Promise.all([
       api.get(`/submissions/exam/${examId}`).then(r => r.data.data).catch(() => []),
       api.get(`/violations/exam/${examId}`).then(r => r.data.data).catch(() => []),
     ]);
     setSubs(p => ({ ...p, [examId]: s }));
     setViolations(p => ({ ...p, [examId]: v }));
-  };
+  }, []);
 
   const addQ = () => setForm(p => ({ ...p, questions: [...p.questions, { ...EMPTY_Q, options: EMPTY_Q.options.map(o => ({...o})), testCases: EMPTY_Q.testCases.map(t => ({...t})) }] }));
   const rmQ = (i) => setForm(p => ({ ...p, questions: p.questions.filter((_, idx) => idx !== i) }));
@@ -375,172 +559,6 @@ export const TeacherDashboard = () => {
     </div>
   );
 
-  const ExamDetail = ({ exam }) => {
-    const [liveStudents, setLiveStudents] = useState([]);
-    const [liveViolations, setLiveViolations] = useState([]);
-
-    useEffect(() => { loadSubs(exam._id); }, [exam._id]);
-    const es = subs[exam._id] || [];
-
-    useEffect(() => {
-      import('../services/socket').then(({ connectSocket }) => {
-        const socket = connectSocket();
-        socket.emit('join_monitoring', { examId: exam._id });
-
-        socket.on('active_students', (data) => setLiveStudents(data.students || []));
-        socket.on('student_joined', (data) => setLiveStudents(p => [...p.filter(s => s.studentId !== data.studentId), data]));
-        socket.on('student_left', (data) => {
-          setLiveStudents(p => p.filter(s => s.studentId !== data.studentId));
-        });
-
-        socket.on('violation_alert', (data) => {
-          setLiveViolations(p => [data, ...p]);
-        });
-
-        return () => {
-          socket.off('active_students');
-          socket.off('student_joined');
-          socket.off('student_left');
-          socket.off('violation_alert');
-        };
-      });
-    }, [exam._id]);
-
-    const forceSubmit = (studentId) => {
-      showConfirm('Are you sure you want to forcibly submit and lock this student out of the exam?', () => {
-        import('../services/socket').then(({ getSocket }) => {
-          const socket = getSocket();
-          if (socket) {
-            socket.emit('force_submit_student', { examId: exam._id, studentId, reason: 'Manual termination by proctor' });
-          }
-        });
-      });
-    };
-
-    return (
-      <div className="space-y-6 pb-20 animate-in fade-in duration-500">
-        <button onClick={() => setViewExam(null)} className="text-sm font-bold text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-colors">← Back to Registry</button>
-        
-        <div className="flex justify-between items-start bg-white p-6 rounded-2xl border shadow-sm">
-          <div>
-            <h2 className="text-2xl font-black flex items-center gap-3">
-              {exam.title}
-              {exam.status === 'active' && <span className="bg-red-500 text-white text-[10px] uppercase px-3 py-1 rounded-full animate-pulse shadow-sm tracking-widest">LIVE NOW</span>}
-              {exam.status === 'published' && <span className="bg-blue-50 text-blue-600 text-[10px] uppercase px-3 py-1 rounded-full border border-blue-100 tracking-widest shadow-sm">PUBLISHED</span>}
-            </h2>
-            <div className="flex items-center gap-3 mt-2 text-sm">
-               <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg font-bold text-xs">{exam.course || 'General Sector'}</span>
-               <span className="text-gray-400 font-medium">• {exam.durationMinutes}min window • {exam.questions.length} total nodes • {exam.totalMarks} aggregate value</span>
-            </div>
-          </div>
-          
-          <div className="flex gap-2">
-            {(exam.status === 'draft' || exam.status === 'published') && (
-               <button onClick={() => openEditModal(exam)} className="flex items-center gap-2 bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">
-                 <Edit size={14}/> Edit Details
-               </button>
-            )}
-            {exam.status === 'draft' && <button onClick={() => toggleStatus(exam, 'published')} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-600/20">Publish Network</button>}
-            {exam.status === 'published' && <button onClick={() => toggleStatus(exam, 'draft')} className="bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200 px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">Unpublish</button>}
-            {(exam.status === 'published' || exam.status === 'draft') && <button onClick={() => toggleStatus(exam, 'active')} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-600/20">FORCE START NOW</button>}
-            {exam.status === 'active' && <button onClick={() => toggleStatus(exam, 'ended')} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-red-600/20 animate-pulse">TERMINATE SESSION</button>}
-            <button onClick={() => deleteExam(exam._id)} className="bg-white text-red-500 hover:bg-red-50 border border-gray-200 hover:border-red-200 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1"><Trash2 size={14}/> Dump</button>
-          </div>
-        </div>
-
-        {exam.status === 'active' && (
-          <div className="bg-gray-900 text-white rounded-3xl border border-gray-800 p-8 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none transform translate-x-1/2 -translate-y-1/2"></div>
-            
-            <h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-6 flex items-center gap-3">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
-              Live Proctoring Matrix
-            </h3>
-            
-            <div className="grid grid-cols-2 gap-8 relative z-10">
-              <div>
-                <h4 className="text-[10px] text-gray-400 uppercase tracking-[0.2em] mb-4 font-bold border-b border-gray-800 pb-2">Active Connections ({liveStudents.length})</h4>
-                {liveStudents.length === 0 ? <p className="text-xs text-gray-600 italic font-medium mt-4">Awaiting incoming student nodes...</p> : (
-                  <div className="space-y-3 max-h-[30rem] overflow-y-auto pr-2 custom-scrollbar">
-                    {liveStudents.map(s => (
-                      <div key={s.studentId} className="flex items-center justify-between bg-gray-800/50 backdrop-blur-sm p-4 rounded-2xl border border-gray-700/50 hover:border-gray-600 transition-all group">
-                        <div className="flex items-center gap-4">
-                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></span>
-                          <div>
-                            <span className="text-sm font-bold text-gray-100 block">{s.name}</span>
-                            <span className="text-[10px] text-gray-400 font-mono tracking-tighter">ID: {s.studentId}</span>
-                          </div>
-                        </div>
-                        <button onClick={() => forceSubmit(s.studentId)} className="text-[9px] font-black bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500 hover:text-white px-3 py-2 rounded-lg transition-all uppercase tracking-widest opacity-0 group-hover:opacity-100">
-                          Force Kill
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <h4 className="text-[10px] text-gray-400 uppercase tracking-[0.2em] mb-4 font-bold border-b border-gray-800 pb-2">Vision AI Alert Log</h4>
-                {liveViolations.length === 0 ? <p className="text-xs text-gray-600 italic font-medium mt-4">Sector is currently secure. No infractions detected.</p> : (
-                  <div className="space-y-3 max-h-72 overflow-y-auto pr-2 custom-scrollbar">
-                    {liveViolations.map((v, i) => (
-                      <div key={i} className="flex flex-col bg-gray-800/50 backdrop-blur-sm p-4 rounded-2xl border-l-4 border-gray-700 hover:bg-gray-800 transition-all" style={{ borderLeftColor: v.severity === 'critical' ? '#ef4444' : '#f97316' }}>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-black text-gray-200 uppercase tracking-wide">{v.studentName}</span>
-                          <span className="text-[9px] text-gray-500 font-bold bg-gray-900 px-2 py-1 rounded-md border border-gray-800">{new Date(v.timestamp).toLocaleTimeString()}</span>
-                        </div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded shadow-sm ${v.severity === 'critical' ? 'bg-red-500 text-white' : 'bg-orange-500 text-white'}`}>
-                            {v.type?.replace(/_/g, ' ')}
-                          </span>
-                        </div>
-                        {v.details && <p className="text-[10px] text-gray-400 font-medium leading-relaxed">{v.details}</p>}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="bg-white rounded-3xl border shadow-sm p-8">
-          <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6 border-b border-gray-100 pb-4">Historical Submissions ({es.length})</h3>
-          {es.length === 0 ? <p className="text-gray-400 text-sm italic">No records in the vault.</p> : (
-            <div className="overflow-hidden rounded-xl border border-gray-200">
-              <table className="w-full text-left text-sm bg-white">
-                <thead className="bg-gray-50/80"><tr className="text-[10px] font-black text-gray-400 uppercase tracking-widest"><th className="py-4 px-6">Student Node</th><th className="px-6">Score Matrix</th><th className="px-6">Status Flag</th><th className="px-6">Infractions</th></tr></thead>
-                <tbody className="divide-y divide-gray-100">
-                  {es.map(s => (
-                    <tr key={s._id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="py-4 px-6">
-                        <p className="font-bold text-gray-900">{s.student?.name}</p>
-                        <p className="text-[10px] text-gray-400 font-mono mt-0.5">{s.student?.studentId}</p>
-                      </td>
-                      <td className="px-6">
-                        <div className="flex items-center gap-2">
-                           <span className="font-black text-gray-700">{s.totalScore}</span><span className="text-gray-300">/</span><span className="text-xs text-gray-400">{s.maxScore}</span>
-                           <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${s.percentage >= 40 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>{s.percentage}%</span>
-                        </div>
-                      </td>
-                      <td className="px-6"><span className={`text-[9px] font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${s.status === 'submitted' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : s.status === 'auto_submitted' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>{s.status.replace('_', ' ')}</span></td>
-                      <td className="px-6">
-                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-black ${s.violationCount > 0 ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-gray-50 text-gray-400'}`}>
-                          {s.violationCount}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="flex h-[calc(100vh-8.5rem)] bg-gray-50 overflow-hidden font-sans relative rounded-xl border border-gray-100 shadow-sm">
       {modal && renderModal()}
@@ -614,7 +632,7 @@ export const TeacherDashboard = () => {
       <div className="flex-1 overflow-y-auto bg-gray-50/50 p-8 lg:p-12 pb-24 relative">
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none transform translate-x-1/3 -translate-y-1/3"></div>
 
-        {viewExam ? <ExamDetail exam={viewExam} /> : (
+        {viewExam ? <ExamDetail exam={viewExam} subs={subs} loadSubs={loadSubs} setViewExam={setViewExam} openEditModal={openEditModal} toggleStatus={toggleStatus} deleteExam={deleteExam} showConfirm={showConfirm} /> : (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative z-10">
             <div className="flex justify-between items-end mb-10">
               <div>

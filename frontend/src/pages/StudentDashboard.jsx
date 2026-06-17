@@ -5,16 +5,21 @@ import api from '../services/api';
 
 export const StudentDashboard = () => {
   const navigate = useNavigate();
-  // We extract 'loading' from useAuth to prevent the white screen race condition
   const { user, logout, loading: authLoading } = useAuth();
   
   const [exams, setExams] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('DASHBOARD');
+  
+  const [nowTime, setNowTime] = useState(Date.now());
 
-  // --- 1. THE SAFETY GATE ---
-  // If Auth is still verifying the token or fetching the user, show this instead of a white screen
+  useEffect(() => {
+    // Ticks smoothly so exams transition seamlessly
+    const ticker = setInterval(() => setNowTime(Date.now()), 1000);
+    return () => clearInterval(ticker);
+  }, []);
+
   if (authLoading || (!user && localStorage.getItem('token'))) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-white">
@@ -26,7 +31,6 @@ export const StudentDashboard = () => {
     );
   }
 
-  // If no user and no token, kick them back to login
   if (!user && !localStorage.getItem('token')) {
     navigate('/');
     return null;
@@ -34,15 +38,27 @@ export const StudentDashboard = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      // 🚀 THE FIX: Independent try-catches. If one fails, the other survives! No more empty arrays on refresh!
       try {
-        const [examsRes, subRes] = await Promise.all([
-          api.get('/exams'),
-          api.get('/submissions/my')
-        ]);
-        setExams(examsRes.data.data || []);
-        setSubmissions(subRes.data.data || []);
-      } catch (err) {
-        console.error("Data fetch failed, bro!", err);
+        let fetchedExams = [];
+        let fetchedSubs = [];
+
+        try {
+          const eRes = await api.get('/exams');
+          fetchedExams = eRes.data?.data || [];
+        } catch (e) {
+          console.error("Exams fetch failed, falling back", e);
+        }
+
+        try {
+          const sRes = await api.get('/submissions/my');
+          fetchedSubs = sRes.data?.data || [];
+        } catch (e) {
+          console.error("Submissions fetch failed, falling back", e);
+        }
+
+        setExams(fetchedExams);
+        setSubmissions(fetchedSubs);
       } finally {
         setLoading(false);
       }
@@ -50,39 +66,53 @@ export const StudentDashboard = () => {
     
     fetchData();
 
-    // Listen for real-time exam deployments
+    // Silent background poll to ensure absolute stability
+    const silentPoll = setInterval(fetchData, 15000);
+
     let socket;
     import('../services/socket').then(({ connectSocket }) => {
       socket = connectSocket();
       socket.emit('join_dashboard', { role: 'student' });
       socket.on('exam_published', (newExam) => {
         setExams(prev => {
-          const exists = prev.find(e => e._id === newExam._id);
-          if (exists) return prev.map(e => e._id === newExam._id ? newExam : e);
+          const exists = prev.find(e => (e._id || e.id) === (newExam._id || newExam.id));
+          if (exists) return prev.map(e => (e._id || e.id) === (newExam._id || newExam.id) ? newExam : e);
           return [newExam, ...prev];
         });
       });
     });
 
     return () => {
+      clearInterval(silentPoll);
       if (socket) socket.off('exam_published');
     };
   }, []);
 
-  const getSub = (examId) => submissions.find(s => s.exam?._id === examId);
+  const getSub = (examId) => submissions.find(s => (s.exam?._id || s.exam?.id) === examId);
 
-  // Categorize exams logic
-  const now = new Date();
-  const activeExams = exams.filter(e => 
-    e.status === 'active' || 
-    (e.status === 'published' && (!e.startTime || new Date(e.startTime) <= now) && (!e.endTime || new Date(e.endTime) >= now))
-  );
-  const upcomingExams = exams.filter(e => e.status === 'published' && e.startTime && new Date(e.startTime) > now);
+  // 🚀 THE FIX: Iron-clad mathematical time comparison! 
+  // Exams are forced into either Active or Upcoming based on raw milliseconds. They CANNOT vanish.
+  const activeExams = exams.filter(e => {
+    if (e.status === 'active' || e.status === 'ended') return true; 
+    if (e.status === 'published') {
+      if (!e.startTime) return true; 
+      const startMs = new Date(e.startTime).getTime();
+      return !isNaN(startMs) && startMs <= nowTime; 
+    }
+    return false;
+  });
+
+  const upcomingExams = exams.filter(e => {
+    if (e.status === 'published' && e.startTime) {
+      const startMs = new Date(e.startTime).getTime();
+      return !isNaN(startMs) && startMs > nowTime;
+    }
+    return false;
+  });
 
   return (
     <div className="max-w-7xl mx-auto min-h-screen bg-gray-50/30 p-6 sm:p-10 animate-in fade-in duration-700">
       
-      {/* Floating Bottom Left Logout Button */}
       <div className="fixed bottom-6 left-6 z-50">
         <button 
           onClick={() => { logout(); navigate('/'); }} 
@@ -92,7 +122,6 @@ export const StudentDashboard = () => {
         </button>
       </div>
 
-      {/* Header Card */}
       <div className="bg-white rounded-[2.5rem] p-8 xl:p-10 border border-gray-100 shadow-xl shadow-gray-200/20 mb-10 flex flex-col md:flex-row justify-between items-center gap-6">
         <div>
           <h2 className="text-3xl xl:text-4xl font-black text-gray-900 mb-2 uppercase tracking-tight">
@@ -106,24 +135,9 @@ export const StudentDashboard = () => {
         </div>
         
         <div className="flex items-center gap-4 w-full md:w-auto">
-          <button 
-            onClick={() => setTab('DASHBOARD')} 
-            className={`flex-1 md:flex-none font-black text-[10px] uppercase tracking-widest py-4 px-8 rounded-2xl transition-all shadow-lg active:scale-95 ${tab === 'DASHBOARD' ? 'bg-gray-900 text-white shadow-gray-900/10' : 'bg-white text-gray-400 border border-gray-100'}`}
-          >
-            🏠 Dashboard
-          </button>
-          <button 
-            onClick={() => navigate('/compiler')} 
-            className="flex-1 md:flex-none bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-black text-[10px] uppercase tracking-widest py-4 px-8 rounded-2xl transition-all border border-emerald-100 active:scale-95"
-          >
-            💻 Code Playground
-          </button>
-          <button 
-            onClick={() => setTab('PROFILE')} 
-            className={`flex-1 md:flex-none font-black text-[10px] uppercase tracking-widest py-4 px-8 rounded-2xl transition-all shadow-lg active:scale-95 ${tab === 'PROFILE' ? 'bg-emerald-600 text-white shadow-emerald-900/10' : 'bg-white text-gray-400 border border-gray-100'}`}
-          >
-            👤 Profile
-          </button>
+          <button onClick={() => setTab('DASHBOARD')} className={`flex-1 md:flex-none font-black text-[10px] uppercase tracking-widest py-4 px-8 rounded-2xl transition-all shadow-lg active:scale-95 ${tab === 'DASHBOARD' ? 'bg-gray-900 text-white shadow-gray-900/10' : 'bg-white text-gray-400 border border-gray-100'}`}>🏠 Dashboard</button>
+          <button onClick={() => navigate('/compiler')} className="flex-1 md:flex-none bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-black text-[10px] uppercase tracking-widest py-4 px-8 rounded-2xl transition-all border border-emerald-100 active:scale-95">💻 Code Playground</button>
+          <button onClick={() => setTab('PROFILE')} className={`flex-1 md:flex-none font-black text-[10px] uppercase tracking-widest py-4 px-8 rounded-2xl transition-all shadow-lg active:scale-95 ${tab === 'PROFILE' ? 'bg-emerald-600 text-white shadow-emerald-900/10' : 'bg-white text-gray-400 border border-gray-100'}`}>👤 Profile</button>
         </div>
       </div>
 
@@ -188,29 +202,17 @@ export const StudentDashboard = () => {
                   </div>
                 </div>
               </div>
-
-              <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-white border flex items-center justify-center text-xl shadow-sm">🔑</div>
-                  <div>
-                    <p className="text-xs font-black text-gray-900 uppercase">Security Credentials</p>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase">Last updated: 3 cycles ago</p>
-                  </div>
-                </div>
-                <button className="text-[10px] font-black text-emerald-600 uppercase tracking-widest bg-white border border-emerald-100 px-4 py-2 rounded-lg hover:bg-emerald-50 transition-all">Update Access</button>
-              </div>
             </div>
           </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           
-          {/* Main Assessment Feed */}
           <div className="lg:col-span-8 space-y-10 pb-20">
             <section>
               <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-3">
                 <div className="h-1 w-8 bg-emerald-500 rounded-full"></div>
-                Active Assessments
+                Assessment Feed
               </h3>
               
               {activeExams.length === 0 && upcomingExams.length === 0 ? (
@@ -221,12 +223,14 @@ export const StudentDashboard = () => {
               ) : (
                 <div className="space-y-4">
                   {activeExams.map(exam => {
-                    const sub = getSub(exam._id);
+                    const examIdSafe = exam._id || exam.id;
+                    const sub = getSub(examIdSafe);
                     const done = sub && ['submitted', 'auto_submitted'].includes(sub.status);
                     const inProgress = sub && sub.status === 'in_progress';
+                    const isExpired = exam.status === 'ended' || (exam.endTime && new Date(exam.endTime).getTime() < nowTime);
                     
                     return (
-                      <div key={exam._id} className="bg-white rounded-[2rem] border border-gray-100 p-8 hover:shadow-2xl hover:shadow-gray-200/50 transition-all group">
+                      <div key={examIdSafe} className={`bg-white rounded-[2rem] border border-gray-100 p-8 hover:shadow-2xl hover:shadow-gray-200/50 transition-all group ${isExpired && !done ? 'opacity-60 grayscale' : ''}`}>
                         <div className="flex justify-between items-start mb-6">
                           <div>
                             <h4 className="text-xl font-black text-gray-900 uppercase tracking-tight group-hover:text-emerald-700 transition-colors">{exam.title}</h4>
@@ -235,13 +239,15 @@ export const StudentDashboard = () => {
                                 {exam.course || 'General'}
                               </span>
                               <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                                • Faculty ID: {exam.creator?.name || 'Academic Core'}
+                                • Faculty ID: {exam.creator?.name || exam.faculty?.name || 'Academic Core'}
                               </span>
                             </div>
                           </div>
 
                           {done ? (
                             <span className="bg-emerald-50 text-emerald-600 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-emerald-100">✓ Completed</span>
+                          ) : isExpired ? (
+                            <span className="bg-gray-100 text-gray-500 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-gray-200">❌ Expired</span>
                           ) : inProgress ? (
                             <span className="bg-amber-50 text-amber-600 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-amber-100 animate-pulse">⏳ Session Open</span>
                           ) : (
@@ -263,16 +269,17 @@ export const StudentDashboard = () => {
                             </div>
                             <div className="flex flex-col">
                               <span className="text-[9px] font-black text-gray-300 uppercase">Value</span>
-                              <span className="text-xs font-black text-gray-700">{exam.totalMarks}pts</span>
+                              <span className="text-xs font-black text-gray-700">{exam.totalMarks || exam.questions?.reduce((acc, q) => acc + (q.points || 10), 0) || 0}pts</span>
                             </div>
                           </div>
                           
                           {!done && (
                             <button 
-                              onClick={() => navigate(`/exam/live/${exam._id}`)}
-                              className="bg-[#1A5F53] hover:bg-[#134d42] text-white font-black text-[10px] uppercase tracking-widest py-3 px-8 rounded-xl transition-all shadow-lg shadow-emerald-900/10 active:scale-95"
+                              onClick={() => navigate(`/exam/live/${examIdSafe}`)}
+                              disabled={isExpired}
+                              className={`font-black text-[10px] uppercase tracking-widest py-3 px-8 rounded-xl transition-all shadow-lg active:scale-95 ${isExpired ? 'bg-gray-200 text-gray-500 cursor-not-allowed shadow-none' : 'bg-[#1A5F53] hover:bg-[#134d42] text-white shadow-emerald-900/10'}`}
                             >
-                              {inProgress ? 'Resume Terminal' : 'Initialize Exam'}
+                              {isExpired ? 'Session Expired' : inProgress ? 'Resume Terminal' : 'Initialize Exam'}
                             </button>
                           )}
                         </div>
@@ -283,7 +290,6 @@ export const StudentDashboard = () => {
               )}
             </section>
 
-            {/* --- COMPLETELY UPGRADED UPCOMING SECTION --- */}
             {upcomingExams.length > 0 && (
               <section className="animate-in slide-in-from-bottom-4 duration-500 mt-12">
                 <h4 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-3">
@@ -291,10 +297,11 @@ export const StudentDashboard = () => {
                   Upcoming Nodes
                 </h4>
                 
-                {/* Changed to space-y-4 so it stacks identically to the Active Exams! */}
                 <div className="space-y-4">
-                  {upcomingExams.map(exam => (
-                    <div key={exam._id} className="bg-white rounded-[2rem] border border-gray-100 p-8 hover:shadow-2xl hover:shadow-gray-200/50 transition-all group opacity-80">
+                  {upcomingExams.map(exam => {
+                    const examIdSafe = exam._id || exam.id;
+                    return (
+                    <div key={examIdSafe} className="bg-white rounded-[2rem] border border-gray-100 p-8 hover:shadow-2xl hover:shadow-gray-200/50 transition-all group opacity-80">
                       
                       <div className="flex justify-between items-start mb-6">
                         <div>
@@ -304,7 +311,7 @@ export const StudentDashboard = () => {
                               {exam.course || 'General'}
                             </span>
                             <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                              • Faculty ID: {exam.creator?.name || 'Academic Core'}
+                              • Faculty ID: {exam.creator?.name || exam.faculty?.name || 'Academic Core'}
                             </span>
                           </div>
                         </div>
@@ -325,7 +332,7 @@ export const StudentDashboard = () => {
                           </div>
                           <div className="flex flex-col">
                             <span className="text-[9px] font-black text-gray-300 uppercase">Value</span>
-                            <span className="text-xs font-black text-gray-700">{exam.totalMarks}pts</span>
+                            <span className="text-xs font-black text-gray-700">{exam.totalMarks || exam.questions?.reduce((acc, q) => acc + (q.points || 10), 0) || 0}pts</span>
                           </div>
                         </div>
                         
@@ -335,13 +342,12 @@ export const StudentDashboard = () => {
                       </div>
 
                     </div>
-                  ))}
+                  )})}
                 </div>
               </section>
             )}
           </div>
 
-          {/* Sidebar - Results & Analytics */}
           <div className="lg:col-span-4 space-y-10">
             <section>
               <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Performance Vault</h3>
@@ -352,7 +358,7 @@ export const StudentDashboard = () => {
                   </div>
                 ) : (
                   submissions.filter(s => ['submitted', 'auto_submitted'].includes(s.status)).map(sub => (
-                    <div key={sub._id} className="bg-white rounded-[2rem] border border-gray-100 p-6 flex items-center justify-between shadow-sm">
+                    <div key={sub._id || sub.id} className="bg-white rounded-[2rem] border border-gray-100 p-6 flex items-center justify-between shadow-sm">
                       <div>
                         <p className="text-xs font-black text-gray-900 uppercase tracking-tight">{sub.exam?.title || 'System Test'}</p>
                         <div className="flex items-center gap-2 mt-1">
@@ -369,7 +375,6 @@ export const StudentDashboard = () => {
               </div>
             </section>
 
-            {/* Quick Analytics Card */}
             <div className="bg-[#1A5F53] rounded-[2.5rem] p-8 text-white shadow-2xl shadow-emerald-900/20">
               <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-6">Aggregate Stats</p>
               <div className="grid grid-cols-2 gap-6">

@@ -32,9 +32,10 @@ model Exam {
   description     String?      @db.Text
   course          String?
   startTime       DateTime?
+  endTime         DateTime?    // 👈 Added this so upcoming exams work perfectly!
   durationMinutes Int
   status          String       @default("draft")
-  proctoringRules Json?
+  proctoringRules Json?        // Backend name
   createdAt       DateTime     @default(now())
   creatorId       String
   creator         User         @relation(fields: [creatorId], references: [id])

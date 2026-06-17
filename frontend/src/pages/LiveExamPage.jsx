@@ -37,10 +37,12 @@ export const LiveExamPage = () => {
   
   const timerRef = useRef(null);
   const submittedRef = useRef(false);
+  
+  // 🚀 THE FIX: This prevents React Strict Mode from double-firing the API!
+  const initFiredRef = useRef(false);
 
-  const [warning, setWarning] = useState(null);
   const [toast, setToast] = useState(null);
-  const [confirmModal, setConfirmModal] = useState(null); // { message, onConfirm }
+  const [confirmModal, setConfirmModal] = useState(null); 
 
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
@@ -54,7 +56,6 @@ export const LiveExamPage = () => {
   const [proctorReady, setProctorReady] = useState(false);
   useEffect(() => {
     if (phase === 'exam') {
-      // Immediate ready for fullscreen tracking, but keep a delay for other proctoring if needed
       setProctorReady(true);
     } else {
       setProctorReady(false);
@@ -67,14 +68,11 @@ export const LiveExamPage = () => {
   const proctoring = useProctoring({
     examId, 
     enabled: ['exam', 'fullscreen'].includes(phase) && proctorReady && !submittedRef.current,
-    maxViolations: 99, // Disable auto-submit via hook to handle custom penalty logic here
+    maxViolations: 99, 
     onRestricted: handleRestricted, 
     onAutoSubmit: handleAutoSubmit,
   });
 
-  // Camera stream mirroring removed per user request.
-
-  // ── Security & Lockdown ──
   const phaseRef = useRef(phase);
   const vCountRef = useRef(0);
   const proctoringRef = useRef(proctoring);
@@ -97,27 +95,16 @@ export const LiveExamPage = () => {
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     const handleFullscreenChange = async () => {
-      // Use refs to avoid stale closures
       if (phaseRef.current === 'exam' && !document.fullscreenElement && !submittedRef.current) {
-        // Increment count immediately
         vCountRef.current += 1;
         const newCount = vCountRef.current;
 
-        // 1. Log violation via ref
         proctoringRef.current.logViolation('fullscreen_exit', 'critical', `Student exited fullscreen mode (Total: ${newCount})`);
         
-        // 2. Show warning popup immediately
-        setWarning(`Fullscreen exited.\nViolation Count: ${newCount}`);
-        
-        // 3. Force fullscreen again
         try {
           await document.documentElement.requestFullscreen();
         } catch (err) {
-          console.error("Failed to re-enter fullscreen", err);
-          // Only change phase if we absolutely can't recover
-          if (!document.fullscreenElement) {
-             // We can optionally setPhase('fullscreen') here, but let's try to stay in 'exam'
-          }
+          console.error("Failed to re-enter fullscreen. Awaiting manual button click.", err);
         }
       }
     };
@@ -128,23 +115,8 @@ export const LiveExamPage = () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
-  }, []); // Only attach once, use refs inside
+  }, []); 
 
-  // ── Permanent Fullscreen Enforcement ──
-  useEffect(() => {
-    if (phase !== 'exam' || submittedRef.current) return;
-
-    const interval = setInterval(() => {
-      if (!document.fullscreenElement && phaseRef.current === 'exam' && !submittedRef.current) {
-        // Try auto-recovery every 2 seconds if failed
-        document.documentElement.requestFullscreen?.().catch(() => {});
-      }
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [phase]);
-
-  // ── Anti Copy-Paste & Shortcut Protection ──
   useEffect(() => {
     if (phase !== 'exam' || submittedRef.current) return;
 
@@ -152,20 +124,13 @@ export const LiveExamPage = () => {
       e.preventDefault();
       const type = e.type.toUpperCase();
       showToast(`${type} is strictly disabled during this exam.`, 'error');
-      
-      // Explicitly log as clipboard violation
-      proctoring.logViolation(
-        `${type}_ATTEMPT`, 
-        'medium', 
-        `Student attempted to ${e.type} content in the exam environment.`
-      );
+      proctoring.logViolation(`${type}_ATTEMPT`, 'medium', `Student attempted to ${e.type} content.`);
     };
 
     const blockShortcuts = (e) => {
       const key = e.key.toLowerCase();
       const ctrl = e.ctrlKey || e.metaKey;
       
-      // Block Ctrl+C, V, X, A and Shift+V
       if (ctrl && (['c', 'v', 'x', 'a'].includes(key))) {
         e.preventDefault();
         e.stopPropagation();
@@ -173,7 +138,6 @@ export const LiveExamPage = () => {
         proctoring.logViolation('shortcut_attempt', 'medium', `Attempted Ctrl+${key.toUpperCase()}`);
       }
       
-      // Block Ctrl+Shift+V
       if (ctrl && e.shiftKey && key === 'v') {
         e.preventDefault();
         e.stopPropagation();
@@ -201,8 +165,10 @@ export const LiveExamPage = () => {
     };
   }, [phase, proctoring]);
 
-  // ── Init exam ──
   useEffect(() => {
+    if (initFiredRef.current) return;
+    initFiredRef.current = true;
+
     (async () => {
       try {
         const examRes = await api.get(`/exams/${examId}`);
@@ -228,14 +194,14 @@ export const LiveExamPage = () => {
           setAnswers(s.answers);
         } else {
           setAnswers(e.questions.map(q => ({
-            questionId: q._id, questionType: q.type,
+            questionId: q._id || q.id, questionType: q.type,
             selectedOption: -1, code: '', language: 'python', textAnswer: '',
             score: 0, maxScore: q.points,
           })));
         }
 
         const socket = connectSocket();
-        socket.emit('join_exam', { examId, studentId: user?._id, studentName: user?.name });
+        socket.emit('join_exam', { examId, studentId: user?._id || user?.id, studentName: user?.name });
 
         socket.on('force_submit', (data) => {
           showToast(`Your exam was terminated by the proctor. Reason: ${data.reason}`, 'error');
@@ -257,7 +223,6 @@ export const LiveExamPage = () => {
     };
   }, [examId, user]);
 
-  // ── Timer ──
   useEffect(() => {
     if (phase !== 'exam') return;
     timerRef.current = setInterval(() => {
@@ -269,16 +234,14 @@ export const LiveExamPage = () => {
     return () => clearInterval(timerRef.current);
   }, [phase]);
 
-  // ── Auto-save every 30s ──
   useEffect(() => {
     if (phase !== 'exam' || !submission) return;
+    const submissionId = submission._id || submission.id;
     const iv = setInterval(() => {
-      api.put(`/submissions/${submission._id}/save`, { answers }).catch(() => {});
+      api.put(`/submissions/${submissionId}/save`, { answers }).catch(() => {});
     }, 30000);
     return () => clearInterval(iv);
   }, [phase, answers, submission]);
-
-  // Camera monitoring removed per user request.
 
   const enterFullscreen = () => {
     document.documentElement.requestFullscreen?.()
@@ -305,9 +268,11 @@ export const LiveExamPage = () => {
   const performSubmit = async (auto = false, reason = '') => {
     submittedRef.current = true;
     setSubmitting(true);
+    const submissionId = submission._id || submission.id;
     try {
-      await api.put(`/submissions/${submission._id}/submit`, { answers, autoSubmit: auto, reason });
-      document.exitFullscreen?.().catch(() => {});      setPhase('submitted');
+      await api.put(`/submissions/${submissionId}/submit`, { answers, autoSubmit: auto, reason });
+      document.exitFullscreen?.().catch(() => {});      
+      setPhase('submitted');
     } catch (err) {
       showToast('Submit failed: ' + (err.response?.data?.message || err.message), 'error');
       submittedRef.current = false;
@@ -326,22 +291,11 @@ export const LiveExamPage = () => {
       let runRes = null;
 
       if (resData.success) {
-        runRes = {
-          output: resData.output,
-          error: null,
-          executionTime: resData.executionTime,
-          success: true
-        };
+        runRes = { output: resData.output, error: null, executionTime: resData.executionTime, success: true };
       } else {
-        runRes = {
-          error: resData.stderr,
-          output: '',
-          errorType: resData.errorType,
-          success: false
-        };
+        runRes = { error: resData.stderr, output: '', errorType: resData.errorType, success: false };
       }
 
-      // Automatically run tests if they exist
       if (q?.testCases?.length > 0) {
         const tr = await api.post('/compiler/judge', {
           language: ans.language, code: ans.code,
@@ -353,21 +307,17 @@ export const LiveExamPage = () => {
         runRes.totalCount = d.total;
         runRes.verdict = d.verdict;
         
-        // Update global answer state for score tracking
         const score = d.verdict === 'accepted' ? q.points : Math.round((d.passed / d.total) * q.points);
         updateAnswer(ans.questionId, 'score', score);
         updateAnswer(ans.questionId, 'verdict', d.verdict);
         updateAnswer(ans.questionId, 'passedTests', d.passed);
         updateAnswer(ans.questionId, 'totalTests', d.total);
       }
-
       setRunResult(runRes);
     } catch (e) { 
       setRunResult({ error: e.response?.data?.message || e.message || 'Execution failed', output: '' }); 
-    }
-    finally { setRunning(false); }
+    } finally { setRunning(false); }
   };
-
 
   const handleJudge = async () => {
     const ans = answers[currentQ];
@@ -388,11 +338,8 @@ export const LiveExamPage = () => {
       updateAnswer(ans.questionId, 'totalTests', d.total);
     } catch (e) { 
       console.error("Judge failed:", e);
-      setJudgeResult(null); 
-    }
-    finally { setJudging(false); }
+    } finally { setJudging(false); }
   };
-
 
   const fmtTime = (s) => `${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
   const isLow = timeLeft < 300;
@@ -402,30 +349,32 @@ export const LiveExamPage = () => {
   const isHalfTimePassed = totalSeconds > 0 ? elapsedSeconds >= (totalSeconds / 2) : true;
 
   const q = exam?.questions?.[currentQ];
-  const ans = q ? (answers.find(a => a.questionId === q._id) || {}) : {};
+  const qIdSafe = q ? (q._id || q.id) : null;
+  const ans = q ? (answers.find(a => a.questionId === qIdSafe) || {}) : {};
 
-  // ── Penalty Logic ──
   const vCount = proctoring.violationCount;
   const lastPenalizedRef = useRef(0);
 
   useEffect(() => {
-    if (vCount > 3 && vCount > lastPenalizedRef.current && phase === 'exam') {
+    const maxV = exam?.proctoring?.maxViolations || exam?.proctoringRules?.maxViolations || 3;
+    const penaltyThreshold = Math.floor(maxV / 2);
+    
+    if (vCount > penaltyThreshold && vCount > lastPenalizedRef.current && phase === 'exam') {
       lastPenalizedRef.current = vCount;
-      setTimeLeft(prev => Math.max(0, Math.floor(prev * 0.75))); // Deduct 1/4 (Keep 75%)
+      setTimeLeft(prev => Math.max(0, Math.floor(prev * 0.75))); 
     }
-  }, [vCount, phase]);
+  }, [vCount, phase, exam]);
   
-  // Auto-submit after 6 violations (on the 7th violation attempt)
   useEffect(() => {
-    if (vCount > 6 && !submittedRef.current && phase === 'exam') {
-      doSubmit(true, 'Exceeded maximum fullscreen exit violations (6)');
+    const maxV = exam?.proctoring?.maxViolations || exam?.proctoringRules?.maxViolations || 3;
+    
+    if (vCount >= maxV && !submittedRef.current && phase === 'exam') {
+      doSubmit(true, `Exceeded maximum fullscreen exit violations (${maxV})`);
     }
-  }, [vCount, phase]);
+  }, [vCount, phase, exam]);
 
   return (
     <React.Fragment>
-      {/* Camera elements removed */}
-
       {phase === 'loading' && (
         <div className="h-screen flex items-center justify-center bg-gray-950 text-white">
           <div className="text-center"><div className="text-4xl mb-4 animate-pulse">🛡️</div><p className="text-gray-400">Loading secure exam environment…</p></div>
@@ -441,8 +390,6 @@ export const LiveExamPage = () => {
           </div>
         </div>
       )}
-
-      {/* Camera Check Phase Removed */}
 
       {phase === 'fullscreen' && (
         <div className="h-screen flex items-center justify-center bg-gray-950 text-white">
@@ -471,19 +418,15 @@ export const LiveExamPage = () => {
       )}
 
       {phase === 'exam' && exam && answers.length > 0 && q && (
-        <div 
-          className="h-screen flex flex-col bg-gray-950 text-white overflow-hidden select-none transition-all duration-700" 
-          style={{ fontFamily: "'Inter', sans-serif" }}
-        >
-          {/* Permanent Fullscreen Blocking Overlay */}
+        <div className="h-screen flex flex-col bg-gray-950 text-white overflow-hidden select-none transition-all duration-700" style={{ fontFamily: "'Inter', sans-serif" }}>
+          
           {!document.fullscreenElement && !submittedRef.current && (
             <div className="fixed inset-0 z-[500] bg-gray-950 flex items-center justify-center p-6 text-center animate-in fade-in duration-300">
               <div className="max-w-md">
                 <div className="text-7xl mb-6">🚫</div>
                 <h2 className="text-3xl font-black text-white mb-4 uppercase tracking-tighter">EXAM LOCKED</h2>
                 <p className="text-gray-400 mb-10 font-medium leading-relaxed">
-                  Fullscreen exit detected. The exam environment is locked to prevent unauthorized access. 
-                  Please return to fullscreen to resume.
+                  Fullscreen exit detected. Please return to fullscreen immediately to resume your session.
                 </p>
                 <button 
                   onClick={() => document.documentElement.requestFullscreen().catch(() => {})}
@@ -496,26 +439,19 @@ export const LiveExamPage = () => {
             </div>
           )}
 
-          {/* Warning Popup */}
-          {warning && (
-            <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-              <div className="bg-red-600 text-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center border-4 border-red-400 animate-in zoom-in-95 duration-300">
-                <div className="text-6xl mb-4">⚠️</div>
-                <h3 className="text-2xl font-black mb-2 uppercase">Integrity Alert</h3>
-                <p className="font-bold text-red-100 mb-6 whitespace-pre-line">{warning}</p>
-                {vCount >= 3 && <p className="text-xs font-black bg-black/20 p-2 rounded-lg mb-6 text-red-200 uppercase tracking-widest animate-pulse">Penalty: 25% Time Deducted!</p>}
-                <button onClick={() => setWarning(null)} className="w-full bg-white text-red-600 font-black py-4 rounded-xl hover:bg-red-50 transition-all">I UNDERSTAND</button>
-              </div>
-            </div>
-          )}
-
-          {/* ── Top Bar ── */}
           <div className="flex items-center justify-between px-6 py-3 bg-gray-900 border-b border-gray-800 flex-shrink-0">
             <div className="flex items-center gap-4">
               <span className="text-lg font-bold">🛡️ {exam?.title || 'Exam Terminal'}</span>
-              <span className={`text-xs font-bold px-3 py-1 rounded-lg ${proctoring?.violationCount > 0 ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                Violations: {proctoring?.violationCount || 0}/{exam?.proctoring?.maxViolations || 3}
-              </span>
+              
+              {proctoring?.violationCount > 0 ? (
+                <span className="text-xs font-black px-3 py-1 rounded-lg bg-red-500/20 text-red-400 animate-pulse border border-red-500/40">
+                  ⚠️ WARNING: {proctoring.violationCount}/{exam?.proctoring?.maxViolations || exam?.proctoringRules?.maxViolations || 3} Infractions Registered
+                </span>
+              ) : (
+                <span className="text-xs font-bold px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/20">
+                  ✓ Core Environment Stable
+                </span>
+              )}
             </div>
             
             <div className={`font-mono text-xl font-bold px-6 py-2 rounded-lg border ${isLow ? 'bg-red-500/20 border-red-500 text-red-400 animate-pulse' : 'bg-gray-800 border-gray-700 text-white'}`}>
@@ -531,21 +467,16 @@ export const LiveExamPage = () => {
             </button>
           </div>
 
-          {/* ── Main Content ── */}
           <div className="flex flex-1 overflow-hidden">
-
-            {/* Left Sidebar — Question Navigator */}
             <div className="w-56 flex-shrink-0 bg-gray-900/50 border-r border-gray-800 flex flex-col overflow-y-auto p-4">
-              
-              {/* Camera Preview Removed */}
-
               <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Questions ({exam?.questions?.length || 0})</h3>
               <div className="grid grid-cols-4 gap-1.5">
                 {exam?.questions?.map((qq, idx) => {
-                  const a = answers.find(x => x.questionId === qq._id);
+                  const qqIdSafe = qq._id || qq.id;
+                  const a = answers.find(x => x.questionId === qqIdSafe);
                   const done = a && (a.selectedOption >= 0 || (a.code && a.code.length > 10) || a.textAnswer);
                   return (
-                    <button key={qq._id} onClick={() => { setCurrentQ(idx); setRunResult(null); setJudgeResult(null); }}
+                    <button key={qqIdSafe} onClick={() => { setCurrentQ(idx); setRunResult(null); setJudgeResult(null); }}
                       className={`h-9 rounded-lg text-xs font-bold border transition-all ${
                         currentQ === idx ? 'bg-blue-600 border-blue-500 text-white' :
                         done ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300' :
@@ -570,10 +501,8 @@ export const LiveExamPage = () => {
               )}
             </div>
 
-            {/* Right Content Area */}
             <div className="flex-1 flex flex-col overflow-hidden">
               {q.type === 'mcq' ? (
-                /* ── MCQ View ── */
                 <div className="flex-1 overflow-auto p-8">
                   <div className="max-w-3xl mx-auto">
                     <div className="flex items-center gap-3 mb-2">
@@ -588,9 +517,9 @@ export const LiveExamPage = () => {
                         <label key={oi} className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all ${
                           ans.selectedOption === oi ? 'border-blue-500 bg-blue-500/10' : 'border-gray-700 bg-gray-800/50 hover:border-gray-600'
                         }`}>
-                          <input type="radio" name={`q-${q._id}`} className="w-5 h-5 accent-blue-500"
+                          <input type="radio" name={`q-${qIdSafe}`} className="w-5 h-5 accent-blue-500"
                             checked={ans.selectedOption === oi}
-                            onChange={() => updateAnswer(q._id, 'selectedOption', oi)} />
+                            onChange={() => updateAnswer(qIdSafe, 'selectedOption', oi)} />
                           <span className="text-gray-200">{opt.text}</span>
                         </label>
                       ))}
@@ -598,7 +527,6 @@ export const LiveExamPage = () => {
                   </div>
                 </div>
               ) : q.type === 'coding' ? (
-                /* ── Coding View — LeetCode-style split ── */
                 <div className="flex-1 flex overflow-hidden">
                   <div className="w-2/5 border-r border-gray-800 overflow-y-auto p-6 bg-gray-900/30">
                     <div className="flex items-center gap-3 mb-3">
@@ -630,7 +558,7 @@ export const LiveExamPage = () => {
 
                   <div className="flex-1 flex flex-col overflow-hidden bg-[#1e1e1e]">
                     <div className="flex items-center gap-2 px-4 py-2 bg-gray-900 border-b border-gray-800 flex-shrink-0">
-                      <select value={ans.language || 'python'} onChange={e => updateAnswer(q._id, 'language', e.target.value)}
+                      <select value={ans.language || 'python'} onChange={e => updateAnswer(qIdSafe, 'language', e.target.value)}
                         className="bg-gray-800 text-white text-sm border border-gray-700 rounded-lg px-3 py-1.5 outline-none cursor-pointer">
                         {LANGS.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                       </select>
@@ -649,9 +577,8 @@ export const LiveExamPage = () => {
                     <div className="flex-1">
                       <Editor height="100%" language={(LANGS.find(l => l.id === (ans.language || 'python'))?.m) || 'python'}
                         value={ans.code || ''} theme="vs-dark"
-                        onChange={v => updateAnswer(q._id, 'code', v || '')}
+                        onChange={v => updateAnswer(qIdSafe, 'code', v || '')}
                         onMount={(editor) => {
-                          // Disable internal clipboard actions
                           editor.onKeyDown((e) => {
                             const ctrl = e.ctrlKey || e.metaKey;
                             const key = e.browserEvent.key.toLowerCase();
@@ -661,16 +588,14 @@ export const LiveExamPage = () => {
                               
                               const type = key === 'v' ? 'PASTE' : key === 'c' ? 'COPY' : key === 'x' ? 'CUT' : 'SELECT_ALL';
                               showToast(`${type} shortcut is disabled.`, 'error');
-                              proctoring.logViolation(`${type}_SHORTCUT`, 'medium', `Attempted ${type} via keyboard.`);
+                              proctoring.logViolation(`${type}_SHORTCUT`, 'medium', `Attempted ${type} via keyboard shortcut.`);
                             }
                           });
                         }}
                         options={{ fontSize: 14, fontFamily: "'JetBrains Mono',monospace", minimap: { enabled: false },
                           scrollBeyondLastLine: false, automaticLayout: true, padding: { top: 12 },
                           lineNumbers: 'on', wordWrap: 'on', tabSize: 2, cursorBlinking: 'smooth', smoothScrolling: true,
-                          contextmenu: false,
-                          dragAndDrop: false,
-                          copyWithSyntaxHighlighting: false,
+                          contextmenu: false, dragAndDrop: false, copyWithSyntaxHighlighting: false,
                         }} />
                     </div>
 
@@ -721,13 +646,12 @@ export const LiveExamPage = () => {
                   </div>
                 </div>
               ) : (
-                /* ── Subjective View ── */
                 <div className="flex-1 overflow-auto p-8">
                   <div className="max-w-3xl mx-auto">
                     <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-3 py-1 rounded-lg">Q{currentQ + 1} • {q.points} pts</span>
                     <h2 className="text-xl font-bold mt-3 mb-2">{q.title}</h2>
                     <p className="text-gray-400 mb-6 whitespace-pre-wrap">{q.description}</p>
-                    <textarea value={ans.textAnswer || ''} onChange={e => updateAnswer(q._id, 'textAnswer', e.target.value)}
+                    <textarea value={ans.textAnswer || ''} onChange={e => updateAnswer(qIdSafe, 'textAnswer', e.target.value)}
                       className="w-full h-64 bg-gray-800 border border-gray-700 text-gray-200 p-4 rounded-xl outline-none resize-none font-medium"
                       placeholder="Type your answer here…" />
                   </div>
@@ -750,6 +674,7 @@ export const LiveExamPage = () => {
           </div>
         </div>
       )}
+
       {/* Custom Confirmation Modal */}
       {confirmModal && (
         <div className="fixed inset-0 z-[400] flex items-center justify-center bg-gray-900/60 backdrop-blur-md animate-in fade-in duration-300">
