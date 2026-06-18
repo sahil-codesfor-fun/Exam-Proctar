@@ -105,7 +105,7 @@ const ExamDetail = ({ exam, subs, loadSubs, setViewExam, openEditModal, toggleSt
           {exam.status === 'draft' && <button onClick={() => toggleStatus(exam, 'published')} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-600/20">Publish Network</button>}
           {exam.status === 'published' && <button onClick={() => toggleStatus(exam, 'draft')} className="bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200 px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">Unpublish</button>}
           {(exam.status === 'published' || exam.status === 'draft') && <button onClick={() => toggleStatus(exam, 'active')} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-600/20">FORCE START NOW</button>}
-          {exam.status === 'active' && <button onClick={() => toggleStatus(exam, 'ended')} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-red-600/20 animate-pulse">TERMINATE SESSION</button>}
+          {exam.status === 'active' && <button onClick={() => toggleStatus(exam, 'ended')} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-red-600/20 animate-pulse">End Session</button>}
           <button onClick={() => deleteExam(exam._id)} className="bg-white text-red-500 hover:bg-red-50 border border-gray-200 hover:border-red-200 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1"><Trash2 size={14}/> Dump</button>
         </div>
       </div>
@@ -613,7 +613,7 @@ export const TeacherDashboard = () => {
         <div className="mt-auto pt-6 border-t border-gray-100 relative group mb-4">
           <div className="absolute -top-14 left-0 right-0 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 translate-y-4 group-hover:translate-y-0 z-50">
             <button onClick={() => { logout(); navigate('/'); }} className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-red-100 rounded-xl text-[10px] uppercase tracking-widest font-black text-red-500 shadow-xl hover:bg-red-50 hover:scale-[1.02] active:scale-[0.98] transition-all">
-              <span>🚪</span> Terminate
+              <span>🚪</span> Log Out
             </button>
           </div>
           
@@ -640,15 +640,15 @@ export const TeacherDashboard = () => {
                 <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tight">{tab}</h2>
               </div>
               <button onClick={() => { setEditingId(null); setForm(defaultForm); setModal(true); }} className="bg-gray-900 hover:bg-black text-white px-6 py-4 rounded-2xl font-black text-[10px] tracking-[0.1em] uppercase flex items-center gap-3 shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all">
-                <div className="bg-white/20 p-1 rounded-md"><Plus size={14}/></div> Generate Node
+                <div className="bg-white/20 p-1 rounded-md"><Plus size={14}/></div> Generate Exam
               </button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-              {[{ l: 'Total Matrix', v: exams.length, c: 'text-gray-900', i: '📦' },
-                { l: 'Live Sector', v: exams.filter(e => e.status === 'active' || e.status === 'published').length, c: 'text-emerald-600', i: '📡' },
-                { l: 'Draft Vault', v: exams.filter(e => e.status === 'draft').length, c: 'text-amber-500', i: '📝' },
-                { l: 'Ended Ops', v: exams.filter(e => e.status === 'ended').length, c: 'text-gray-400', i: '🏁' }
+              {[{ l: 'Total Exams', v: exams.length, c: 'text-gray-900', i: '📦' },
+                { l: 'Live Exams', v: exams.filter(e => e.status === 'active' || e.status === 'published').length, c: 'text-emerald-600', i: '📡' },
+                { l: 'Drafted Exams', v: exams.filter(e => e.status === 'draft').length, c: 'text-amber-500', i: '📝' },
+                { l: 'Past Exams', v: exams.filter(e => e.status === 'ended').length, c: 'text-gray-400', i: '🏁' }
               ].map((s, i) => (
                 <div key={i} className="bg-white p-8 rounded-3xl border border-gray-100 shadow-[0_4px_24px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.04)] transition-all hover:-translate-y-1 group">
                   <div className="flex justify-between items-start mb-6">
@@ -664,7 +664,7 @@ export const TeacherDashboard = () => {
               <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
                 <h4 className="text-xs font-black text-gray-900 uppercase tracking-[0.15em] flex items-center gap-3">
                   <div className="w-2 h-8 bg-[#4B775E] rounded-full"></div>
-                  Assessment Registry
+                  Exams Registry
                 </h4>
               </div>
               
@@ -682,7 +682,7 @@ export const TeacherDashboard = () => {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead className="bg-white border-b border-gray-100"><tr className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em]">
-                      <th className="px-8 py-5">Assessment Profile</th><th className="px-6 py-5">Sector</th><th className="px-6 py-5">Payload</th><th className="px-6 py-5">Status Matrix</th><th className="px-8 py-5 text-right">Overrides</th>
+                      <th className="px-8 py-5">Exam Profile</th><th className="px-6 py-5">Course</th><th className="px-6 py-5">Questions</th><th className="px-6 py-5">Exam Status</th><th className="px-8 py-5 text-right">Actions</th>
                     </tr></thead>
                     <tbody className="divide-y divide-gray-50">
                       {exams.map(exam => (

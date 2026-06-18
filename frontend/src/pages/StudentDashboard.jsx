@@ -128,7 +128,7 @@ export const StudentDashboard = () => {
             Welcome, {user?.name?.split(' ')[0]} <span className="animate-pulse">👋</span>
           </h2>
           <div className="flex items-center gap-3">
-             <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Node ID: {user?.studentId || 'EXTERNAL'}</p>
+             <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Roll No. : {user?.studentId || 'EXTERNAL'}</p>
              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping"></span>
              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-tighter bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">Live Status: Verified</span>
           </div>
@@ -176,11 +176,11 @@ export const StudentDashboard = () => {
                   <h4 className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] border-b pb-2">Academic Identity</h4>
                   <div className="space-y-4">
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-gray-400 uppercase">Student Node ID</span>
+                      <span className="text-[10px] font-black text-gray-400 uppercase">Student Roll No. </span>
                       <span className="text-sm font-bold text-gray-700">{user?.studentId || 'N/A'}</span>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-gray-400 uppercase">Department / Sector</span>
+                      <span className="text-[10px] font-black text-gray-400 uppercase">Department</span>
                       <span className="text-sm font-bold text-gray-700">Engineering & Tech</span>
                     </div>
                   </div>
@@ -190,14 +190,14 @@ export const StudentDashboard = () => {
                   <h4 className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] border-b pb-2">System Analytics</h4>
                   <div className="space-y-4">
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-gray-400 uppercase">Assessment Success Rate</span>
+                      <span className="text-[10px] font-black text-gray-400 uppercase">Exam Success Rate</span>
                       <span className="text-sm font-bold text-emerald-600">
                         {submissions.length > 0 ? Math.round((submissions.filter(s => s.percentage >= 40).length / submissions.length) * 100) : 0}%
                       </span>
                     </div>
                     <div className="flex flex-col">
                       <span className="text-[10px] font-black text-gray-400 uppercase">Total Logged Hours</span>
-                      <span className="text-sm font-bold text-gray-700">14.28 Nodes</span>
+                      <span className="text-sm font-bold text-gray-700">14.28 Hours</span>
                     </div>
                   </div>
                 </div>
@@ -212,7 +212,7 @@ export const StudentDashboard = () => {
             <section>
               <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-3">
                 <div className="h-1 w-8 bg-emerald-500 rounded-full"></div>
-                Assessment Feed
+                Listed Exams
               </h3>
               
               {activeExams.length === 0 && upcomingExams.length === 0 ? (
