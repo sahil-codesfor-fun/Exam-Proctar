@@ -27,21 +27,23 @@ model User {
 }
 
 model Exam {
-  id              String       @id @default(uuid())
-  title           String
-  description     String?      @db.Text
-  course          String?
-  startTime       DateTime?
-  endTime         DateTime?    // 👈 Added this so upcoming exams work perfectly!
-  durationMinutes Int
-  status          String       @default("draft")
-  proctoringRules Json?        // Backend name
-  createdAt       DateTime     @default(now())
-  creatorId       String
-  creator         User         @relation(fields: [creatorId], references: [id])
-  questions       Question[]
-  submissions     Submission[]
-  violations      Violation[]
+  id                 String       @id @default(uuid())
+  title              String
+  description        String?      @db.Text
+  course             String?
+  startTime          DateTime?
+  endTime            DateTime?    
+  durationMinutes    Int
+  status             String       @default("draft")
+  randomizeQuestions Boolean      @default(false) // 👈 NEW: God Mode Toggle
+  questionsToServe   Int?                         // 👈 NEW: How many to deal
+  proctoringRules    Json?        
+  createdAt          DateTime     @default(now())
+  creatorId          String
+  creator            User         @relation(fields: [creatorId], references: [id])
+  questions          Question[]
+  submissions        Submission[]
+  violations         Violation[]
 }
 
 model Question {

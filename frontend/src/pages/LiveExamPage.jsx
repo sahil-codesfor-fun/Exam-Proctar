@@ -37,8 +37,6 @@ export const LiveExamPage = () => {
   
   const timerRef = useRef(null);
   const submittedRef = useRef(false);
-  
-  // 🚀 THE FIX: This prevents React Strict Mode from double-firing the API!
   const initFiredRef = useRef(false);
 
   const [toast, setToast] = useState(null);
@@ -82,6 +80,25 @@ export const LiveExamPage = () => {
   useEffect(() => { proctoringRef.current = proctoring; }, [proctoring]);
 
   useEffect(() => {
+    if (phase !== 'exam') return;
+    const heartbeat = setInterval(async () => {
+      try {
+        const res = await api.get(`/exams/${examId}`);
+        if (res.data.data.status === 'ended' || res.data.data.status === 'draft') {
+          doSubmit(true, 'The proctor has closed this exam.');
+        }
+      } catch (err) {
+        if (err.response?.status === 404) {
+          document.exitFullscreen?.().catch(()=>{});
+          alert("🚨 EXAM DELETED BY PROCTOR. You are being disconnected.");
+          window.location.href = '/student-dashboard'; 
+        }
+      }
+    }, 15000);
+    return () => clearInterval(heartbeat);
+  }, [phase, examId]);
+
+  useEffect(() => {
     const preventBack = () => window.history.forward();
     window.history.pushState(null, null, window.location.href);
     window.addEventListener('popstate', preventBack);
@@ -98,13 +115,11 @@ export const LiveExamPage = () => {
       if (phaseRef.current === 'exam' && !document.fullscreenElement && !submittedRef.current) {
         vCountRef.current += 1;
         const newCount = vCountRef.current;
-
         proctoringRef.current.logViolation('fullscreen_exit', 'critical', `Student exited fullscreen mode (Total: ${newCount})`);
-        
         try {
           await document.documentElement.requestFullscreen();
         } catch (err) {
-          console.error("Failed to re-enter fullscreen. Awaiting manual button click.", err);
+          console.error("Failed to re-enter fullscreen.", err);
         }
       }
     };
@@ -119,7 +134,6 @@ export const LiveExamPage = () => {
 
   useEffect(() => {
     if (phase !== 'exam' || submittedRef.current) return;
-
     const blockAction = (e) => {
       e.preventDefault();
       const type = e.type.toUpperCase();
@@ -130,14 +144,12 @@ export const LiveExamPage = () => {
     const blockShortcuts = (e) => {
       const key = e.key.toLowerCase();
       const ctrl = e.ctrlKey || e.metaKey;
-      
       if (ctrl && (['c', 'v', 'x', 'a'].includes(key))) {
         e.preventDefault();
         e.stopPropagation();
         showToast('Shortcuts (Copy/Paste/Select-All) are disabled.', 'error');
         proctoring.logViolation('shortcut_attempt', 'medium', `Attempted Ctrl+${key.toUpperCase()}`);
       }
-      
       if (ctrl && e.shiftKey && key === 'v') {
         e.preventDefault();
         e.stopPropagation();
@@ -186,19 +198,40 @@ export const LiveExamPage = () => {
         const subRes = await api.post(`/submissions/start/${examId}`);
         const s = subRes.data.data;
         
-        setExam(e);
-        setSubmission(s);
-        setTimeLeft(e.durationMinutes * 60);
+        if (s.answers && s.answers.length > 0) {
+          const dealtQuestions = s.answers.map(ans => {
+            const originalQ = e.questions.find(q => (q._id || q.id) === ans.questionId);
+            if (!originalQ) return null;
+            return { ...originalQ, options: ans.options || originalQ.options };
+          }).filter(Boolean);
 
-        if (subRes.data.resumed && s.answers?.length) {
+          e.questions = dealtQuestions;
           setAnswers(s.answers);
         } else {
           setAnswers(e.questions.map(q => ({
             questionId: q._id || q.id, questionType: q.type,
-            selectedOption: -1, code: '', language: 'python', textAnswer: '',
+            selectedOption: -1, selectedOptionId: null, code: '', language: 'python', textAnswer: '',
             score: 0, maxScore: q.points,
           })));
         }
+
+        // 🚀 THE GLOBAL CLOCK LOGIC: Calculate exact remaining time based on the server's global end time
+        let initialTimeLeft = e.durationMinutes * 60; 
+        
+        if (e.endTime) {
+          const endMs = new Date(e.endTime).getTime();
+          const nowMs = Date.now();
+          initialTimeLeft = Math.max(0, Math.floor((endMs - nowMs) / 1000));
+        } else if (e.startTime) {
+          // Fallback just in case endTime isn't saved properly
+          const endMs = new Date(e.startTime).getTime() + (e.durationMinutes * 60 * 1000);
+          const nowMs = Date.now();
+          initialTimeLeft = Math.max(0, Math.floor((endMs - nowMs) / 1000));
+        }
+        
+        setTimeLeft(initialTimeLeft);
+        setExam(e);
+        setSubmission(s);
 
         const socket = connectSocket();
         socket.emit('join_exam', { examId, studentId: user?._id || user?.id, studentName: user?.name });
@@ -206,6 +239,21 @@ export const LiveExamPage = () => {
         socket.on('force_submit', (data) => {
           showToast(`Your exam was terminated by the proctor. Reason: ${data.reason}`, 'error');
           doSubmit(true, data.reason);
+        });
+
+        socket.on('exam_deleted', (data) => {
+          if (String(data.examId) === String(examId)) {
+             document.exitFullscreen?.().catch(()=>{});
+             alert('This exam has been deleted by the instructor.');
+             window.location.href = '/student-dashboard'; 
+          }
+        });
+
+        socket.on('exam_status_changed', (data) => {
+          if (String(data.examId) === String(examId) && (data.status === 'ended' || data.status === 'draft')) {
+            showToast(`The proctor has ended this exam.`, 'error');
+            doSubmit(true, 'Exam ended by instructor');
+          }
         });
 
         setPhase(e.proctoring?.requireFullscreen ? 'fullscreen' : 'exam');
@@ -217,17 +265,22 @@ export const LiveExamPage = () => {
     })();
     return () => { 
       const socket = getSocket();
-      if (socket) socket.off('force_submit');
+      if (socket) {
+        socket.off('force_submit');
+        socket.off('exam_deleted');
+        socket.off('exam_status_changed');
+      }
       disconnectSocket(); 
       if (timerRef.current) clearInterval(timerRef.current); 
     };
   }, [examId, user]);
 
+  // 🚀 The Timer physically counts down the remaining Global Seconds
   useEffect(() => {
     if (phase !== 'exam') return;
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
-        if (prev <= 1) { doSubmit(true, 'Time expired'); return 0; }
+        if (prev <= 1) { doSubmit(true, 'Exam window has closed.'); return 0; }
         return prev - 1;
       });
     }, 1000);
@@ -344,8 +397,9 @@ export const LiveExamPage = () => {
   const fmtTime = (s) => `${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
   const isLow = timeLeft < 300;
 
+  // 🚀 Half-time Logic remains structurally sound!
   const totalSeconds = (exam?.durationMinutes || 0) * 60;
-  const elapsedSeconds = totalSeconds - timeLeft;
+  const elapsedSeconds = totalSeconds - timeLeft; 
   const isHalfTimePassed = totalSeconds > 0 ? elapsedSeconds >= (totalSeconds / 2) : true;
 
   const q = exam?.questions?.[currentQ];
@@ -474,7 +528,7 @@ export const LiveExamPage = () => {
                 {exam?.questions?.map((qq, idx) => {
                   const qqIdSafe = qq._id || qq.id;
                   const a = answers.find(x => x.questionId === qqIdSafe);
-                  const done = a && (a.selectedOption >= 0 || (a.code && a.code.length > 10) || a.textAnswer);
+                  const done = a && (a.selectedOptionId || a.selectedOption >= 0 || (a.code && a.code.length > 10) || a.textAnswer);
                   return (
                     <button key={qqIdSafe} onClick={() => { setCurrentQ(idx); setRunResult(null); setJudgeResult(null); }}
                       className={`h-9 rounded-lg text-xs font-bold border transition-all ${
@@ -513,16 +567,27 @@ export const LiveExamPage = () => {
                     <h2 className="text-xl font-bold mb-2">{q.title}</h2>
                     {q.description && <p className="text-gray-400 mb-6 whitespace-pre-wrap">{q.description}</p>}
                     <div className="space-y-3">
-                      {q.options?.map((opt, oi) => (
-                        <label key={oi} className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all ${
-                          ans.selectedOption === oi ? 'border-blue-500 bg-blue-500/10' : 'border-gray-700 bg-gray-800/50 hover:border-gray-600'
-                        }`}>
-                          <input type="radio" name={`q-${qIdSafe}`} className="w-5 h-5 accent-blue-500"
-                            checked={ans.selectedOption === oi}
-                            onChange={() => updateAnswer(qIdSafe, 'selectedOption', oi)} />
-                          <span className="text-gray-200">{opt.text}</span>
-                        </label>
-                      ))}
+                      {q.options?.map((opt, oi) => {
+                        const optId = opt.id || opt._id;
+                        const isSelected = optId ? ans.selectedOptionId === optId : ans.selectedOption === oi;
+
+                        return (
+                          <label key={optId || oi} className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all ${
+                            isSelected ? 'border-blue-500 bg-blue-500/10' : 'border-gray-700 bg-gray-800/50 hover:border-gray-600'
+                          }`}>
+                            <input type="radio" name={`q-${qIdSafe}`} className="w-5 h-5 accent-blue-500"
+                              checked={isSelected}
+                              onChange={() => {
+                                setAnswers(prev => prev.map(a => 
+                                  a.questionId === qIdSafe 
+                                    ? { ...a, selectedOptionId: optId, selectedOption: oi } 
+                                    : a
+                                ));
+                              }} />
+                            <span className="text-gray-200">{opt.text}</span>
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

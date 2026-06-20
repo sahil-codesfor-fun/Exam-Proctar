@@ -15,7 +15,6 @@ export const StudentDashboard = () => {
   const [nowTime, setNowTime] = useState(Date.now());
 
   useEffect(() => {
-    // Ticks smoothly so exams transition seamlessly
     const ticker = setInterval(() => setNowTime(Date.now()), 1000);
     return () => clearInterval(ticker);
   }, []);
@@ -38,7 +37,6 @@ export const StudentDashboard = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      // 🚀 THE FIX: Independent try-catches. If one fails, the other survives! No more empty arrays on refresh!
       try {
         let fetchedExams = [];
         let fetchedSubs = [];
@@ -66,7 +64,6 @@ export const StudentDashboard = () => {
     
     fetchData();
 
-    // Silent background poll to ensure absolute stability
     const silentPoll = setInterval(fetchData, 15000);
 
     let socket;
@@ -80,18 +77,28 @@ export const StudentDashboard = () => {
           return [newExam, ...prev];
         });
       });
+
+      socket.on('exam_deleted', (data) => {
+        setExams(prev => prev.filter(e => (e._id || e.id) !== data.examId));
+      });
+
+      socket.on('exam_status_changed', () => {
+        fetchData(); 
+      });
     });
 
     return () => {
       clearInterval(silentPoll);
-      if (socket) socket.off('exam_published');
+      if (socket) {
+        socket.off('exam_published');
+        socket.off('exam_deleted');
+        socket.off('exam_status_changed');
+      }
     };
   }, []);
 
   const getSub = (examId) => submissions.find(s => (s.exam?._id || s.exam?.id) === examId);
 
-  // 🚀 THE FIX: Iron-clad mathematical time comparison! 
-  // Exams are forced into either Active or Upcoming based on raw milliseconds. They CANNOT vanish.
   const activeExams = exams.filter(e => {
     if (e.status === 'active' || e.status === 'ended') return true; 
     if (e.status === 'published') {
@@ -128,7 +135,7 @@ export const StudentDashboard = () => {
             Welcome, {user?.name?.split(' ')[0]} <span className="animate-pulse">👋</span>
           </h2>
           <div className="flex items-center gap-3">
-             <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Roll No. : {user?.studentId || 'EXTERNAL'}</p>
+             <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Node ID: {user?.studentId || 'EXTERNAL'}</p>
              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping"></span>
              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-tighter bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">Live Status: Verified</span>
           </div>
@@ -176,11 +183,11 @@ export const StudentDashboard = () => {
                   <h4 className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] border-b pb-2">Academic Identity</h4>
                   <div className="space-y-4">
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-gray-400 uppercase">Student Roll No. </span>
+                      <span className="text-[10px] font-black text-gray-400 uppercase">Student Node ID</span>
                       <span className="text-sm font-bold text-gray-700">{user?.studentId || 'N/A'}</span>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-gray-400 uppercase">Department</span>
+                      <span className="text-[10px] font-black text-gray-400 uppercase">Department / Sector</span>
                       <span className="text-sm font-bold text-gray-700">Engineering & Tech</span>
                     </div>
                   </div>
@@ -190,14 +197,15 @@ export const StudentDashboard = () => {
                   <h4 className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] border-b pb-2">System Analytics</h4>
                   <div className="space-y-4">
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-gray-400 uppercase">Exam Success Rate</span>
+                      <span className="text-[10px] font-black text-gray-400 uppercase">Assessment Success Rate</span>
                       <span className="text-sm font-bold text-emerald-600">
-                        {submissions.length > 0 ? Math.round((submissions.filter(s => s.percentage >= 40).length / submissions.length) * 100) : 0}%
+                        {/* 🚀 THE FIX: Threshold mapped to exactly 1/3 (33.33%) passing mark */}
+                        {submissions.length > 0 ? Math.round((submissions.filter(s => s.percentage >= 33.33).length / submissions.length) * 100) : 0}%
                       </span>
                     </div>
                     <div className="flex flex-col">
                       <span className="text-[10px] font-black text-gray-400 uppercase">Total Logged Hours</span>
-                      <span className="text-sm font-bold text-gray-700">14.28 Hours</span>
+                      <span className="text-sm font-bold text-gray-700">14.28 Nodes</span>
                     </div>
                   </div>
                 </div>
@@ -212,7 +220,7 @@ export const StudentDashboard = () => {
             <section>
               <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-3">
                 <div className="h-1 w-8 bg-emerald-500 rounded-full"></div>
-                Listed Exams
+                Assessment Feed
               </h3>
               
               {activeExams.length === 0 && upcomingExams.length === 0 ? (
@@ -229,6 +237,11 @@ export const StudentDashboard = () => {
                     const inProgress = sub && sub.status === 'in_progress';
                     const isExpired = exam.status === 'ended' || (exam.endTime && new Date(exam.endTime).getTime() < nowTime);
                     
+                    // 🚀 THE FIX: Displays dynamic points overriding generic total points
+                    const calculatedValue = exam.randomizeQuestions && exam.questionsToServe && exam.proctoring?.marksPerNode 
+                       ? (exam.questionsToServe * exam.proctoring.marksPerNode) 
+                       : (exam.totalMarks || exam.questions?.reduce((acc, q) => acc + (q.points || 10), 0) || 0);
+
                     return (
                       <div key={examIdSafe} className={`bg-white rounded-[2rem] border border-gray-100 p-8 hover:shadow-2xl hover:shadow-gray-200/50 transition-all group ${isExpired && !done ? 'opacity-60 grayscale' : ''}`}>
                         <div className="flex justify-between items-start mb-6">
@@ -269,7 +282,7 @@ export const StudentDashboard = () => {
                             </div>
                             <div className="flex flex-col">
                               <span className="text-[9px] font-black text-gray-300 uppercase">Value</span>
-                              <span className="text-xs font-black text-gray-700">{exam.totalMarks || exam.questions?.reduce((acc, q) => acc + (q.points || 10), 0) || 0}pts</span>
+                              <span className="text-xs font-black text-gray-700">{calculatedValue}pts</span>
                             </div>
                           </div>
                           
@@ -300,6 +313,10 @@ export const StudentDashboard = () => {
                 <div className="space-y-4">
                   {upcomingExams.map(exam => {
                     const examIdSafe = exam._id || exam.id;
+                    const calculatedValue = exam.randomizeQuestions && exam.questionsToServe && exam.proctoring?.marksPerNode 
+                       ? (exam.questionsToServe * exam.proctoring.marksPerNode) 
+                       : (exam.totalMarks || exam.questions?.reduce((acc, q) => acc + (q.points || 10), 0) || 0);
+
                     return (
                     <div key={examIdSafe} className="bg-white rounded-[2rem] border border-gray-100 p-8 hover:shadow-2xl hover:shadow-gray-200/50 transition-all group opacity-80">
                       
@@ -332,7 +349,7 @@ export const StudentDashboard = () => {
                           </div>
                           <div className="flex flex-col">
                             <span className="text-[9px] font-black text-gray-300 uppercase">Value</span>
-                            <span className="text-xs font-black text-gray-700">{exam.totalMarks || exam.questions?.reduce((acc, q) => acc + (q.points || 10), 0) || 0}pts</span>
+                            <span className="text-xs font-black text-gray-700">{calculatedValue}pts</span>
                           </div>
                         </div>
                         
@@ -366,8 +383,8 @@ export const StudentDashboard = () => {
                           <span className="text-[10px] font-black text-emerald-500 uppercase italic">{sub.percentage}%</span>
                         </div>
                       </div>
-                      <div className={`h-10 w-10 rounded-xl flex items-center justify-center text-xs font-black border ${sub.percentage >= 40 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
-                        {sub.percentage >= 40 ? 'P' : 'F'}
+                      <div className={`h-10 w-10 rounded-xl flex items-center justify-center text-xs font-black border ${sub.percentage >= 33.33 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
+                        {sub.percentage >= 33.33 ? 'P' : 'F'}
                       </div>
                     </div>
                   ))

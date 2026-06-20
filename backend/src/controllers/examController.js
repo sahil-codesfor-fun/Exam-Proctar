@@ -3,7 +3,10 @@ import { getIO } from '../sockets/proctorSocket.js';
 
 export const createExam = async (req, res) => {
   try {
-    const { questions, proctoring, ...examData } = req.body;
+    const { questions, proctoring, randomizeQuestions, questionsToServe, ...examData } = req.body;
+
+    const isRand = req.body.randomizeQuestions === true || req.body.randomizeQuestions === 'true';
+    const serveNum = req.body.questionsToServe ? parseInt(req.body.questionsToServe, 10) : null;
 
     const formattedQuestions = questions?.map(q => ({
       type: q.type,
@@ -29,6 +32,8 @@ export const createExam = async (req, res) => {
         endTime: examData.endTime ? new Date(examData.endTime) : null,
         durationMinutes: examData.durationMinutes || 60,
         status: examData.status || 'draft',
+        randomizeQuestions: isRand, 
+        questionsToServe: serveNum,      
         proctoringRules: proctoring || {}, 
         creatorId: req.user.id, 
         questions: {
@@ -46,7 +51,7 @@ export const createExam = async (req, res) => {
     if (responseData.status === 'published' || responseData.status === 'active') {
       try {
         const io = getIO();
-        io.to('students_global').emit('exam_published', responseData);
+        io.emit('exam_published', responseData); 
       } catch (e) { console.error('Socket broadcast failed:', e); }
     }
 
@@ -75,19 +80,25 @@ export const getExams = async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    // 🚀 THE FIX: Bulletproof mapping so it NEVER crashes and returns empty!
     const formattedExams = exams.map(exam => {
       try {
         const examCopy = { 
           ...exam, 
           _id: exam.id, 
           faculty: exam.creator ? { ...exam.creator, _id: exam.creator.id } : { name: 'Academic Core', _id: 'system' }, 
-          proctoring: exam.proctoringRules || {}
+          proctoring: exam.proctoringRules || {},
+          randomizeQuestions: exam.randomizeQuestions || false,
+          questionsToServe: exam.questionsToServe || null
         };
         
         if (req.user.role === 'student') {
+          // 🚀 THE OVERRIDE: Tells the frontend to display uniform points!
+          const marksOverride = examCopy.randomizeQuestions && examCopy.proctoring?.marksPerNode ? parseInt(examCopy.proctoring.marksPerNode, 10) : null;
+          
           examCopy.questions = (examCopy.questions || []).map(q => {
             const qCopy = { ...q, _id: q.id };
+            if (marksOverride) qCopy.points = marksOverride; 
+            
             if (qCopy.testCases) {
               qCopy.testCases = qCopy.testCases.filter(tc => !tc.isHidden);
             }
@@ -99,8 +110,7 @@ export const getExams = async (req, res) => {
         }
         return examCopy;
       } catch (mappingError) {
-        console.error("Failed to map exam ID:", exam.id, mappingError);
-        return exam; // Return raw exam as ultimate fallback instead of crashing
+        return exam; 
       }
     });
 
@@ -123,7 +133,6 @@ export const getExam = async (req, res) => {
 
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
 
-    // 🚀 THE FIX: Safe mapping here as well
     const examCopy = { 
       ...exam, 
       _id: exam.id, 
@@ -132,8 +141,12 @@ export const getExam = async (req, res) => {
     };
 
     if (req.user.role === 'student') {
+      const marksOverride = examCopy.randomizeQuestions && examCopy.proctoring?.marksPerNode ? parseInt(examCopy.proctoring.marksPerNode, 10) : null;
+      
       examCopy.questions = (examCopy.questions || []).map(q => {
         const qCopy = { ...q, _id: q.id };
+        if (marksOverride) qCopy.points = marksOverride; 
+        
         if (qCopy.testCases) qCopy.testCases = qCopy.testCases.filter(tc => !tc.isHidden);
         if (qCopy.options) qCopy.options = qCopy.options.map(opt => ({ ...opt, isCorrect: undefined }));
         return qCopy;
@@ -149,7 +162,10 @@ export const getExam = async (req, res) => {
 export const updateExam = async (req, res) => {
   try {
     const examId = req.params.id;
-    const { questions, proctoring, ...examData } = req.body;
+    const { questions, proctoring, randomizeQuestions, questionsToServe, ...examData } = req.body;
+
+    const isRand = req.body.randomizeQuestions === true || req.body.randomizeQuestions === 'true';
+    const serveNum = req.body.questionsToServe ? parseInt(req.body.questionsToServe, 10) : null;
 
     const existingExam = await prisma.exam.findUnique({ where: { id: examId } });
     if (!existingExam) return res.status(404).json({ success: false, message: 'Exam not found' });
@@ -178,6 +194,8 @@ export const updateExam = async (req, res) => {
         endTime: examData.endTime ? new Date(examData.endTime) : null,
         durationMinutes: examData.durationMinutes || 60,
         status: examData.status || 'draft',
+        randomizeQuestions: isRand,
+        questionsToServe: serveNum,
         proctoringRules: proctoring || {},
         questions: { create: formattedQuestions || [] }
       },
@@ -189,7 +207,7 @@ export const updateExam = async (req, res) => {
     if (responseData.status === 'published' || responseData.status === 'active') {
       try {
         const io = getIO();
-        io.to('students_global').emit('exam_published', responseData);
+        io.emit('exam_published', responseData); 
       } catch (e) { console.error('Socket broadcast failed:', e); }
     }
 
@@ -207,6 +225,12 @@ export const deleteExam = async (req, res) => {
     if (exam.creatorId !== req.user.id) return res.status(403).json({ success: false, message: 'Not authorized' });
 
     await prisma.exam.delete({ where: { id: req.params.id } });
+    
+    try {
+      const io = getIO();
+      io.emit('exam_deleted', { examId: req.params.id });
+    } catch (e) { console.error('Socket broadcast failed:', e); }
+
     res.json({ success: true, message: 'Exam deleted' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -230,7 +254,8 @@ export const updateExamStatus = async (req, res) => {
 
     try {
       const io = getIO();
-      io.to('students_global').emit('exam_published', responseData);
+      io.emit('exam_status_changed', { examId: updatedExam.id, status });
+      io.emit('exam_published', responseData); 
     } catch (e) { console.error('Socket broadcast failed:', e); }
 
     res.json({ success: true, data: responseData });

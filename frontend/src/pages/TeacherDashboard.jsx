@@ -27,7 +27,6 @@ const ExamDetail = ({ exam, subs, loadSubs, setViewExam, openEditModal, toggleSt
   useEffect(() => { loadSubs(exam._id); }, [exam._id, loadSubs]);
   const es = subs[exam._id] || [];
 
-  // 🚀 THE FIX: Deduplicate submissions! (Cleans up Strict Mode double-entries)
   const uniqueSubsMap = new Map();
   es.forEach(s => {
     const sid = s.student?.id || s.student?._id || s.studentId;
@@ -92,7 +91,7 @@ const ExamDetail = ({ exam, subs, loadSubs, setViewExam, openEditModal, toggleSt
           </h2>
           <div className="flex items-center gap-3 mt-2 text-sm">
              <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg font-bold text-xs">{exam.course || 'General Sector'}</span>
-             <span className="text-gray-400 font-medium">• {exam.durationMinutes}min window • {exam.questions.length} total nodes • {exam.totalMarks} aggregate value</span>
+             <span className="text-gray-400 font-medium">• {exam.durationMinutes}min window • {exam.questions.length} total nodes • {exam.randomizeQuestions ? `🎲 Random (${exam.questionsToServe || 'All'} Nodes @ ${exam.proctoringRules?.marksPerNode || exam.proctoring?.marksPerNode || 'Mixed'} pts)` : 'Static Layout'}</span>
           </div>
         </div>
         
@@ -105,7 +104,7 @@ const ExamDetail = ({ exam, subs, loadSubs, setViewExam, openEditModal, toggleSt
           {exam.status === 'draft' && <button onClick={() => toggleStatus(exam, 'published')} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-600/20">Publish Network</button>}
           {exam.status === 'published' && <button onClick={() => toggleStatus(exam, 'draft')} className="bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200 px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">Unpublish</button>}
           {(exam.status === 'published' || exam.status === 'draft') && <button onClick={() => toggleStatus(exam, 'active')} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-600/20">FORCE START NOW</button>}
-          {exam.status === 'active' && <button onClick={() => toggleStatus(exam, 'ended')} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-red-600/20 animate-pulse">End Session</button>}
+          {exam.status === 'active' && <button onClick={() => toggleStatus(exam, 'ended')} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-red-600/20 animate-pulse">TERMINATE SESSION</button>}
           <button onClick={() => deleteExam(exam._id)} className="bg-white text-red-500 hover:bg-red-50 border border-gray-200 hover:border-red-200 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1"><Trash2 size={14}/> Dump</button>
         </div>
       </div>
@@ -183,7 +182,7 @@ const ExamDetail = ({ exam, subs, loadSubs, setViewExam, openEditModal, toggleSt
                     <td className="px-6">
                       <div className="flex items-center gap-2">
                          <span className="font-black text-gray-700">{s.totalScore}</span><span className="text-gray-300">/</span><span className="text-xs text-gray-400">{s.maxScore}</span>
-                         <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${s.percentage >= 40 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>{s.percentage}%</span>
+                         <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${s.percentage >= 33.33 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>{s.percentage}%</span>
                       </div>
                     </td>
                     <td className="px-6"><span className={`text-[9px] font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${s.status === 'submitted' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : s.status === 'auto_submitted' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>{s.status.replace('_', ' ')}</span></td>
@@ -232,7 +231,7 @@ export const TeacherDashboard = () => {
   const tcFileInputRef = useRef(null);
   const [activeTcIndex, setActiveTcIndex] = useState(null);
 
-  const defaultForm = { title: '', description: '', course: '', startTime: '', durationMinutes: 60, proctoring: { maxViolations: 3, restrictionMinutes: 30, requireFullscreen: true, disableCopyPaste: true, autoSubmitOnMax: true, enableWebcam: false }, questions: [{ ...EMPTY_Q }] };
+  const defaultForm = { title: '', description: '', course: '', startTime: '', durationMinutes: 60, randomizeQuestions: false, questionsToServe: '', proctoring: { maxViolations: 3, restrictionMinutes: 30, requireFullscreen: true, disableCopyPaste: true, autoSubmitOnMax: true, enableWebcam: false, marksPerNode: 10 }, questions: [{ ...EMPTY_Q }] };
   const [form, setForm] = useState(defaultForm);
 
   const load = () => {
@@ -380,7 +379,9 @@ export const TeacherDashboard = () => {
       course: examData.course || '',
       startTime: formatForInput(examData.startTime),
       durationMinutes: examData.durationMinutes || 60,
-      proctoring: examData.proctoring || { maxViolations: 3, restrictionMinutes: 30, requireFullscreen: true, disableCopyPaste: true, autoSubmitOnMax: true, enableWebcam: false },
+      randomizeQuestions: examData.randomizeQuestions === true || examData.randomizeQuestions === 'true' || examData.randomizeQuestions === 1,
+      questionsToServe: examData.questionsToServe || '',
+      proctoring: examData.proctoring || { maxViolations: 3, restrictionMinutes: 30, requireFullscreen: true, disableCopyPaste: true, autoSubmitOnMax: true, enableWebcam: false, marksPerNode: 10 },
       questions: examData.questions && examData.questions.length > 0 ? examData.questions.map(q => ({
           ...EMPTY_Q,
           ...q,
@@ -415,8 +416,17 @@ export const TeacherDashboard = () => {
       }
       return base;
     });
-    const payload = { ...form, questions: cleanedQuestions, startTime: isoStartTime, endTime: computedEndTime };
+    
+    const payload = { 
+      ...form, 
+      randomizeQuestions: form.randomizeQuestions === true,
+      questionsToServe: form.questionsToServe ? parseInt(form.questionsToServe, 10) : null,
+      questions: cleanedQuestions, 
+      startTime: isoStartTime, 
+      endTime: computedEndTime 
+    };
     if (!editingId || status === 'draft') payload.status = status;
+    
     setSaving(true);
     try {
       if (editingId) await api.put(`/exams/${editingId}`, payload); 
@@ -437,7 +447,7 @@ export const TeacherDashboard = () => {
   };
 
   const deleteExam = async (id) => {
-    showConfirm('Are you sure you want to delete this exam? This action is irreversible.', async () => {
+    showConfirm('Are you sure you want to delete this exam? This will violently kick out all active students.', async () => {
       await api.delete(`/exams/${id}`).catch(() => {});
       if (viewExam?._id === id) setViewExam(null);
       load();
@@ -463,6 +473,31 @@ export const TeacherDashboard = () => {
             </div>
           </div>
           <textarea value={form.description} onChange={e => setForm(p => ({...p, description: e.target.value}))} placeholder="Description" className="w-full px-4 py-3 bg-gray-50 rounded-xl outline-none h-20 resize-none border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
+
+          <div className="bg-blue-50/50 p-5 rounded-xl space-y-3 border border-blue-100 mt-4">
+            <h3 className="text-xs font-black text-blue-700 uppercase tracking-widest">Assessment Matrix (Randomization)</h3>
+            <div className="flex items-center gap-6 text-sm flex-wrap">
+              <label className="flex items-center gap-2 font-medium">
+                <input type="checkbox" checked={form.randomizeQuestions} onChange={e => setForm(p => ({...p, randomizeQuestions: e.target.checked}))} className="accent-blue-600 w-4 h-4" /> 
+                Pool & Randomize Questions
+              </label>
+              
+              {/* 🚀 THE OVERRIDE UI: Teacher can set the exact points per question here! */}
+              {form.randomizeQuestions && (
+                <>
+                  <label className="flex items-center gap-2 font-medium">
+                    <input type="number" value={form.questionsToServe || ''} onChange={e => setForm(p => ({...p, questionsToServe: +e.target.value}))} placeholder="All" className="w-20 px-2 py-1.5 rounded-lg border outline-none font-bold shadow-sm" /> 
+                    Nodes to Serve
+                  </label>
+                  <label className="flex items-center gap-2 font-medium">
+                    <input type="number" value={form.proctoring.marksPerNode || ''} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, marksPerNode: +e.target.value}}))} placeholder="Pts" className="w-20 px-2 py-1.5 rounded-lg border outline-none font-bold shadow-sm" /> 
+                    Marks per Node
+                  </label>
+                </>
+              )}
+            </div>
+            <p className="text-[10px] text-blue-500 font-medium leading-relaxed">If enabled, each student automatically receives a completely unique, randomized set of questions and shuffled MCQ options to prevent sharing. Setting "Marks per Node" applies a uniform score to all drawn questions.</p>
+          </div>
 
           <div className="bg-emerald-50/50 p-5 rounded-xl space-y-3 border border-emerald-100">
             <h3 className="text-xs font-black text-emerald-700 uppercase tracking-widest">Security Settings</h3>
@@ -563,7 +598,6 @@ export const TeacherDashboard = () => {
     <div className="flex h-[calc(100vh-8.5rem)] bg-gray-50 overflow-hidden font-sans relative rounded-xl border border-gray-100 shadow-sm">
       {modal && renderModal()}
 
-      {/* ✨ SLEEK FLOATING PILL TOAST ✨ */}
       {toast && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[600] animate-in slide-in-from-bottom-10 fade-in duration-300">
           <div className={`px-6 py-3.5 rounded-full shadow-2xl border flex items-center gap-3 text-sm font-bold ${
@@ -577,7 +611,6 @@ export const TeacherDashboard = () => {
         </div>
       )}
 
-      {/* ⚠️ NATIVE-LOOKING CONFIRM MODAL ⚠️ */}
       {confirmModal && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-gray-100 text-center animate-in zoom-in-95 duration-200">
@@ -592,7 +625,6 @@ export const TeacherDashboard = () => {
         </div>
       )}
 
-      {/* Sidebar Navigation */}
       <div className="w-64 bg-white border-r flex flex-col p-5 overflow-y-auto relative z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-3 mb-10 px-2 mt-4 cursor-pointer hover:scale-[1.02] transition-transform">
           <div className="bg-emerald-50 text-emerald-600 p-2 rounded-xl border border-emerald-100 shadow-sm">
