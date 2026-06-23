@@ -5,7 +5,25 @@ import api from '../services/api';
 import { Plus, X, Trash2, CheckCircle2, LayoutGrid, FileText, ShieldAlert, Upload, Edit } from 'lucide-react';
 import * as XLSX from 'xlsx'; 
 
-const EMPTY_Q = { type: 'mcq', title: '', description: '', points: 10, options: [{ text: '', isCorrect: false },{ text: '', isCorrect: false },{ text: '', isCorrect: false },{ text: '', isCorrect: false }], testCases: [{ input: '', expectedOutput: '', isHidden: false }], timeLimitSeconds: 5, constraints: '' };
+const EMPTY_Q = { 
+  type: 'mcq', 
+  title: '', 
+  description: '', 
+  points: 10, 
+  options: [
+    { text: '', isCorrect: false },
+    { text: '', isCorrect: false },
+    { text: '', isCorrect: false },
+    { text: '', isCorrect: false }
+  ], 
+  testCases: [{ input: '', expectedOutput: '', isHidden: false }], 
+  matchingPairs: [
+    { leftItem: '', rightItem: '' }, 
+    { leftItem: '', rightItem: '' }
+  ], 
+  timeLimitSeconds: 5, 
+  constraints: '' 
+};
 
 const formatForInput = (dateString) => {
   if (!dateString) return '';
@@ -202,7 +220,6 @@ const ExamDetail = ({ exam, subs, loadSubs, setViewExam, openEditModal, toggleSt
   );
 };
 
-
 export const TeacherDashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -231,7 +248,12 @@ export const TeacherDashboard = () => {
   const tcFileInputRef = useRef(null);
   const [activeTcIndex, setActiveTcIndex] = useState(null);
 
-  const defaultForm = { title: '', description: '', course: '', startTime: '', durationMinutes: 60, randomizeQuestions: false, questionsToServe: '', proctoring: { maxViolations: 3, restrictionMinutes: 30, requireFullscreen: true, disableCopyPaste: true, autoSubmitOnMax: true, enableWebcam: false, marksPerNode: 10 }, questions: [{ ...EMPTY_Q }] };
+  const defaultForm = { 
+    title: '', description: '', course: '', startTime: '', durationMinutes: 60, 
+    randomizeQuestions: false, questionsToServe: '', 
+    proctoring: { maxViolations: 3, restrictionMinutes: 30, requireFullscreen: true, disableCopyPaste: true, autoSubmitOnMax: true, enableWebcam: false, marksPerNode: 10 }, 
+    questions: [{ ...EMPTY_Q }] 
+  };
   const [form, setForm] = useState(defaultForm);
 
   const load = () => {
@@ -249,7 +271,7 @@ export const TeacherDashboard = () => {
     setViolations(p => ({ ...p, [examId]: v }));
   }, []);
 
-  const addQ = () => setForm(p => ({ ...p, questions: [...p.questions, { ...EMPTY_Q, options: EMPTY_Q.options.map(o => ({...o})), testCases: EMPTY_Q.testCases.map(t => ({...t})) }] }));
+  const addQ = () => setForm(p => ({ ...p, questions: [...p.questions, { ...EMPTY_Q, options: EMPTY_Q.options.map(o => ({...o})), testCases: EMPTY_Q.testCases.map(t => ({...t})), matchingPairs: EMPTY_Q.matchingPairs.map(m => ({...m})) }] }));
   const rmQ = (i) => setForm(p => ({ ...p, questions: p.questions.filter((_, idx) => idx !== i) }));
   const updQ = (i, field, val) => setForm(p => ({ ...p, questions: p.questions.map((q, idx) => idx === i ? { ...q, [field]: val } : q) }));
   const updOpt = (qi, oi, field, val) => {
@@ -270,6 +292,14 @@ export const TeacherDashboard = () => {
     updQ(qi, 'testCases', tcs);
   };
 
+  const addMp = (qi) => updQ(qi, 'matchingPairs', [...(form.questions[qi].matchingPairs || []), { leftItem: '', rightItem: '' }]);
+  const rmMp = (qi, mpi) => updQ(qi, 'matchingPairs', form.questions[qi].matchingPairs.filter((_, i) => i !== mpi));
+  const updMp = (qi, mpi, field, val) => {
+    const mps = [...(form.questions[qi].matchingPairs || [])];
+    mps[mpi] = { ...mps[mpi], [field]: val };
+    updQ(qi, 'matchingPairs', mps);
+  };
+
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -281,7 +311,7 @@ export const TeacherDashboard = () => {
         const blocks = text.split('---').map(b => b.trim()).filter(Boolean);
         blocks.forEach(block => {
           const lines = block.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-          let q = { type: 'subjective', title: '', description: '', points: 10, options: [], testCases: [], constraints: '', timeLimitSeconds: 5 };
+          let q = { type: 'subjective', title: '', description: '', points: 10, options: [], testCases: [], matchingPairs: [], constraints: '', timeLimitSeconds: 5 };
           lines.forEach(line => {
             const upper = line.toUpperCase();
             if (upper.startsWith('TYPE:')) q.type = line.substring(5).trim().toLowerCase();
@@ -298,6 +328,14 @@ export const TeacherDashboard = () => {
             else if (upper.startsWith('TC_IN:')) q.testCases.push({ input: line.substring(6).trim().replace(/\\n/g, '\n'), expectedOutput: '', isHidden: false });
             else if (upper.startsWith('TC_OUT:')) { if (q.testCases.length > 0) q.testCases[q.testCases.length - 1].expectedOutput = line.substring(7).trim().replace(/\\n/g, '\n'); }
             else if (upper.startsWith('TC_HIDDEN:')) { if (q.testCases.length > 0) q.testCases[q.testCases.length - 1].isHidden = line.substring(10).trim().toLowerCase() === 'true'; }
+            // 🚀 THE FIX: New Auto-Parser for "Match the Following" Pairs!
+            else if (upper.startsWith('PAIR:')) {
+              const pairText = line.substring(5).trim();
+              const [left, right] = pairText.split('|').map(s => s.trim());
+              if (left && right) {
+                q.matchingPairs.push({ leftItem: left, rightItem: right });
+              }
+            }
           });
           parsedQs.push(q);
         });
@@ -307,7 +345,7 @@ export const TeacherDashboard = () => {
         const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
         rows.forEach(row => {
           const type = (row['Type'] || 'subjective').toLowerCase().trim();
-          let q = { ...EMPTY_Q, type, title: row['Title'] || 'Imported Question', description: row['Description'] || '', points: Number(row['Points']) || 10, options: [], testCases: [] };
+          let q = { ...EMPTY_Q, type, title: row['Title'] || 'Imported Question', description: row['Description'] || '', points: Number(row['Points']) || 10, options: [], testCases: [], matchingPairs: [] };
           if (type === 'mcq') {
             const correctIndex = Number(row['Correct Option']) || 1;
             [1, 2, 3, 4].forEach(i => {
@@ -369,7 +407,7 @@ export const TeacherDashboard = () => {
     setActiveTcIndex(null);
   };
 
-  const showFormatGuide = () => { showToast(`CSV/EXCEL FORMAT: Headers: Type, Title, Description, Points, Option 1-4, Correct Option, Constraints`, 'info'); };
+  const showFormatGuide = () => { showToast(`TEXT FORMAT: Use PAIR: Left Item | Right Item for matching questions!`, 'info'); };
 
   const openEditModal = (examData) => {
     setEditingId(examData._id);
@@ -386,7 +424,8 @@ export const TeacherDashboard = () => {
           ...EMPTY_Q,
           ...q,
           options: q.options?.length > 0 ? q.options : EMPTY_Q.options.map(o => ({...o})),
-          testCases: q.testCases?.length > 0 ? q.testCases : EMPTY_Q.testCases.map(t => ({...t}))
+          testCases: q.testCases?.length > 0 ? q.testCases : EMPTY_Q.testCases.map(t => ({...t})),
+          matchingPairs: q.matchingPairs?.length > 0 ? q.matchingPairs : EMPTY_Q.matchingPairs.map(m => ({...m}))
       })) : [{ ...EMPTY_Q }]
     });
     setModal(true);
@@ -413,6 +452,9 @@ export const TeacherDashboard = () => {
         base.testCases = (q.testCases || []).filter(tc => tc.expectedOutput.trim() !== '');
         base.constraints = q.constraints || '';
         base.timeLimitSeconds = q.timeLimitSeconds || 5;
+      }
+      else if (q.type === 'matching') {
+        base.matchingPairs = (q.matchingPairs || []).filter(mp => mp.leftItem.trim() !== '' && mp.rightItem.trim() !== '');
       }
       return base;
     });
@@ -482,7 +524,6 @@ export const TeacherDashboard = () => {
                 Pool & Randomize Questions
               </label>
               
-              {/* 🚀 THE OVERRIDE UI: Teacher can set the exact points per question here! */}
               {form.randomizeQuestions && (
                 <>
                   <label className="flex items-center gap-2 font-medium">
@@ -530,6 +571,7 @@ export const TeacherDashboard = () => {
                   <select value={q.type} onChange={e => updQ(qi, 'type', e.target.value)} className="bg-emerald-50 text-emerald-700 rounded-lg px-3 py-1.5 text-xs font-black border border-emerald-100 cursor-pointer outline-none">
                     <option value="mcq">MCQ</option>
                     <option value="coding">CODING</option>
+                    <option value="matching">MATCHING</option>
                     <option value="subjective">SUBJECTIVE</option>
                   </select>
                   <input type="number" value={q.points} onChange={e => updQ(qi, 'points', +e.target.value)} className="w-16 px-2 py-1.5 rounded-lg border outline-none font-bold text-xs" placeholder="Points" />
@@ -546,6 +588,27 @@ export const TeacherDashboard = () => {
                     <div key={oi} className={`flex items-center gap-3 bg-white p-3 rounded-xl border transition-all ${o.isCorrect ? 'border-emerald-400 bg-emerald-50/30' : ''}`}>
                       <input type="radio" name={`correct-${qi}`} checked={o.isCorrect} onChange={() => updOpt(qi, oi, 'isCorrect', true)} className="accent-emerald-500 w-4 h-4 cursor-pointer" />
                       <input value={o.text} onChange={e => updOpt(qi, oi, 'text', e.target.value)} placeholder={`Option ${oi+1}`} className="flex-1 text-sm outline-none bg-transparent font-medium" />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {q.type === 'matching' && (
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-gray-400 uppercase">Matching Pairs ({(q.matchingPairs || []).length})</span>
+                    <button onClick={() => addMp(qi)} className="text-xs font-bold text-blue-600 flex items-center gap-1 bg-white border px-3 py-1.5 rounded-lg shadow-sm hover:bg-gray-50 transition-all"><Plus size={12} /> Add Pair</button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 mb-2 px-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    <div>Left Item (Prompt)</div>
+                    <div>Right Item (Target)</div>
+                  </div>
+                  {(q.matchingPairs || []).map((mp, mpi) => (
+                    <div key={mpi} className="flex gap-4 items-center bg-white p-3 rounded-xl border shadow-sm">
+                      <input value={mp.leftItem} onChange={e => updMp(qi, mpi, 'leftItem', e.target.value)} placeholder={`e.g., Apple`} className="flex-1 text-sm outline-none bg-gray-50 border border-transparent focus:border-gray-200 focus:bg-white rounded-lg p-2 transition-colors font-medium" />
+                      <span className="text-gray-300 font-bold">⇄</span>
+                      <input value={mp.rightItem} onChange={e => updMp(qi, mpi, 'rightItem', e.target.value)} placeholder={`e.g., Fruit`} className="flex-1 text-sm outline-none bg-gray-50 border border-transparent focus:border-gray-200 focus:bg-white rounded-lg p-2 transition-colors font-medium" />
+                      <button onClick={() => rmMp(qi, mpi)} className="text-gray-400 hover:text-red-500 p-2"><X size={14} /></button>
                     </div>
                   ))}
                 </div>

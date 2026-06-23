@@ -35,8 +35,8 @@ model Exam {
   endTime            DateTime?    
   durationMinutes    Int
   status             String       @default("draft")
-  randomizeQuestions Boolean      @default(false) // 👈 NEW: God Mode Toggle
-  questionsToServe   Int?                         // 👈 NEW: How many to deal
+  randomizeQuestions Boolean      @default(false) 
+  questionsToServe   Int?                         
   proctoringRules    Json?        
   createdAt          DateTime     @default(now())
   creatorId          String
@@ -47,17 +47,18 @@ model Exam {
 }
 
 model Question {
-  id               String   @id @default(uuid())
+  id               String         @id @default(uuid())
   examId           String
   type             String
   title            String
-  description      String   @db.Text
+  description      String         @db.Text
   points           Int
-  constraints      String?  @db.Text
+  constraints      String?        @db.Text
   timeLimitSeconds Int
-  exam             Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  exam             Exam           @relation(fields: [examId], references: [id], onDelete: Cascade)
   options          Option[]
   testCases        TestCase[]
+  matchingPairs    MatchingPair[] // 👈 NEW: Links to the pairs!
 }
 
 model Option {
@@ -75,6 +76,15 @@ model TestCase {
   expectedOutput String   @db.Text
   isHidden       Boolean
   question       Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+// 👈 NEW: The absolute truth matrix for Match the Following
+model MatchingPair {
+  id         String   @id @default(uuid())
+  questionId String
+  leftItem   String
+  rightItem  String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 }
 
 model Submission {

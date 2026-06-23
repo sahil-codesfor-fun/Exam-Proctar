@@ -20,6 +20,10 @@ export const createExam = async (req, res) => {
         : undefined,
       testCases: q.testCases && q.testCases.length > 0 
         ? { create: q.testCases.map(tc => ({ input: tc.input, expectedOutput: tc.expectedOutput, isHidden: tc.isHidden })) } 
+        : undefined,
+      // 🚀 NEW: Save the matching pairs
+      matchingPairs: q.matchingPairs && q.matchingPairs.length > 0 
+        ? { create: q.matchingPairs.map(mp => ({ leftItem: mp.leftItem, rightItem: mp.rightItem })) } 
         : undefined
     }));
 
@@ -41,7 +45,7 @@ export const createExam = async (req, res) => {
         }
       },
       include: {
-        questions: { include: { options: true, testCases: true } },
+        questions: { include: { options: true, testCases: true, matchingPairs: true } },
         creator: { select: { name: true, email: true } }
       }
     });
@@ -75,7 +79,7 @@ export const getExams = async (req, res) => {
       where: filter,
       include: {
         creator: { select: { id: true, name: true, email: true } },
-        questions: { include: { options: true, testCases: true } }
+        questions: { include: { options: true, testCases: true, matchingPairs: true } }
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -92,7 +96,6 @@ export const getExams = async (req, res) => {
         };
         
         if (req.user.role === 'student') {
-          // 🚀 THE OVERRIDE: Tells the frontend to display uniform points!
           const marksOverride = examCopy.randomizeQuestions && examCopy.proctoring?.marksPerNode ? parseInt(examCopy.proctoring.marksPerNode, 10) : null;
           
           examCopy.questions = (examCopy.questions || []).map(q => {
@@ -127,7 +130,7 @@ export const getExam = async (req, res) => {
       where: { id: req.params.id },
       include: {
         creator: { select: { id: true, name: true, email: true } },
-        questions: { include: { options: true, testCases: true } }
+        questions: { include: { options: true, testCases: true, matchingPairs: true } }
       }
     });
 
@@ -181,7 +184,8 @@ export const updateExam = async (req, res) => {
       constraints: q.constraints || '',
       timeLimitSeconds: q.timeLimitSeconds || 5,
       options: q.options && q.options.length > 0 ? { create: q.options.map(o => ({ text: o.text, isCorrect: o.isCorrect })) } : undefined,
-      testCases: q.testCases && q.testCases.length > 0 ? { create: q.testCases.map(tc => ({ input: tc.input, expectedOutput: tc.expectedOutput, isHidden: tc.isHidden })) } : undefined
+      testCases: q.testCases && q.testCases.length > 0 ? { create: q.testCases.map(tc => ({ input: tc.input, expectedOutput: tc.expectedOutput, isHidden: tc.isHidden })) } : undefined,
+      matchingPairs: q.matchingPairs && q.matchingPairs.length > 0 ? { create: q.matchingPairs.map(mp => ({ leftItem: mp.leftItem, rightItem: mp.rightItem })) } : undefined
     }));
 
     const updatedExam = await prisma.exam.update({
@@ -199,7 +203,7 @@ export const updateExam = async (req, res) => {
         proctoringRules: proctoring || {},
         questions: { create: formattedQuestions || [] }
       },
-      include: { questions: { include: { options: true, testCases: true } }, creator: true }
+      include: { questions: { include: { options: true, testCases: true, matchingPairs: true } }, creator: true }
     });
 
     const responseData = { ...updatedExam, _id: updatedExam.id, proctoring: updatedExam.proctoringRules };

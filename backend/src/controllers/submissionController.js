@@ -16,7 +16,7 @@ export const startSubmission = async (req, res) => {
     
     const exam = await prisma.exam.findUnique({ 
       where: { id: examId },
-      include: { questions: { include: { options: true } } } 
+      include: { questions: { include: { options: true, matchingPairs: true } } } 
     });
 
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
@@ -47,30 +47,40 @@ export const startSubmission = async (req, res) => {
     if (sub) {
       resumed = true;
     } else {
-      // 🚀 THE DEALER: Iron-clad type casting to guarantee shuffle!
       let pool = [...exam.questions];
-      
-      // Force it to recognize true whether it's a boolean, string, or number
       const isRandomized = exam.randomizeQuestions === true || exam.randomizeQuestions === 'true' || exam.randomizeQuestions === 1;
+      
+      const marksOverride = isRandomized && exam.proctoringRules?.marksPerNode 
+        ? parseInt(exam.proctoringRules.marksPerNode, 10) 
+        : null;
 
       if (isRandomized) {
-         pool = shuffleArray(pool); // Shuffle the full pool
-         
-         // Force strict integer parsing for the limit
+         pool = shuffleArray(pool); 
          const serveLimit = parseInt(exam.questionsToServe, 10);
-         if (!isNaN(serveLimit) && serveLimit > 0 && serveLimit < pool.length) {
-           pool = pool.slice(0, serveLimit); // Slice EXACTLY to 10
+         if (!isNaN(serveLimit) && serveLimit > 0) {
+           pool = pool.slice(0, serveLimit); 
          }
       }
 
       const answers = pool.map(q => {
         let options = [];
+        let matchingLeft = [];
+        let matchingRight = [];
+
         if (q.type === 'mcq') {
            options = q.options.map(o => ({ id: o.id, text: o.text }));
+           if (isRandomized) options = shuffleArray(options);
+        } else if (q.type === 'matching' && q.matchingPairs) {
+           // 🚀 Bipartite Mapping Randomization!
+           matchingLeft = q.matchingPairs.map(mp => ({ id: mp.id, text: mp.leftItem }));
+           matchingRight = q.matchingPairs.map(mp => ({ id: mp.id, text: mp.rightItem }));
+           
            if (isRandomized) {
-              options = shuffleArray(options); // Shuffle options uniquely per student
+              matchingLeft = shuffleArray(matchingLeft);
+              matchingRight = shuffleArray(matchingRight);
            }
         }
+
         return {
           questionId: q.id,
           questionType: q.type,
@@ -79,12 +89,15 @@ export const startSubmission = async (req, res) => {
           code: '',
           language: 'python',
           textAnswer: '',
-          maxScore: q.points,
-          options: options        // Locked-in shuffled options!
+          studentMatches: {}, // 👈 Dictionary to store { leftId: rightId }
+          maxScore: marksOverride || q.points, 
+          options: options,
+          matchingLeft: matchingLeft,
+          matchingRight: matchingRight
         };
       });
 
-      const dynamicMaxScore = pool.reduce((acc, q) => acc + (q.points || 10), 0);
+      const dynamicMaxScore = pool.reduce((acc, q) => acc + (marksOverride || q.points || 10), 0);
 
       sub = await prisma.submission.create({
         data: {
@@ -130,13 +143,17 @@ export const submitExam = async (req, res) => {
 
     const exam = await prisma.exam.findUnique({ 
       where: { id: sub.examId },
-      include: { questions: { include: { options: true } } } 
+      include: { questions: { include: { options: true, matchingPairs: true } } } 
     });
     
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
 
     let finalAnswers = req.body.answers || sub.answers || [];
     let totalScore = 0;
+    
+    const marksOverride = exam.randomizeQuestions === true && exam.proctoringRules?.marksPerNode 
+        ? parseInt(exam.proctoringRules.marksPerNode, 10) 
+        : null;
 
     for (let ans of finalAnswers) {
       const question = exam.questions.find(q => q.id === ans.questionId);
@@ -152,8 +169,30 @@ export const submitExam = async (req, res) => {
         } else {
           ans.isCorrect = false;
         }
-        ans.score = ans.isCorrect ? question.points : 0;
+        ans.score = ans.isCorrect ? (marksOverride || question.points) : 0;
+      } 
+      // 🚀 NEW: The Partial Grading Logic for Matching!
+      else if (question.type === 'matching') {
+        let correctCount = 0;
+        const totalPairs = question.matchingPairs?.length || 0;
+
+        if (totalPairs > 0 && ans.studentMatches) {
+          question.matchingPairs.forEach(pair => {
+            // Because we cleverly mapped both left and right to pair.id, 
+            // a correct match means the student linked the leftId exactly to its native rightId
+            if (ans.studentMatches[pair.id] === pair.id) {
+              correctCount++;
+            }
+          });
+          const fraction = correctCount / totalPairs;
+          ans.score = Math.round(fraction * (marksOverride || question.points));
+          ans.isCorrect = correctCount === totalPairs;
+        } else {
+          ans.score = 0;
+          ans.isCorrect = false;
+        }
       }
+
       totalScore += (ans.score || 0);
     }
 
@@ -182,7 +221,7 @@ export const getMySubmissions = async (req, res) => {
     const subs = await prisma.submission.findMany({
       where: { studentId: req.user.id },
       include: {
-        exam: { select: { title: true, durationMinutes: true } }
+        exam: { select: { title: true, durationMinutes: true, endTime: true, status: true } }
       },
       orderBy: { createdAt: 'desc' }
     });

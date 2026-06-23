@@ -42,6 +42,15 @@ export const LiveExamPage = () => {
   const [toast, setToast] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null); 
 
+  // 🚀 SVG Laser Beam Line Drawer State
+  const [activeDraw, setActiveDraw] = useState(null);
+  const [hoveredRight, setHoveredRight] = useState(null); // Tracks massive hitboxes!
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [drawnLines, setDrawnLines] = useState([]);
+  const matchingContainerRef = useRef(null);
+  const leftDots = useRef({});
+  const rightDots = useRef({});
+
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
@@ -190,9 +199,7 @@ export const LiveExamPage = () => {
           try {
             await api.patch(`/exams/${examId}/status`, { status: 'active' });
             e.status = 'active'; 
-          } catch (patchErr) {
-            console.warn("Could not auto-activate.", patchErr);
-          }
+          } catch (patchErr) {}
         }
 
         const subRes = await api.post(`/submissions/start/${examId}`);
@@ -202,28 +209,35 @@ export const LiveExamPage = () => {
           const dealtQuestions = s.answers.map(ans => {
             const originalQ = e.questions.find(q => (q._id || q.id) === ans.questionId);
             if (!originalQ) return null;
-            return { ...originalQ, options: ans.options || originalQ.options };
+            return { 
+                ...originalQ, 
+                options: ans.options || originalQ.options,
+                matchingLeft: ans.matchingLeft,
+                matchingRight: ans.matchingRight
+            };
           }).filter(Boolean);
 
           e.questions = dealtQuestions;
-          setAnswers(s.answers);
+          
+          setAnswers(s.answers.map(ans => ({
+            ...ans,
+            studentMatches: ans.studentMatches || {}
+          })));
         } else {
           setAnswers(e.questions.map(q => ({
             questionId: q._id || q.id, questionType: q.type,
             selectedOption: -1, selectedOptionId: null, code: '', language: 'python', textAnswer: '',
+            studentMatches: {},
             score: 0, maxScore: q.points,
           })));
         }
 
-        // 🚀 THE GLOBAL CLOCK LOGIC: Calculate exact remaining time based on the server's global end time
         let initialTimeLeft = e.durationMinutes * 60; 
-        
         if (e.endTime) {
           const endMs = new Date(e.endTime).getTime();
           const nowMs = Date.now();
           initialTimeLeft = Math.max(0, Math.floor((endMs - nowMs) / 1000));
         } else if (e.startTime) {
-          // Fallback just in case endTime isn't saved properly
           const endMs = new Date(e.startTime).getTime() + (e.durationMinutes * 60 * 1000);
           const nowMs = Date.now();
           initialTimeLeft = Math.max(0, Math.floor((endMs - nowMs) / 1000));
@@ -275,7 +289,6 @@ export const LiveExamPage = () => {
     };
   }, [examId, user]);
 
-  // 🚀 The Timer physically counts down the remaining Global Seconds
   useEffect(() => {
     if (phase !== 'exam') return;
     timerRef.current = setInterval(() => {
@@ -295,6 +308,53 @@ export const LiveExamPage = () => {
     }, 30000);
     return () => clearInterval(iv);
   }, [phase, answers, submission]);
+
+  // 🚀 The Auto-Snapping Line Renderer!
+  const updateLines = useCallback(() => {
+    if (!matchingContainerRef.current) return;
+    const rect = matchingContainerRef.current.getBoundingClientRect();
+    const newLines = [];
+    const q = exam?.questions?.[currentQ];
+    
+    if (!q || q.type !== 'matching') {
+      setDrawnLines([]);
+      return;
+    }
+    
+    const ans = answers.find(a => a.questionId === (q._id || q.id)) || {};
+    const matches = ans.studentMatches || {};
+
+    Object.entries(matches).forEach(([lId, rId]) => {
+       const lDot = leftDots.current[lId];
+       const rDot = rightDots.current[rId];
+       if (lDot && rDot) {
+          const lRect = lDot.getBoundingClientRect();
+          const rRect = rDot.getBoundingClientRect();
+          newLines.push({
+             key: lId + rId,
+             x1: lRect.left + lRect.width/2 - rect.left,
+             y1: lRect.top + lRect.height/2 - rect.top,
+             x2: rRect.left + rRect.width/2 - rect.left,
+             y2: rRect.top + rRect.height/2 - rect.top
+          });
+       }
+    });
+    setDrawnLines(newLines);
+  }, [answers, currentQ, exam]);
+
+  // Force snap the lines instantly when matches change
+  useEffect(() => {
+    updateLines();
+    window.addEventListener('resize', updateLines);
+    window.addEventListener('scroll', updateLines, true); 
+    const timeout = setTimeout(updateLines, 50); 
+    return () => {
+       window.removeEventListener('resize', updateLines);
+       window.removeEventListener('scroll', updateLines, true);
+       clearTimeout(timeout);
+    };
+  }, [updateLines, phase, answers]);
+
 
   const enterFullscreen = () => {
     document.documentElement.requestFullscreen?.()
@@ -397,7 +457,6 @@ export const LiveExamPage = () => {
   const fmtTime = (s) => `${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
   const isLow = timeLeft < 300;
 
-  // 🚀 Half-time Logic remains structurally sound!
   const totalSeconds = (exam?.durationMinutes || 0) * 60;
   const elapsedSeconds = totalSeconds - timeLeft; 
   const isHalfTimePassed = totalSeconds > 0 ? elapsedSeconds >= (totalSeconds / 2) : true;
@@ -528,7 +587,10 @@ export const LiveExamPage = () => {
                 {exam?.questions?.map((qq, idx) => {
                   const qqIdSafe = qq._id || qq.id;
                   const a = answers.find(x => x.questionId === qqIdSafe);
-                  const done = a && (a.selectedOptionId || a.selectedOption >= 0 || (a.code && a.code.length > 10) || a.textAnswer);
+                  
+                  const isMatchingDone = a && a.studentMatches && qq.matchingPairs && Object.keys(a.studentMatches).length === qq.matchingPairs.length;
+                  const done = a && (a.selectedOptionId || a.selectedOption >= 0 || (a.code && a.code.length > 10) || a.textAnswer || isMatchingDone);
+                  
                   return (
                     <button key={qqIdSafe} onClick={() => { setCurrentQ(idx); setRunResult(null); setJudgeResult(null); }}
                       className={`h-9 rounded-lg text-xs font-bold border transition-all ${
@@ -591,6 +653,123 @@ export const LiveExamPage = () => {
                     </div>
                   </div>
                 </div>
+
+              ) : q.type === 'matching' ? (
+                 <div className="flex-1 overflow-auto p-8">
+                  <div className="max-w-4xl mx-auto">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-3 py-1 rounded-lg">Q{currentQ + 1}</span>
+                      <span className="bg-gray-800 text-gray-400 text-xs font-bold px-3 py-1 rounded-lg">{q.points} pts</span>
+                      <span className="bg-pink-500/20 text-pink-400 text-xs font-bold px-3 py-1 rounded-lg">MATCHING (LASER BEAM)</span>
+                    </div>
+                    <h2 className="text-xl font-bold mb-2">{q.title}</h2>
+                    {q.description && <p className="text-gray-400 mb-6 whitespace-pre-wrap">{q.description}</p>}
+                    
+                    {/* 🚀 THE LASER BEAM UI */}
+                    <div 
+                      ref={matchingContainerRef} 
+                      className="relative mt-10 p-6 bg-gray-900/30 rounded-[2rem] border border-gray-800 select-none overflow-hidden touch-none"
+                      onPointerMove={(e) => {
+                         if (activeDraw && matchingContainerRef.current) {
+                            const rect = matchingContainerRef.current.getBoundingClientRect();
+                            setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+                         }
+                      }}
+                      onPointerUp={(e) => {
+                         // 🚀 BINGO! Connects if dropped anywhere on the hovered right card!
+                         if (activeDraw && hoveredRight) {
+                            const newMatches = {...(ans.studentMatches || {})};
+                            Object.keys(newMatches).forEach(k => {
+                               if (newMatches[k] === hoveredRight) delete newMatches[k];
+                            });
+                            newMatches[activeDraw] = hoveredRight;
+                            updateAnswer(qIdSafe, 'studentMatches', newMatches);
+                         }
+                         setActiveDraw(null);
+                      }}
+                      onPointerLeave={() => setActiveDraw(null)}
+                    >
+                       <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
+                          {drawnLines.map(line => (
+                             <line key={line.key} x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} stroke="#10b981" strokeWidth="4" strokeLinecap="round" className="drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                          ))}
+                          
+                          {activeDraw && leftDots.current[activeDraw] && matchingContainerRef.current && (() => {
+                             const lRect = leftDots.current[activeDraw].getBoundingClientRect();
+                             const cRect = matchingContainerRef.current.getBoundingClientRect();
+                             const x1 = lRect.left + lRect.width / 2 - cRect.left;
+                             const y1 = lRect.top + lRect.height / 2 - cRect.top;
+                             return (
+                               <line 
+                                 x1={x1} y1={y1} 
+                                 x2={mousePos.x} y2={mousePos.y} 
+                                 stroke="#3b82f6" strokeWidth="4" strokeDasharray="8,8" strokeLinecap="round" className="animate-pulse drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]"
+                               />
+                             );
+                          })()}
+                       </svg>
+
+                       <div className="flex justify-between items-stretch gap-20 relative z-20">
+                          {/* Left Column (Start Point) */}
+                          <div className="flex-1 flex flex-col justify-around space-y-6">
+                             {q.matchingLeft?.map(item => (
+                                <div 
+                                  key={item.id} 
+                                  className={`relative bg-gray-800/80 p-5 rounded-2xl border flex justify-between items-center shadow-lg cursor-pointer transition-all ${activeDraw === item.id ? 'border-blue-500 scale-[1.02]' : 'border-gray-700'}`}
+                                  onPointerDown={(e) => {
+                                    e.preventDefault(); 
+                                    const newMatches = {...(ans.studentMatches || {})};
+                                    delete newMatches[item.id];
+                                    updateAnswer(qIdSafe, 'studentMatches', newMatches);
+                                    
+                                    setActiveDraw(item.id);
+                                    const rect = matchingContainerRef.current.getBoundingClientRect();
+                                    setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+                                  }}
+                                >
+                                   <span className="font-bold text-gray-200 text-sm pointer-events-none">{item.text}</span>
+                                   <div 
+                                     ref={el => leftDots.current[item.id] = el}
+                                     className={`w-6 h-6 rounded-full border-4 transition-all z-30 flex-shrink-0 -mr-8 shadow-xl ${ans.studentMatches?.[item.id] ? 'bg-emerald-500 border-emerald-400' : 'bg-gray-900 border-gray-500'}`}
+                                   ></div>
+                                </div>
+                             ))}
+                          </div>
+
+                          {/* Right Column (End Point) */}
+                          <div className="flex-1 flex flex-col justify-around space-y-6">
+                             {q.matchingRight?.map(item => (
+                                <div 
+                                  key={item.id} 
+                                  className={`relative bg-gray-800/80 p-5 rounded-2xl border flex justify-between items-center flex-row-reverse shadow-lg cursor-pointer transition-all ${hoveredRight === item.id && activeDraw ? 'border-emerald-500 scale-[1.02] bg-gray-800' : 'border-gray-700'}`}
+                                  onPointerEnter={() => setHoveredRight(item.id)}
+                                  onPointerLeave={() => setHoveredRight(null)}
+                                  onClick={() => {
+                                     if (!activeDraw) {
+                                        const newMatches = {...(ans.studentMatches || {})};
+                                        let found = false;
+                                        Object.keys(newMatches).forEach(k => {
+                                           if (newMatches[k] === item.id) { delete newMatches[k]; found = true; }
+                                        });
+                                        if (found) updateAnswer(qIdSafe, 'studentMatches', newMatches);
+                                     }
+                                  }}
+                                >
+                                   <span className="font-bold text-gray-200 text-sm text-right pointer-events-none">{item.text}</span>
+                                   <div 
+                                     ref={el => rightDots.current[item.id] = el}
+                                     className={`w-6 h-6 rounded-full border-4 transition-all z-30 flex-shrink-0 -ml-8 shadow-xl ${Object.values(ans.studentMatches || {}).includes(item.id) ? 'bg-emerald-500 border-emerald-400' : 'bg-gray-900 border-gray-500'}`}
+                                   ></div>
+                                </div>
+                             ))}
+                          </div>
+                       </div>
+                    </div>
+                    {/* End Matching Grid */}
+
+                  </div>
+                </div>
+
               ) : q.type === 'coding' ? (
                 <div className="flex-1 flex overflow-hidden">
                   <div className="w-2/5 border-r border-gray-800 overflow-y-auto p-6 bg-gray-900/30">
