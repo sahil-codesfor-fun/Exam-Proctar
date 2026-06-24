@@ -1,6 +1,5 @@
 import prisma from '../config/prisma.js';
 
-// 🎲 Core Randomization Engine: The Fisher-Yates Shuffle
 function shuffleArray(array) {
   const arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {
@@ -23,25 +22,12 @@ export const startSubmission = async (req, res) => {
 
     const now = new Date();
     const isAutoStarted = exam.status === 'published' && exam.startTime && new Date(exam.startTime) <= now;
+    if (exam.status !== 'active' && !isAutoStarted) return res.status(400).json({ success: false, message: 'Exam is not active yet.' });
+    if (isAutoStarted && exam.status !== 'active') await prisma.exam.update({ where: { id: examId }, data: { status: 'active' } });
 
-    if (exam.status !== 'active' && !isAutoStarted) {
-      return res.status(400).json({ success: false, message: 'Exam is not active yet.' });
-    }
-
-    if (isAutoStarted && exam.status !== 'active') {
-      await prisma.exam.update({ where: { id: examId }, data: { status: 'active' } });
-    }
-
-    let sub = await prisma.submission.findFirst({ 
-      where: { examId: examId, studentId: req.user.id } 
-    });
-
-    if (sub && (sub.status === 'submitted' || sub.status === 'auto_submitted')) {
-      return res.status(400).json({ success: false, message: 'Exam already submitted' });
-    }
-    if (sub && sub.status === 'force_submitted') {
-      return res.status(403).json({ success: false, message: 'You have been disqualified from this exam' });
-    }
+    let sub = await prisma.submission.findFirst({ where: { examId: examId, studentId: req.user.id } });
+    if (sub && (sub.status === 'submitted' || sub.status === 'auto_submitted')) return res.status(400).json({ success: false, message: 'Exam already submitted' });
+    if (sub && sub.status === 'force_submitted') return res.status(403).json({ success: false, message: 'Disqualified' });
 
     let resumed = false;
     if (sub) {
@@ -49,16 +35,29 @@ export const startSubmission = async (req, res) => {
     } else {
       let pool = [...exam.questions];
       const isRandomized = exam.randomizeQuestions === true || exam.randomizeQuestions === 'true' || exam.randomizeQuestions === 1;
-      
-      const marksOverride = isRandomized && exam.proctoringRules?.marksPerNode 
-        ? parseInt(exam.proctoringRules.marksPerNode, 10) 
-        : null;
 
       if (isRandomized) {
-         pool = shuffleArray(pool); 
-         const serveLimit = parseInt(exam.questionsToServe, 10);
-         if (!isNaN(serveLimit) && serveLimit > 0) {
-           pool = pool.slice(0, serveLimit); 
+         // 🚀 Check the new toggle from the frontend!
+         const isTypeDistEnabled = exam.proctoringRules?.enableTypeDistribution || exam.proctoring?.enableTypeDistribution;
+         const dist = exam.proctoringRules?.typeDistribution || exam.proctoring?.typeDistribution;
+
+         if (isTypeDistEnabled && dist) {
+             let finalPool = [];
+             ['mcq', 'coding', 'matching', 'subjective'].forEach(t => {
+                 const reqCount = parseInt(dist[t], 10) || 0;
+                 if (reqCount > 0) {
+                     let typedQs = pool.filter(q => q.type === t);
+                     typedQs = shuffleArray(typedQs);
+                     finalPool = finalPool.concat(typedQs.slice(0, reqCount));
+                 }
+             });
+             // Shuffle the mixed bag so the student doesn't get all MCQs followed by all Coding
+             pool = shuffleArray(finalPool); 
+         } else {
+             // 🔄 Fallback: Just pick a random flat amount from the entire pool
+             pool = shuffleArray(pool);
+             const serveLimit = parseInt(exam.questionsToServe, 10);
+             if (!isNaN(serveLimit) && serveLimit > 0) pool = pool.slice(0, serveLimit); 
          }
       }
 
@@ -71,7 +70,6 @@ export const startSubmission = async (req, res) => {
            options = q.options.map(o => ({ id: o.id, text: o.text }));
            if (isRandomized) options = shuffleArray(options);
         } else if (q.type === 'matching' && q.matchingPairs) {
-           // 🚀 Bipartite Mapping Randomization!
            matchingLeft = q.matchingPairs.map(mp => ({ id: mp.id, text: mp.leftItem }));
            matchingRight = q.matchingPairs.map(mp => ({ id: mp.id, text: mp.rightItem }));
            
@@ -89,21 +87,19 @@ export const startSubmission = async (req, res) => {
           code: '',
           language: 'python',
           textAnswer: '',
-          studentMatches: {}, // 👈 Dictionary to store { leftId: rightId }
-          maxScore: marksOverride || q.points, 
+          studentMatches: {},     
+          maxScore: q.points, // 🔥 Respecting native individual question points!
           options: options,
-          matchingLeft: matchingLeft,
-          matchingRight: matchingRight
+          matchingLeft: matchingLeft,     
+          matchingRight: matchingRight    
         };
       });
 
-      const dynamicMaxScore = pool.reduce((acc, q) => acc + (marksOverride || q.points || 10), 0);
+      const dynamicMaxScore = pool.reduce((acc, q) => acc + (q.points || 10), 0);
 
       sub = await prisma.submission.create({
         data: {
-          examId: examId, 
-          studentId: req.user.id, 
-          answers: answers, 
+          examId: examId, studentId: req.user.id, answers: answers, 
           maxScore: isRandomized ? dynamicMaxScore : (exam.totalMarks || dynamicMaxScore),
         }
       });
@@ -122,17 +118,10 @@ export const saveAnswers = async (req, res) => {
     if (sub.studentId !== req.user.id) return res.status(403).json({ success: false, message: 'Not authorized' });
     
     if (sub.status !== 'submitted' && sub.status !== 'auto_submitted' && sub.status !== 'force_submitted') {
-      await prisma.submission.update({
-        where: { id: req.params.id },
-        data: { answers: req.body.answers }
-      });
+      await prisma.submission.update({ where: { id: req.params.id }, data: { answers: req.body.answers } });
       res.json({ success: true });
-    } else {
-      return res.status(400).json({ success: false, message: 'Cannot modify a submitted exam' });
-    }
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+    } else return res.status(400).json({ success: false, message: 'Cannot modify a submitted exam' });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
 export const submitExam = async (req, res) => {
@@ -150,10 +139,6 @@ export const submitExam = async (req, res) => {
 
     let finalAnswers = req.body.answers || sub.answers || [];
     let totalScore = 0;
-    
-    const marksOverride = exam.randomizeQuestions === true && exam.proctoringRules?.marksPerNode 
-        ? parseInt(exam.proctoringRules.marksPerNode, 10) 
-        : null;
 
     for (let ans of finalAnswers) {
       const question = exam.questions.find(q => q.id === ans.questionId);
@@ -166,26 +151,20 @@ export const submitExam = async (req, res) => {
         } else if (ans.selectedOption >= 0) {
           const correctIndex = question.options.findIndex(o => o.isCorrect === true);
           ans.isCorrect = (ans.selectedOption === correctIndex);
-        } else {
-          ans.isCorrect = false;
-        }
-        ans.score = ans.isCorrect ? (marksOverride || question.points) : 0;
+        } else ans.isCorrect = false;
+        
+        ans.score = ans.isCorrect ? question.points : 0;
       } 
-      // 🚀 NEW: The Partial Grading Logic for Matching!
       else if (question.type === 'matching') {
         let correctCount = 0;
         const totalPairs = question.matchingPairs?.length || 0;
 
         if (totalPairs > 0 && ans.studentMatches) {
           question.matchingPairs.forEach(pair => {
-            // Because we cleverly mapped both left and right to pair.id, 
-            // a correct match means the student linked the leftId exactly to its native rightId
-            if (ans.studentMatches[pair.id] === pair.id) {
-              correctCount++;
-            }
+            if (ans.studentMatches[pair.id] === pair.id) correctCount++;
           });
           const fraction = correctCount / totalPairs;
-          ans.score = Math.round(fraction * (marksOverride || question.points));
+          ans.score = Math.round(fraction * question.points);
           ans.isCorrect = correctCount === totalPairs;
         } else {
           ans.score = 0;
@@ -202,50 +181,34 @@ export const submitExam = async (req, res) => {
     const updatedSub = await prisma.submission.update({
       where: { id: sub.id },
       data: {
-        totalScore,
-        maxScore,
-        percentage,
+        totalScore, maxScore, percentage,
         status: req.body.autoSubmit ? 'auto_submitted' : 'submitted',
         answers: finalAnswers
       }
     });
 
     res.json({ success: true, data: { ...updatedSub, _id: updatedSub.id } });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
 export const getMySubmissions = async (req, res) => {
   try {
     const subs = await prisma.submission.findMany({
       where: { studentId: req.user.id },
-      include: {
-        exam: { select: { title: true, durationMinutes: true, endTime: true, status: true } }
-      },
+      include: { exam: { select: { title: true, durationMinutes: true, endTime: true, status: true } } },
       orderBy: { createdAt: 'desc' }
     });
-
-    const formattedSubs = subs.map(s => ({ ...s, _id: s.id, exam: { ...s.exam, _id: s.examId } }));
-    res.json({ success: true, data: formattedSubs });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+    res.json({ success: true, data: subs.map(s => ({ ...s, _id: s.id, exam: { ...s.exam, _id: s.examId } })) });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
 export const getExamSubmissions = async (req, res) => {
   try {
     const subs = await prisma.submission.findMany({
       where: { examId: req.params.examId },
-      include: {
-        student: { select: { name: true, email: true, studentId: true } }
-      },
+      include: { student: { select: { name: true, email: true, studentId: true } } },
       orderBy: { totalScore: 'desc' }
     });
-
-    const formattedSubs = subs.map(s => ({ ...s, _id: s.id, student: { ...s.student, _id: s.studentId } }));
-    res.json({ success: true, data: formattedSubs });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+    res.json({ success: true, data: subs.map(s => ({ ...s, _id: s.id, student: { ...s.student, _id: s.studentId } })) });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };

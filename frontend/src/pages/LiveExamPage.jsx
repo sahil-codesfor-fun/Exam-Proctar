@@ -42,9 +42,8 @@ export const LiveExamPage = () => {
   const [toast, setToast] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null); 
 
-  // 🚀 SVG Laser Beam Line Drawer State
   const [activeDraw, setActiveDraw] = useState(null);
-  const [hoveredRight, setHoveredRight] = useState(null); // Tracks massive hitboxes!
+  const [hoveredRight, setHoveredRight] = useState(null); 
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [drawnLines, setDrawnLines] = useState([]);
   const matchingContainerRef = useRef(null);
@@ -309,7 +308,6 @@ export const LiveExamPage = () => {
     return () => clearInterval(iv);
   }, [phase, answers, submission]);
 
-  // 🚀 The Auto-Snapping Line Renderer!
   const updateLines = useCallback(() => {
     if (!matchingContainerRef.current) return;
     const rect = matchingContainerRef.current.getBoundingClientRect();
@@ -342,7 +340,6 @@ export const LiveExamPage = () => {
     setDrawnLines(newLines);
   }, [answers, currentQ, exam]);
 
-  // Force snap the lines instantly when matches change
   useEffect(() => {
     updateLines();
     window.addEventListener('resize', updateLines);
@@ -457,9 +454,18 @@ export const LiveExamPage = () => {
   const fmtTime = (s) => `${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
   const isLow = timeLeft < 300;
 
-  const totalSeconds = (exam?.durationMinutes || 0) * 60;
-  const elapsedSeconds = totalSeconds - timeLeft; 
-  const isHalfTimePassed = totalSeconds > 0 ? elapsedSeconds >= (totalSeconds / 2) : true;
+  // 🚀 NEW LOGIC: The Restriction Minutes Engine!
+  const restrictionMinutes = exam?.proctoring?.restrictionMinutes || exam?.proctoringRules?.restrictionMinutes || 0;
+  const restrictionSeconds = restrictionMinutes * 60;
+  
+  // Look directly at when the submission was created in the database
+  const subStartTimeMs = submission?.createdAt ? new Date(submission.createdAt).getTime() : Date.now();
+  
+  // Calculate physically how many seconds have elapsed in real life
+  const actualElapsedSeconds = Math.floor((Date.now() - subStartTimeMs) / 1000);
+  
+  // Only unlock the button if ACTUAL time passed is greater than the Restriction Minutes!
+  const isSubmissionAllowed = restrictionSeconds > 0 ? actualElapsedSeconds >= restrictionSeconds : true;
 
   const q = exam?.questions?.[currentQ];
   const qIdSafe = q ? (q._id || q.id) : null;
@@ -573,10 +579,10 @@ export const LiveExamPage = () => {
             
             <button 
               onClick={() => doSubmit(false)} 
-              disabled={submitting || !isHalfTimePassed}
-              className={`${isHalfTimePassed ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-gray-700 opacity-50 cursor-not-allowed'} text-white font-bold py-2 px-6 rounded-lg text-sm transition-all shadow-lg`}
+              disabled={submitting || !isSubmissionAllowed}
+              className={`${isSubmissionAllowed ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-gray-700 opacity-50 cursor-not-allowed'} text-white font-bold py-2 px-6 rounded-lg text-sm transition-all shadow-lg`}
             >
-              {submitting ? '⏳ Submitting…' : !isHalfTimePassed ? '🔒 Submit Locked' : '✅ Submit'}
+              {submitting ? '⏳ Submitting…' : !isSubmissionAllowed ? `🔒 Locked` : '✅ Submit'}
             </button>
           </div>
 
@@ -588,8 +594,13 @@ export const LiveExamPage = () => {
                   const qqIdSafe = qq._id || qq.id;
                   const a = answers.find(x => x.questionId === qqIdSafe);
                   
-                  const isMatchingDone = a && a.studentMatches && qq.matchingPairs && Object.keys(a.studentMatches).length === qq.matchingPairs.length;
-                  const done = a && (a.selectedOptionId || a.selectedOption >= 0 || (a.code && a.code.length > 10) || a.textAnswer || isMatchingDone);
+                  let done = false;
+                  if (a) {
+                    if (qq.type === 'mcq') done = (a.selectedOptionId !== null || a.selectedOption >= 0);
+                    else if (qq.type === 'coding') done = (a.code && a.code.trim().length > 0);
+                    else if (qq.type === 'subjective') done = (a.textAnswer && a.textAnswer.trim().length > 0);
+                    else if (qq.type === 'matching') done = (a.studentMatches && Object.keys(a.studentMatches).length > 0);
+                  }
                   
                   return (
                     <button key={qqIdSafe} onClick={() => { setCurrentQ(idx); setRunResult(null); setJudgeResult(null); }}
@@ -665,7 +676,6 @@ export const LiveExamPage = () => {
                     <h2 className="text-xl font-bold mb-2">{q.title}</h2>
                     {q.description && <p className="text-gray-400 mb-6 whitespace-pre-wrap">{q.description}</p>}
                     
-                    {/* 🚀 THE LASER BEAM UI */}
                     <div 
                       ref={matchingContainerRef} 
                       className="relative mt-10 p-6 bg-gray-900/30 rounded-[2rem] border border-gray-800 select-none overflow-hidden touch-none"
@@ -676,7 +686,6 @@ export const LiveExamPage = () => {
                          }
                       }}
                       onPointerUp={(e) => {
-                         // 🚀 BINGO! Connects if dropped anywhere on the hovered right card!
                          if (activeDraw && hoveredRight) {
                             const newMatches = {...(ans.studentMatches || {})};
                             Object.keys(newMatches).forEach(k => {
@@ -710,7 +719,6 @@ export const LiveExamPage = () => {
                        </svg>
 
                        <div className="flex justify-between items-stretch gap-20 relative z-20">
-                          {/* Left Column (Start Point) */}
                           <div className="flex-1 flex flex-col justify-around space-y-6">
                              {q.matchingLeft?.map(item => (
                                 <div 
@@ -736,7 +744,6 @@ export const LiveExamPage = () => {
                              ))}
                           </div>
 
-                          {/* Right Column (End Point) */}
                           <div className="flex-1 flex flex-col justify-around space-y-6">
                              {q.matchingRight?.map(item => (
                                 <div 
@@ -765,7 +772,6 @@ export const LiveExamPage = () => {
                           </div>
                        </div>
                     </div>
-                    {/* End Matching Grid */}
 
                   </div>
                 </div>

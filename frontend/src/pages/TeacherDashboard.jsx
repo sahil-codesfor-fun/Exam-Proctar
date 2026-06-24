@@ -62,12 +62,23 @@ const ExamDetail = ({ exam, subs, loadSubs, setViewExam, openEditModal, toggleSt
   const uniqueSubs = Array.from(uniqueSubsMap.values());
 
   useEffect(() => {
+    let socket;
     import('../services/socket').then(({ connectSocket }) => {
-      const socket = connectSocket();
+      socket = connectSocket();
       socket.emit('join_monitoring', { examId: exam._id });
 
-      socket.on('active_students', (data) => setLiveStudents(data.students || []));
-      socket.on('student_joined', (data) => setLiveStudents(p => [...p.filter(s => s.studentId !== data.studentId), data]));
+      socket.on('active_students', (data) => {
+        const uniqueStudents = Array.from(new Map(data.students.map(s => [s.studentId, s])).values());
+        setLiveStudents(uniqueStudents);
+      });
+
+      socket.on('student_joined', (data) => {
+        setLiveStudents(p => {
+          const filtered = p.filter(s => s.studentId !== data.studentId);
+          return [...filtered, data];
+        });
+      });
+
       socket.on('student_left', (data) => {
         setLiveStudents(p => p.filter(s => s.studentId !== data.studentId));
       });
@@ -75,14 +86,16 @@ const ExamDetail = ({ exam, subs, loadSubs, setViewExam, openEditModal, toggleSt
       socket.on('violation_alert', (data) => {
         setLiveViolations(p => [data, ...p]);
       });
+    });
 
-      return () => {
+    return () => {
+      if (socket) {
         socket.off('active_students');
         socket.off('student_joined');
         socket.off('student_left');
         socket.off('violation_alert');
-      };
-    });
+      }
+    };
   }, [exam._id]);
 
   const forceSubmit = (studentId) => {
@@ -109,18 +122,18 @@ const ExamDetail = ({ exam, subs, loadSubs, setViewExam, openEditModal, toggleSt
           </h2>
           <div className="flex items-center gap-3 mt-2 text-sm">
              <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg font-bold text-xs">{exam.course || 'General Sector'}</span>
-             <span className="text-gray-400 font-medium">• {exam.durationMinutes}min window • {exam.questions.length} total nodes • {exam.randomizeQuestions ? `🎲 Random (${exam.questionsToServe || 'All'} Nodes @ ${exam.proctoringRules?.marksPerNode || exam.proctoring?.marksPerNode || 'Mixed'} pts)` : 'Static Layout'}</span>
+             <span className="text-gray-400 font-medium">• {exam.durationMinutes}min window • {exam.questions.length} total nodes • {exam.randomizeQuestions ? `🎲 Random` : 'Static Layout'}</span>
           </div>
         </div>
         
         <div className="flex gap-2">
-          {(exam.status === 'draft' || exam.status === 'published') && (
+          {exam.status === 'draft' && (
              <button onClick={() => openEditModal(exam)} className="flex items-center gap-2 bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">
                <Edit size={14}/> Edit Details
              </button>
           )}
           {exam.status === 'draft' && <button onClick={() => toggleStatus(exam, 'published')} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-600/20">Publish Network</button>}
-          {exam.status === 'published' && <button onClick={() => toggleStatus(exam, 'draft')} className="bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200 px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">Unpublish</button>}
+          {exam.status === 'published' && <button onClick={() => toggleStatus(exam, 'draft')} className="bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200 px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">Revoke</button>}
           {(exam.status === 'published' || exam.status === 'draft') && <button onClick={() => toggleStatus(exam, 'active')} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-600/20">FORCE START NOW</button>}
           {exam.status === 'active' && <button onClick={() => toggleStatus(exam, 'ended')} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-red-600/20 animate-pulse">TERMINATE SESSION</button>}
           <button onClick={() => deleteExam(exam._id)} className="bg-white text-red-500 hover:bg-red-50 border border-gray-200 hover:border-red-200 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1"><Trash2 size={14}/> Dump</button>
@@ -251,7 +264,12 @@ export const TeacherDashboard = () => {
   const defaultForm = { 
     title: '', description: '', course: '', startTime: '', durationMinutes: 60, 
     randomizeQuestions: false, questionsToServe: '', 
-    proctoring: { maxViolations: 3, restrictionMinutes: 30, requireFullscreen: true, disableCopyPaste: true, autoSubmitOnMax: true, enableWebcam: false, marksPerNode: 10 }, 
+    proctoring: { 
+        maxViolations: 3, restrictionMinutes: 30, requireFullscreen: true, 
+        disableCopyPaste: true, autoSubmitOnMax: true, enableWebcam: false, 
+        enableTypeDistribution: false, // 🚀 NEW TOGGLE
+        typeDistribution: { mcq: '', coding: '', matching: '', subjective: '' }
+    }, 
     questions: [{ ...EMPTY_Q }] 
   };
   const [form, setForm] = useState(defaultForm);
@@ -328,7 +346,6 @@ export const TeacherDashboard = () => {
             else if (upper.startsWith('TC_IN:')) q.testCases.push({ input: line.substring(6).trim().replace(/\\n/g, '\n'), expectedOutput: '', isHidden: false });
             else if (upper.startsWith('TC_OUT:')) { if (q.testCases.length > 0) q.testCases[q.testCases.length - 1].expectedOutput = line.substring(7).trim().replace(/\\n/g, '\n'); }
             else if (upper.startsWith('TC_HIDDEN:')) { if (q.testCases.length > 0) q.testCases[q.testCases.length - 1].isHidden = line.substring(10).trim().toLowerCase() === 'true'; }
-            // 🚀 THE FIX: New Auto-Parser for "Match the Following" Pairs!
             else if (upper.startsWith('PAIR:')) {
               const pairText = line.substring(5).trim();
               const [left, right] = pairText.split('|').map(s => s.trim());
@@ -419,7 +436,13 @@ export const TeacherDashboard = () => {
       durationMinutes: examData.durationMinutes || 60,
       randomizeQuestions: examData.randomizeQuestions === true || examData.randomizeQuestions === 'true' || examData.randomizeQuestions === 1,
       questionsToServe: examData.questionsToServe || '',
-      proctoring: examData.proctoring || { maxViolations: 3, restrictionMinutes: 30, requireFullscreen: true, disableCopyPaste: true, autoSubmitOnMax: true, enableWebcam: false, marksPerNode: 10 },
+      proctoring: { 
+          maxViolations: 3, restrictionMinutes: 30, requireFullscreen: true, 
+          disableCopyPaste: true, autoSubmitOnMax: true, enableWebcam: false, 
+          enableTypeDistribution: examData.proctoring?.enableTypeDistribution || false, // 🚀 Retrieve toggle
+          ...examData.proctoring,
+          typeDistribution: examData.proctoring?.typeDistribution || { mcq: '', coding: '', matching: '', subjective: '' }
+      },
       questions: examData.questions && examData.questions.length > 0 ? examData.questions.map(q => ({
           ...EMPTY_Q,
           ...q,
@@ -523,21 +546,50 @@ export const TeacherDashboard = () => {
                 <input type="checkbox" checked={form.randomizeQuestions} onChange={e => setForm(p => ({...p, randomizeQuestions: e.target.checked}))} className="accent-blue-600 w-4 h-4" /> 
                 Pool & Randomize Questions
               </label>
-              
-              {form.randomizeQuestions && (
-                <>
-                  <label className="flex items-center gap-2 font-medium">
-                    <input type="number" value={form.questionsToServe || ''} onChange={e => setForm(p => ({...p, questionsToServe: +e.target.value}))} placeholder="All" className="w-20 px-2 py-1.5 rounded-lg border outline-none font-bold shadow-sm" /> 
-                    Nodes to Serve
-                  </label>
-                  <label className="flex items-center gap-2 font-medium">
-                    <input type="number" value={form.proctoring.marksPerNode || ''} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, marksPerNode: +e.target.value}}))} placeholder="Pts" className="w-20 px-2 py-1.5 rounded-lg border outline-none font-bold shadow-sm" /> 
-                    Marks per Node
-                  </label>
-                </>
-              )}
+              {/* 🔥 REMOVED OVERRIDE COMPLETELY! IT NOW INHERITS NATIVE POINTS! */}
             </div>
-            <p className="text-[10px] text-blue-500 font-medium leading-relaxed">If enabled, each student automatically receives a completely unique, randomized set of questions and shuffled MCQ options to prevent sharing. Setting "Marks per Node" applies a uniform score to all drawn questions.</p>
+
+            {form.randomizeQuestions && (
+              <div className="w-full mt-3 p-4 bg-blue-100/50 rounded-xl border border-blue-200">
+                {/* 🚀 THE NEW INNER TOGGLE! */}
+                <label className="flex items-center gap-2 font-black text-[10px] text-blue-800 uppercase tracking-widest mb-4 cursor-pointer hover:text-blue-600 transition-colors border-b border-blue-200 pb-3">
+                  <input type="checkbox" checked={form.proctoring.enableTypeDistribution} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, enableTypeDistribution: e.target.checked}}))} className="accent-blue-600 w-4 h-4" />
+                  Mixed Question Types (Fairness Engine)
+                </label>
+
+                {form.proctoring.enableTypeDistribution ? (
+                  <div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">
+                        MCQ Nodes
+                        <input type="number" value={form.proctoring.typeDistribution.mcq} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, mcq: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" />
+                      </label>
+                      <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">
+                        Coding Nodes
+                        <input type="number" value={form.proctoring.typeDistribution.coding} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, coding: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" />
+                      </label>
+                      <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">
+                        Matching Nodes
+                        <input type="number" value={form.proctoring.typeDistribution.matching} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, matching: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" />
+                      </label>
+                      <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">
+                        Subject Nodes
+                        <input type="number" value={form.proctoring.typeDistribution.subjective} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, subjective: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" />
+                      </label>
+                    </div>
+                    <p className="text-[9px] font-bold text-blue-600 mt-3 uppercase tracking-wider">Set specific numbers to enforce perfectly fair categorical randomization across different question types!</p>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="flex flex-col gap-1 text-xs font-bold text-gray-700 w-1/3">
+                      Total Nodes to Serve
+                      <input type="number" value={form.questionsToServe || ''} onChange={e => setForm(p => ({...p, questionsToServe: +e.target.value}))} placeholder="All" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white shadow-sm" />
+                    </label>
+                    <p className="text-[9px] font-bold text-blue-600 mt-3 uppercase tracking-wider">Specify how many questions to randomly pull from the entire unified pool.</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="bg-emerald-50/50 p-5 rounded-xl space-y-3 border border-emerald-100">
@@ -586,7 +638,7 @@ export const TeacherDashboard = () => {
                 <div className="grid grid-cols-2 gap-3">
                   {q.options.map((o, oi) => (
                     <div key={oi} className={`flex items-center gap-3 bg-white p-3 rounded-xl border transition-all ${o.isCorrect ? 'border-emerald-400 bg-emerald-50/30' : ''}`}>
-                      <input type="radio" name={`correct-${qi}`} checked={o.isCorrect} onChange={() => updOpt(qi, oi, 'isCorrect', true)} className="accent-emerald-500 w-4 h-4 cursor-pointer" />
+                      <input type="radio" name={`correct-${qi}`} checked={o.isCorrect} onChange={() => updOpt(qi, oi, 'isCorrect', true)} className="accent-emerald-50 w-4 h-4 cursor-pointer" />
                       <input value={o.text} onChange={e => updOpt(qi, oi, 'text', e.target.value)} placeholder={`Option ${oi+1}`} className="flex-1 text-sm outline-none bg-transparent font-medium" />
                     </div>
                   ))}
@@ -798,13 +850,11 @@ export const TeacherDashboard = () => {
                           </td>
                           <td className="px-8 py-6 text-right" onClick={e => e.stopPropagation()}>
                             <div className="flex gap-2 justify-end opacity-60 group-hover:opacity-100 transition-opacity">
-                              
-                              {(exam.status === 'draft' || exam.status === 'published') && (
+                              {exam.status === 'draft' && (
                                 <button onClick={() => openEditModal(exam)} className="text-[10px] bg-white border border-gray-200 text-gray-600 hover:border-gray-400 hover:text-gray-900 px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm transition-all flex items-center gap-1">
                                   <Edit size={12}/> Edit
                                 </button>
                               )}
-
                               {exam.status === 'draft' && <button onClick={() => toggleStatus(exam, 'published')} className="text-[10px] bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-100 px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm transition-all">Publish</button>}
                               {exam.status === 'published' && <button onClick={() => toggleStatus(exam, 'draft')} className="text-[10px] bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-100 px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm transition-all">Revoke</button>}
                               {exam.status === 'active' && <button onClick={() => toggleStatus(exam, 'ended')} className="text-[10px] bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm transition-all">End</button>}
