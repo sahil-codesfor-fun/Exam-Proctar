@@ -27,8 +27,6 @@ export const startSubmission = async (req, res) => {
 
     let sub = await prisma.submission.findFirst({ where: { examId: examId, studentId: req.user.id } });
     if (sub && (sub.status === 'submitted' || sub.status === 'auto_submitted')) return res.status(400).json({ success: false, message: 'Exam already submitted' });
-    
-    // 🛑 STRICT GATE: If they were force killed, block them permanently!
     if (sub && sub.status === 'force_submitted') return res.status(403).json({ success: false, message: 'You have been disqualified and locked out by the proctor.' });
 
     let resumed = false;
@@ -87,19 +85,19 @@ export const startSubmission = async (req, res) => {
           language: 'python',
           textAnswer: '',
           studentMatches: {},     
-          maxScore: q.points, 
+          maxScore: Number(q.points) || 10, 
           options: options,
           matchingLeft: matchingLeft,     
           matchingRight: matchingRight    
         };
       });
 
-      const dynamicMaxScore = pool.reduce((acc, q) => acc + (q.points || 10), 0);
+      const dynamicMaxScore = pool.reduce((acc, q) => acc + (Number(q.points) || 10), 0);
 
       sub = await prisma.submission.create({
         data: {
           examId: examId, studentId: req.user.id, answers: answers, 
-          maxScore: isRandomized ? dynamicMaxScore : (exam.totalMarks || dynamicMaxScore),
+          maxScore: isRandomized ? dynamicMaxScore : (Number(exam.totalMarks) || dynamicMaxScore),
         }
       });
     }
@@ -139,9 +137,14 @@ export const submitExam = async (req, res) => {
     let finalAnswers = req.body.answers || sub.answers || [];
     let totalScore = 0;
 
+    // Detect if this is a force kill from the proctor
+    const isForceKill = req.body.reason && (req.body.reason.toLowerCase().includes('termination') || req.body.reason.toLowerCase().includes('proctor'));
+
     for (let ans of finalAnswers) {
       const question = exam.questions.find(q => q.id === ans.questionId);
       if (!question) continue;
+
+      const points = Number(question.points) || 10;
 
       if (question.type === 'mcq') {
         if (ans.selectedOptionId) {
@@ -150,41 +153,56 @@ export const submitExam = async (req, res) => {
         } else if (ans.selectedOption >= 0) {
           const correctIndex = question.options.findIndex(o => o.isCorrect === true);
           ans.isCorrect = (ans.selectedOption === correctIndex);
-        } else ans.isCorrect = false;
-        
-        ans.score = ans.isCorrect ? question.points : 0;
+        } else {
+          ans.isCorrect = false;
+        }
+        ans.score = ans.isCorrect ? points : 0;
       } 
       else if (question.type === 'matching') {
         let correctCount = 0;
         const totalPairs = question.matchingPairs?.length || 0;
 
-        if (totalPairs > 0 && ans.studentMatches) {
+        if (totalPairs > 0 && ans.studentMatches && typeof ans.studentMatches === 'object') {
           question.matchingPairs.forEach(pair => {
             if (ans.studentMatches[pair.id] === pair.id) correctCount++;
           });
-          const fraction = correctCount / totalPairs;
-          ans.score = Math.round(fraction * question.points);
-          ans.isCorrect = correctCount === totalPairs;
+          
+          // 🚀 ALL OR NOTHING LOGIC: No partial marks. Perfect or 0!
+          if (correctCount === totalPairs) {
+            ans.score = points;
+            ans.isCorrect = true;
+          } else {
+            ans.score = 0;
+            ans.isCorrect = false;
+          }
         } else {
           ans.score = 0;
           ans.isCorrect = false;
         }
+      } else {
+          // Keep coding/subjective scores strictly numeric
+          ans.score = Number(ans.score) || 0;
       }
 
-      totalScore += (ans.score || 0);
+      totalScore += ans.score;
     }
 
-    const maxScore = sub.maxScore || 0;
-    const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
+    // 🛑 FORCE KILL PENALTY: Wipe their score completely to ZERO if they were terminated!
+    if (isForceKill) {
+        totalScore = 0;
+        finalAnswers = finalAnswers.map(a => ({ ...a, score: 0, isCorrect: false }));
+    }
 
-    // 🚀 NEW LOGIC: Identify if this was a Proctor Force Kill and tag the database!
-    const isForceKill = req.body.reason && (req.body.reason.toLowerCase().includes('termination') || req.body.reason.toLowerCase().includes('proctor'));
+    const maxScore = Number(sub.maxScore) || 0;
+    const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
     const finalStatus = isForceKill ? 'force_submitted' : (req.body.autoSubmit ? 'auto_submitted' : 'submitted');
 
     const updatedSub = await prisma.submission.update({
       where: { id: sub.id },
       data: {
-        totalScore, maxScore, percentage,
+        totalScore, 
+        maxScore, 
+        percentage,
         status: finalStatus,
         answers: finalAnswers
       }
