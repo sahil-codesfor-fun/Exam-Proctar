@@ -39,6 +39,13 @@ export const LiveExamPage = () => {
   const submittedRef = useRef(false);
   const initFiredRef = useRef(false);
 
+  // 🚀 REFS TO AVOID STALE CLOSURES DURING SOCKET EVENTS!
+  const submissionRef = useRef(null);
+  const answersRef = useRef([]);
+
+  useEffect(() => { submissionRef.current = submission; }, [submission]);
+  useEffect(() => { answersRef.current = answers; }, [answers]);
+
   const [toast, setToast] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null); 
 
@@ -249,9 +256,9 @@ export const LiveExamPage = () => {
         const socket = connectSocket();
         socket.emit('join_exam', { examId, studentId: user?._id || user?.id, studentName: user?.name });
 
+        // 🚀 THE BULLETPROOF FORCE KILL LISTENER
         socket.on('force_submit', (data) => {
-          showToast(`Your exam was terminated by the proctor. Reason: ${data.reason}`, 'error');
-          doSubmit(true, data.reason);
+          performForceSubmit(data.reason);
         });
 
         socket.on('exam_deleted', (data) => {
@@ -307,6 +314,37 @@ export const LiveExamPage = () => {
     }, 30000);
     return () => clearInterval(iv);
   }, [phase, answers, submission]);
+
+  // 🚀 THE NEW INSTANT FORCE KILL FUNCTION
+  const performForceSubmit = async (reason) => {
+    submittedRef.current = true;
+    setSubmitting(true);
+    
+    // We grab the freshest data from our refs!
+    const sub = submissionRef.current;
+    if (!sub) {
+       // If they haven't even fully loaded yet, just kick them back!
+       document.exitFullscreen?.().catch(() => {});
+       window.location.href = '/student-dashboard';
+       return;
+    }
+    
+    const submissionId = sub._id || sub.id;
+    
+    try {
+      await api.put(`/submissions/${submissionId}/submit`, { 
+         answers: answersRef.current, 
+         autoSubmit: true, 
+         reason 
+      });
+      document.exitFullscreen?.().catch(() => {});      
+      setPhase('restricted');
+      setError(`Your session was violently terminated by the Proctor. Reason: ${reason}`);
+    } catch (err) {
+      document.exitFullscreen?.().catch(() => {});
+      window.location.href = '/student-dashboard';
+    }
+  };
 
   const updateLines = useCallback(() => {
     if (!matchingContainerRef.current) return;
@@ -378,9 +416,9 @@ export const LiveExamPage = () => {
   const performSubmit = async (auto = false, reason = '') => {
     submittedRef.current = true;
     setSubmitting(true);
-    const submissionId = submission._id || submission.id;
+    const submissionId = submissionRef.current?._id || submissionRef.current?.id || submission?._id || submission?.id;
     try {
-      await api.put(`/submissions/${submissionId}/submit`, { answers, autoSubmit: auto, reason });
+      await api.put(`/submissions/${submissionId}/submit`, { answers: answersRef.current || answers, autoSubmit: auto, reason });
       document.exitFullscreen?.().catch(() => {});      
       setPhase('submitted');
     } catch (err) {
@@ -454,17 +492,10 @@ export const LiveExamPage = () => {
   const fmtTime = (s) => `${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
   const isLow = timeLeft < 300;
 
-  // 🚀 NEW LOGIC: The Restriction Minutes Engine!
   const restrictionMinutes = exam?.proctoring?.restrictionMinutes || exam?.proctoringRules?.restrictionMinutes || 0;
   const restrictionSeconds = restrictionMinutes * 60;
-  
-  // Look directly at when the submission was created in the database
   const subStartTimeMs = submission?.createdAt ? new Date(submission.createdAt).getTime() : Date.now();
-  
-  // Calculate physically how many seconds have elapsed in real life
   const actualElapsedSeconds = Math.floor((Date.now() - subStartTimeMs) / 1000);
-  
-  // Only unlock the button if ACTUAL time passed is greater than the Restriction Minutes!
   const isSubmissionAllowed = restrictionSeconds > 0 ? actualElapsedSeconds >= restrictionSeconds : true;
 
   const q = exam?.questions?.[currentQ];

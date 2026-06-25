@@ -406,15 +406,31 @@ export const TeacherDashboard = () => {
     setModal(true);
   };
 
+  // 🚀 SOCKET INJECTED: Toggling status now forcefully broadcasts changes!
   const toggleStatus = async (exam, status) => {
     await api.patch(`/exams/${exam._id}/status`, { status }).catch(() => {});
+    
+    // Broadcast status change immediately
+    import('../services/socket').then(({ getSocket }) => {
+      const socket = getSocket();
+      if (socket) socket.emit('exam_status_changed', { examId: exam._id, status });
+    });
+
     load();
     if (viewExam && viewExam._id === exam._id) setViewExam({...viewExam, status});
   };
 
+  // 🚀 SOCKET INJECTED: Dumping an exam immediately drops connected students!
   const deleteExam = async (id) => {
     showConfirm('Are you sure you want to dump this exam?', async () => {
       await api.delete(`/exams/${id}`).catch(() => {});
+      
+      // Broadcast deletion signal
+      import('../services/socket').then(({ getSocket }) => {
+        const socket = getSocket();
+        if (socket) socket.emit('exam_deleted', { examId: id });
+      });
+
       if (viewExam?._id === id) setViewExam(null);
       load();
     });
@@ -460,8 +476,19 @@ export const TeacherDashboard = () => {
     if (!editingId || status === 'draft') payload.status = status;
     setSaving(true);
     try {
-      if (editingId) await api.put(`/exams/${editingId}`, payload); 
-      else await api.post('/exams', payload); 
+      if (editingId) {
+        await api.put(`/exams/${editingId}`, payload); 
+        
+        // 🚀 SOCKET INJECTED: Updating an exam broadcasts a status refresh!
+        import('../services/socket').then(({ getSocket }) => {
+          const socket = getSocket();
+          if (socket) socket.emit('exam_status_changed', { examId: editingId, status });
+        });
+        
+      } else {
+        await api.post('/exams', payload); 
+      }
+      
       setModal(false); setEditingId(null); setForm(defaultForm); load();
       if (viewExam && editingId) {
         const updatedRes = await api.get(`/exams/${editingId}`);

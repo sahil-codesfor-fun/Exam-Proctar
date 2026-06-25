@@ -27,7 +27,9 @@ export const startSubmission = async (req, res) => {
 
     let sub = await prisma.submission.findFirst({ where: { examId: examId, studentId: req.user.id } });
     if (sub && (sub.status === 'submitted' || sub.status === 'auto_submitted')) return res.status(400).json({ success: false, message: 'Exam already submitted' });
-    if (sub && sub.status === 'force_submitted') return res.status(403).json({ success: false, message: 'Disqualified' });
+    
+    // 🛑 STRICT GATE: If they were force killed, block them permanently!
+    if (sub && sub.status === 'force_submitted') return res.status(403).json({ success: false, message: 'You have been disqualified and locked out by the proctor.' });
 
     let resumed = false;
     if (sub) {
@@ -37,7 +39,6 @@ export const startSubmission = async (req, res) => {
       const isRandomized = exam.randomizeQuestions === true || exam.randomizeQuestions === 'true' || exam.randomizeQuestions === 1;
 
       if (isRandomized) {
-         // 🚀 Check the new toggle from the frontend!
          const isTypeDistEnabled = exam.proctoringRules?.enableTypeDistribution || exam.proctoring?.enableTypeDistribution;
          const dist = exam.proctoringRules?.typeDistribution || exam.proctoring?.typeDistribution;
 
@@ -51,10 +52,8 @@ export const startSubmission = async (req, res) => {
                      finalPool = finalPool.concat(typedQs.slice(0, reqCount));
                  }
              });
-             // Shuffle the mixed bag so the student doesn't get all MCQs followed by all Coding
              pool = shuffleArray(finalPool); 
          } else {
-             // 🔄 Fallback: Just pick a random flat amount from the entire pool
              pool = shuffleArray(pool);
              const serveLimit = parseInt(exam.questionsToServe, 10);
              if (!isNaN(serveLimit) && serveLimit > 0) pool = pool.slice(0, serveLimit); 
@@ -88,7 +87,7 @@ export const startSubmission = async (req, res) => {
           language: 'python',
           textAnswer: '',
           studentMatches: {},     
-          maxScore: q.points, // 🔥 Respecting native individual question points!
+          maxScore: q.points, 
           options: options,
           matchingLeft: matchingLeft,     
           matchingRight: matchingRight    
@@ -178,11 +177,15 @@ export const submitExam = async (req, res) => {
     const maxScore = sub.maxScore || 0;
     const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
 
+    // 🚀 NEW LOGIC: Identify if this was a Proctor Force Kill and tag the database!
+    const isForceKill = req.body.reason && (req.body.reason.toLowerCase().includes('termination') || req.body.reason.toLowerCase().includes('proctor'));
+    const finalStatus = isForceKill ? 'force_submitted' : (req.body.autoSubmit ? 'auto_submitted' : 'submitted');
+
     const updatedSub = await prisma.submission.update({
       where: { id: sub.id },
       data: {
         totalScore, maxScore, percentage,
-        status: req.body.autoSubmit ? 'auto_submitted' : 'submitted',
+        status: finalStatus,
         answers: finalAnswers
       }
     });
