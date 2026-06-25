@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
-import { Plus, X, Trash2, CheckCircle2, LayoutGrid, FileText, ShieldAlert, Upload, Edit } from 'lucide-react';
+import { Plus, X, Trash2, CheckCircle2, LayoutGrid, FileText, ShieldAlert, Upload, Edit, Users } from 'lucide-react';
 import * as XLSX from 'xlsx'; 
 
 const EMPTY_Q = { 
@@ -40,7 +40,6 @@ const formatForInput = (dateString) => {
 
 const ExamDetail = ({ exam, subs, loadSubs, setViewExam, openEditModal, toggleStatus, deleteExam, showConfirm }) => {
   const [liveStudents, setLiveStudents] = useState([]);
-  const [liveViolations, setLiveViolations] = useState([]);
 
   useEffect(() => { loadSubs(exam._id); }, [exam._id, loadSubs]);
   const es = subs[exam._id] || [];
@@ -84,7 +83,7 @@ const ExamDetail = ({ exam, subs, loadSubs, setViewExam, openEditModal, toggleSt
       });
 
       socket.on('violation_alert', (data) => {
-        setLiveViolations(p => [data, ...p]);
+        setLiveStudents(p => p.map(s => s.studentId === data.studentId ? { ...s, violations: (s.violations || 0) + 1 } : s));
       });
     });
 
@@ -141,58 +140,32 @@ const ExamDetail = ({ exam, subs, loadSubs, setViewExam, openEditModal, toggleSt
       </div>
 
       {exam.status === 'active' && (
-        <div className="bg-gray-900 text-white rounded-3xl border border-gray-800 p-8 shadow-2xl relative overflow-hidden">
+        <div className="bg-gray-900 text-white rounded-3xl p-8 border border-gray-800 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none transform translate-x-1/2 -translate-y-1/2"></div>
           
-          <h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-6 flex items-center gap-3">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
-            Live Proctoring Matrix
+          <h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-8 flex items-center gap-3 relative z-10">
+            <Users size={16}/> Live Proctoring Matrix ({liveStudents.length} Connected)
           </h3>
           
-          <div className="grid grid-cols-2 gap-8 relative z-10">
-            <div>
-              <h4 className="text-[10px] text-gray-400 uppercase tracking-[0.2em] mb-4 font-bold border-b border-gray-800 pb-2">Active Connections ({liveStudents.length})</h4>
-              {liveStudents.length === 0 ? <p className="text-xs text-gray-600 italic font-medium mt-4">Awaiting incoming student nodes...</p> : (
-                <div className="space-y-3 max-h-[30rem] overflow-y-auto pr-2 custom-scrollbar">
-                  {liveStudents.map(s => (
-                    <div key={s.studentId} className="flex items-center justify-between bg-gray-800/50 backdrop-blur-sm p-4 rounded-2xl border border-gray-700/50 hover:border-gray-600 transition-all group">
-                      <div className="flex items-center gap-4">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></span>
-                        <div>
-                          <span className="text-sm font-bold text-gray-100 block">{s.name}</span>
-                          <span className="text-[10px] text-gray-400 font-mono tracking-tighter">ID: {s.studentId}</span>
-                        </div>
-                      </div>
-                      <button onClick={() => forceSubmit(s.studentId)} className="text-[9px] font-black bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500 hover:text-white px-3 py-2 rounded-lg transition-all uppercase tracking-widest opacity-0 group-hover:opacity-100">
-                        Force Kill
-                      </button>
-                    </div>
-                  ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 relative z-10">
+            {liveStudents.length === 0 ? <p className="text-xs text-gray-600 italic font-medium">Awaiting incoming student nodes...</p> : liveStudents.map(s => (
+              <div key={s.studentId} className="bg-gray-800/50 p-5 rounded-2xl border border-gray-700 flex justify-between items-center group hover:bg-gray-800 transition-all">
+                <div className="flex items-center gap-4">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></span>
+                  <div>
+                    <p className="font-bold text-sm text-gray-100">{s.name}</p>
+                    <p className="text-[10px] text-gray-500 font-mono tracking-tighter">{s.studentId}</p>
+                  </div>
                 </div>
-              )}
-            </div>
-
-            <div>
-              <h4 className="text-[10px] text-gray-400 uppercase tracking-[0.2em] mb-4 font-bold border-b border-gray-800 pb-2">Vision AI Alert Log</h4>
-              {liveViolations.length === 0 ? <p className="text-xs text-gray-600 italic font-medium mt-4">Sector is currently secure. No infractions detected.</p> : (
-                <div className="space-y-3 max-h-72 overflow-y-auto pr-2 custom-scrollbar">
-                  {liveViolations.map((v, i) => (
-                    <div key={i} className="flex flex-col bg-gray-800/50 backdrop-blur-sm p-4 rounded-2xl border-l-4 border-gray-700 hover:bg-gray-800 transition-all" style={{ borderLeftColor: v.severity === 'critical' ? '#ef4444' : '#f97316' }}>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-black text-gray-200 uppercase tracking-wide">{v.studentName}</span>
-                        <span className="text-[9px] text-gray-500 font-bold bg-gray-900 px-2 py-1 rounded-md border border-gray-800">{new Date(v.timestamp).toLocaleTimeString()}</span>
-                      </div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded shadow-sm ${v.severity === 'critical' ? 'bg-red-500 text-white' : 'bg-orange-500 text-white'}`}>
-                          {v.type?.replace(/_/g, ' ')}
-                        </span>
-                      </div>
-                      {v.details && <p className="text-[10px] text-gray-400 font-medium leading-relaxed">{v.details}</p>}
-                    </div>
-                  ))}
+                <div className="text-center group-hover:hidden">
+                   <p className="text-[9px] text-gray-400 uppercase tracking-wider font-black">Infractions</p>
+                   <span className={`text-xl font-black ${s.violations > 0 ? 'text-red-500' : 'text-emerald-500'}`}>{s.violations || 0}</span>
                 </div>
-              )}
-            </div>
+                <button onClick={() => forceSubmit(s.studentId)} className="hidden group-hover:block text-[9px] font-black bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500 hover:text-white px-3 py-2 rounded-lg transition-all uppercase tracking-widest">
+                  Force Kill
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -240,23 +213,13 @@ export const TeacherDashboard = () => {
   const [modal, setModal] = useState(false);
   const [exams, setExams] = useState([]);
   const [subs, setSubs] = useState({});
-  const [violations, setViolations] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [viewExam, setViewExam] = useState(null);
   const [toast, setToast] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null); 
-  
-  const showToast = (message, type = 'info') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
-  };
-
-  const showConfirm = (message, onConfirm) => {
-    setConfirmModal({ message, onConfirm });
-  };
-  
   const [editingId, setEditingId] = useState(null);
+  
   const fileInputRef = useRef(null);
   const tcFileInputRef = useRef(null);
   const [activeTcIndex, setActiveTcIndex] = useState(null);
@@ -264,29 +227,20 @@ export const TeacherDashboard = () => {
   const defaultForm = { 
     title: '', description: '', course: '', startTime: '', durationMinutes: 60, 
     randomizeQuestions: false, questionsToServe: '', 
-    proctoring: { 
-        maxViolations: 3, restrictionMinutes: 30, requireFullscreen: true, 
-        disableCopyPaste: true, autoSubmitOnMax: true, enableWebcam: false, 
-        enableTypeDistribution: false, // 🚀 NEW TOGGLE
-        typeDistribution: { mcq: '', coding: '', matching: '', subjective: '' }
-    }, 
+    proctoring: { maxViolations: 3, restrictionMinutes: 30, requireFullscreen: true, disableCopyPaste: true, autoSubmitOnMax: true, enableWebcam: false, enableTypeDistribution: false, typeDistribution: { mcq: '', coding: '', matching: '', subjective: '' } }, 
     questions: [{ ...EMPTY_Q }] 
   };
   const [form, setForm] = useState(defaultForm);
-
-  const load = () => {
-    setLoading(true);
-    api.get('/exams').then(r => setExams(r.data.data || [])).catch(() => {}).finally(() => setLoading(false));
-  };
+  
+  const showToast = (message, type = 'info') => { setToast({ message, type }); setTimeout(() => setToast(null), 4000); };
+  const showConfirm = (message, onConfirm) => { setConfirmModal({ message, onConfirm }); };
+  
+  const load = () => { setLoading(true); api.get('/exams').then(r => setExams(r.data.data || [])).catch(() => {}).finally(() => setLoading(false)); };
   useEffect(load, []);
 
   const loadSubs = useCallback(async (examId) => {
-    const [s, v] = await Promise.all([
-      api.get(`/submissions/exam/${examId}`).then(r => r.data.data).catch(() => []),
-      api.get(`/violations/exam/${examId}`).then(r => r.data.data).catch(() => []),
-    ]);
+    const s = await api.get(`/submissions/exam/${examId}`).then(r => r.data.data).catch(() => []);
     setSubs(p => ({ ...p, [examId]: s }));
-    setViolations(p => ({ ...p, [examId]: v }));
   }, []);
 
   const addQ = () => setForm(p => ({ ...p, questions: [...p.questions, { ...EMPTY_Q, options: EMPTY_Q.options.map(o => ({...o})), testCases: EMPTY_Q.testCases.map(t => ({...t})), matchingPairs: EMPTY_Q.matchingPairs.map(m => ({...m})) }] }));
@@ -354,6 +308,7 @@ export const TeacherDashboard = () => {
               }
             }
           });
+          if (q.type === 'coding' && q.testCases.length === 0) q.testCases.push({ input: '', expectedOutput: '', isHidden: false });
           parsedQs.push(q);
         });
       } else if (ext === 'csv' || ext === 'xlsx') {
@@ -371,12 +326,27 @@ export const TeacherDashboard = () => {
             if (q.options.length === 0) q.options = [{text:'Option A', isCorrect:true}, {text:'Option B', isCorrect:false}];
           } else if (type === 'coding') {
             q.constraints = row['Constraints'] || '';
+            for (let i = 1; i <= 10; i++) {
+               if (row[`TC${i}_IN`] !== undefined || row[`TC${i}_OUT`] !== undefined) {
+                  q.testCases.push({
+                     input: String(row[`TC${i}_IN`] || '').replace(/\\n/g, '\n'),
+                     expectedOutput: String(row[`TC${i}_OUT`] || '').replace(/\\n/g, '\n'),
+                     isHidden: String(row[`TC${i}_HIDDEN`] || '').toLowerCase() === 'true'
+                  });
+               }
+            }
+            if (q.testCases.length === 0) q.testCases.push({ input: '', expectedOutput: '', isHidden: false });
           }
           parsedQs.push(q);
         });
       }
       if (parsedQs.length > 0) {
-        setForm(p => ({ ...p, questions: [...p.questions, ...parsedQs] }));
+        setForm(p => {
+           const currentQs = p.questions;
+           const isUntouchedDefault = currentQs.length === 1 && currentQs[0].title === '' && currentQs[0].description === '';
+           const newQuestions = isUntouchedDefault ? parsedQs : [...currentQs, ...parsedQs];
+           return { ...p, questions: newQuestions };
+        });
         showToast(`✅ Imported ${parsedQs.length} questions!`, 'success');
       } else { showToast('❌ No valid questions found.', 'error'); }
     } catch (err) { showToast('❌ Error reading file.', 'error'); }
@@ -424,34 +394,30 @@ export const TeacherDashboard = () => {
     setActiveTcIndex(null);
   };
 
-  const showFormatGuide = () => { showToast(`TEXT FORMAT: Use PAIR: Left Item | Right Item for matching questions!`, 'info'); };
+  const showFormatGuide = () => { showToast(`TEXT FORMAT: Use PAIR: Left Item | Right Item for matching questions! CSV FORMAT: Use columns TC1_IN, TC1_OUT, TC1_HIDDEN for bulk test cases.`, 'info'); };
 
   const openEditModal = (examData) => {
     setEditingId(examData._id);
     setForm({
-      title: examData.title || '',
-      description: examData.description || '',
-      course: examData.course || '',
+      ...examData,
       startTime: formatForInput(examData.startTime),
-      durationMinutes: examData.durationMinutes || 60,
-      randomizeQuestions: examData.randomizeQuestions === true || examData.randomizeQuestions === 'true' || examData.randomizeQuestions === 1,
-      questionsToServe: examData.questionsToServe || '',
-      proctoring: { 
-          maxViolations: 3, restrictionMinutes: 30, requireFullscreen: true, 
-          disableCopyPaste: true, autoSubmitOnMax: true, enableWebcam: false, 
-          enableTypeDistribution: examData.proctoring?.enableTypeDistribution || false, // 🚀 Retrieve toggle
-          ...examData.proctoring,
-          typeDistribution: examData.proctoring?.typeDistribution || { mcq: '', coding: '', matching: '', subjective: '' }
-      },
-      questions: examData.questions && examData.questions.length > 0 ? examData.questions.map(q => ({
-          ...EMPTY_Q,
-          ...q,
-          options: q.options?.length > 0 ? q.options : EMPTY_Q.options.map(o => ({...o})),
-          testCases: q.testCases?.length > 0 ? q.testCases : EMPTY_Q.testCases.map(t => ({...t})),
-          matchingPairs: q.matchingPairs?.length > 0 ? q.matchingPairs : EMPTY_Q.matchingPairs.map(m => ({...m}))
-      })) : [{ ...EMPTY_Q }]
+      proctoring: { ...defaultForm.proctoring, ...examData.proctoring }
     });
     setModal(true);
+  };
+
+  const toggleStatus = async (exam, status) => {
+    await api.patch(`/exams/${exam._id}/status`, { status }).catch(() => {});
+    load();
+    if (viewExam && viewExam._id === exam._id) setViewExam({...viewExam, status});
+  };
+
+  const deleteExam = async (id) => {
+    showConfirm('Are you sure you want to dump this exam?', async () => {
+      await api.delete(`/exams/${id}`).catch(() => {});
+      if (viewExam?._id === id) setViewExam(null);
+      load();
+    });
   };
 
   const deploy = async (status = 'published') => {
@@ -468,6 +434,7 @@ export const TeacherDashboard = () => {
         if (form.durationMinutes) computedEndTime = new Date(st.getTime() + form.durationMinutes * 60000).toISOString();
       }
     }
+
     const cleanedQuestions = form.questions.map(q => {
       const base = { type: q.type, title: q.title.trim(), description: q.description || '', points: q.points || 10 };
       if (q.type === 'mcq') base.options = q.options;
@@ -481,17 +448,16 @@ export const TeacherDashboard = () => {
       }
       return base;
     });
-    
+
     const payload = { 
       ...form, 
-      randomizeQuestions: form.randomizeQuestions === true,
+      questions: cleanedQuestions,
+      randomizeQuestions: form.randomizeQuestions === true, 
       questionsToServe: form.questionsToServe ? parseInt(form.questionsToServe, 10) : null,
-      questions: cleanedQuestions, 
-      startTime: isoStartTime, 
-      endTime: computedEndTime 
+      startTime: isoStartTime,
+      endTime: computedEndTime
     };
     if (!editingId || status === 'draft') payload.status = status;
-    
     setSaving(true);
     try {
       if (editingId) await api.put(`/exams/${editingId}`, payload); 
@@ -501,27 +467,12 @@ export const TeacherDashboard = () => {
         const updatedRes = await api.get(`/exams/${editingId}`);
         setViewExam(updatedRes.data.data);
       }
-    } catch (e) { showToast(e.response?.data?.message || 'Deployment failed.', 'error'); } 
-    finally { setSaving(false); }
-  };
-
-  const toggleStatus = async (exam, status) => {
-    await api.patch(`/exams/${exam._id}/status`, { status }).catch(() => {});
-    load();
-    if (viewExam && viewExam._id === exam._id) setViewExam({...viewExam, status});
-  };
-
-  const deleteExam = async (id) => {
-    showConfirm('Are you sure you want to delete this exam? This will violently kick out all active students.', async () => {
-      await api.delete(`/exams/${id}`).catch(() => {});
-      if (viewExam?._id === id) setViewExam(null);
-      load();
-    });
+    } catch (e) { showToast('Deployment failed.', 'error'); } finally { setSaving(false); }
   };
 
   const renderModal = () => (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95">
+      <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95">
         <div className="px-8 py-5 border-b flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
           <h2 className="text-lg font-black uppercase tracking-tight">{editingId ? '✏️ Edit Exam' : 'Deploy New Exam'}</h2>
           <button onClick={() => { setModal(false); setEditingId(null); setForm(defaultForm); }} className="p-2 hover:bg-gray-200 rounded-lg transition-colors"><X size={20} /></button>
@@ -546,12 +497,10 @@ export const TeacherDashboard = () => {
                 <input type="checkbox" checked={form.randomizeQuestions} onChange={e => setForm(p => ({...p, randomizeQuestions: e.target.checked}))} className="accent-blue-600 w-4 h-4" /> 
                 Pool & Randomize Questions
               </label>
-              {/* 🔥 REMOVED OVERRIDE COMPLETELY! IT NOW INHERITS NATIVE POINTS! */}
             </div>
 
             {form.randomizeQuestions && (
               <div className="w-full mt-3 p-4 bg-blue-100/50 rounded-xl border border-blue-200">
-                {/* 🚀 THE NEW INNER TOGGLE! */}
                 <label className="flex items-center gap-2 font-black text-[10px] text-blue-800 uppercase tracking-widest mb-4 cursor-pointer hover:text-blue-600 transition-colors border-b border-blue-200 pb-3">
                   <input type="checkbox" checked={form.proctoring.enableTypeDistribution} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, enableTypeDistribution: e.target.checked}}))} className="accent-blue-600 w-4 h-4" />
                   Mixed Question Types (Fairness Engine)
@@ -560,31 +509,16 @@ export const TeacherDashboard = () => {
                 {form.proctoring.enableTypeDistribution ? (
                   <div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">
-                        MCQ Nodes
-                        <input type="number" value={form.proctoring.typeDistribution.mcq} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, mcq: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" />
-                      </label>
-                      <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">
-                        Coding Nodes
-                        <input type="number" value={form.proctoring.typeDistribution.coding} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, coding: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" />
-                      </label>
-                      <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">
-                        Matching Nodes
-                        <input type="number" value={form.proctoring.typeDistribution.matching} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, matching: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" />
-                      </label>
-                      <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">
-                        Subject Nodes
-                        <input type="number" value={form.proctoring.typeDistribution.subjective} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, subjective: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" />
-                      </label>
+                      <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">MCQ Nodes <input type="number" value={form.proctoring.typeDistribution.mcq} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, mcq: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" /></label>
+                      <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">Coding Nodes <input type="number" value={form.proctoring.typeDistribution.coding} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, coding: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" /></label>
+                      <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">Matching Nodes <input type="number" value={form.proctoring.typeDistribution.matching} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, matching: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" /></label>
+                      <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">Subject Nodes <input type="number" value={form.proctoring.typeDistribution.subjective} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, subjective: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" /></label>
                     </div>
                     <p className="text-[9px] font-bold text-blue-600 mt-3 uppercase tracking-wider">Set specific numbers to enforce perfectly fair categorical randomization across different question types!</p>
                   </div>
                 ) : (
                   <div>
-                    <label className="flex flex-col gap-1 text-xs font-bold text-gray-700 w-1/3">
-                      Total Nodes to Serve
-                      <input type="number" value={form.questionsToServe || ''} onChange={e => setForm(p => ({...p, questionsToServe: +e.target.value}))} placeholder="All" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white shadow-sm" />
-                    </label>
+                    <label className="flex flex-col gap-1 text-xs font-bold text-gray-700 w-1/3">Total Nodes to Serve <input type="number" value={form.questionsToServe || ''} onChange={e => setForm(p => ({...p, questionsToServe: +e.target.value}))} placeholder="All" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white shadow-sm" /></label>
                     <p className="text-[9px] font-bold text-blue-600 mt-3 uppercase tracking-wider">Specify how many questions to randomly pull from the entire unified pool.</p>
                   </div>
                 )}
@@ -638,7 +572,7 @@ export const TeacherDashboard = () => {
                 <div className="grid grid-cols-2 gap-3">
                   {q.options.map((o, oi) => (
                     <div key={oi} className={`flex items-center gap-3 bg-white p-3 rounded-xl border transition-all ${o.isCorrect ? 'border-emerald-400 bg-emerald-50/30' : ''}`}>
-                      <input type="radio" name={`correct-${qi}`} checked={o.isCorrect} onChange={() => updOpt(qi, oi, 'isCorrect', true)} className="accent-emerald-50 w-4 h-4 cursor-pointer" />
+                      <input type="radio" name={`correct-${qi}`} checked={o.isCorrect} onChange={() => updOpt(qi, oi, 'isCorrect', true)} className="accent-emerald-500 w-4 h-4 cursor-pointer" />
                       <input value={o.text} onChange={e => updOpt(qi, oi, 'text', e.target.value)} placeholder={`Option ${oi+1}`} className="flex-1 text-sm outline-none bg-transparent font-medium" />
                     </div>
                   ))}
