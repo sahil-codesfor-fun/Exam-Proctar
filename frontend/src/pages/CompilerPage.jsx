@@ -247,11 +247,11 @@ export function CompilerPage() {
           </button>
           <button onClick={handleRun} disabled={running || judging}
             style={{ padding: '7px 18px', background: '#238636', border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: running || judging ? 0.5 : 1 }}>
-            {running ? '⏳ Running…' : '▶ Run'}
+            {running ? '⏳ Running…' : '▶ Compile'}
           </button>
           <button onClick={handleJudge} disabled={running || judging}
             style={{ padding: '7px 18px', background: '#1f6feb', border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: running || judging ? 0.5 : 1 }}>
-            {judging ? '⏳ Judging…' : '⚖️ Judge All'}
+            {judging ? '⏳ Judging…' : 'Submit '}
           </button>
         </div>
       </div>

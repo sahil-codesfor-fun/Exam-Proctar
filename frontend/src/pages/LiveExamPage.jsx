@@ -29,6 +29,7 @@ export const LiveExamPage = () => {
   const [timeLeft, setTimeLeft] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  
   const [runResult, setRunResult] = useState(null);
   const [running, setRunning] = useState(false);
   const [judgeResult, setJudgeResult] = useState(null);
@@ -39,7 +40,7 @@ export const LiveExamPage = () => {
   const submittedRef = useRef(false);
   const initFiredRef = useRef(false);
 
-  // 🚀 REFS TO AVOID STALE CLOSURES DURING SOCKET EVENTS!
+  // 🚀 REFS TO AVOID STALE CLOSURES
   const submissionRef = useRef(null);
   const answersRef = useRef([]);
 
@@ -256,7 +257,6 @@ export const LiveExamPage = () => {
         const socket = connectSocket();
         socket.emit('join_exam', { examId, studentId: user?._id || user?.id, studentName: user?.name });
 
-        // 🚀 THE BULLETPROOF FORCE KILL LISTENER
         socket.on('force_submit', (data) => {
           performForceSubmit(data.reason);
         });
@@ -315,15 +315,12 @@ export const LiveExamPage = () => {
     return () => clearInterval(iv);
   }, [phase, answers, submission]);
 
-  // 🚀 THE NEW INSTANT FORCE KILL FUNCTION
   const performForceSubmit = async (reason) => {
     submittedRef.current = true;
     setSubmitting(true);
     
-    // We grab the freshest data from our refs!
     const sub = submissionRef.current;
     if (!sub) {
-       // If they haven't even fully loaded yet, just kick them back!
        document.exitFullscreen?.().catch(() => {});
        window.location.href = '/student-dashboard';
        return;
@@ -428,57 +425,50 @@ export const LiveExamPage = () => {
     }
   };
 
+  // 🚀 SEPARATED: Only executes code, NO TEST CASES OR JUDGING!
   const handleRunCode = async () => {
     const ans = answers[currentQ];
-    const q = exam?.questions?.[currentQ];
     if (!ans?.code) return;
-    setRunning(true); setRunResult(null);
+    
+    setRunning(true); 
+    setRunResult(null); 
+    setJudgeResult(null); // Clear judge panel so they don't overlap
+
     try {
       const r = await api.post('/compiler/execute', { language: ans.language, code: ans.code, stdin: codeStdin });
       const resData = r.data;
-      let runRes = null;
 
       if (resData.success) {
-        runRes = { output: resData.output, error: null, executionTime: resData.executionTime, success: true };
+        setRunResult({ output: resData.output, error: null, executionTime: resData.executionTime, success: true });
       } else {
-        runRes = { error: resData.stderr, output: '', errorType: resData.errorType, success: false };
+        setRunResult({ error: resData.stderr, output: '', errorType: resData.errorType, success: false });
       }
-
-      if (q?.testCases?.length > 0) {
-        const tr = await api.post('/compiler/judge', {
-          language: ans.language, code: ans.code,
-          testCases: q.testCases, timeLimitSec: q.timeLimitSeconds || 5,
-        });
-        const d = tr.data.data;
-        runRes.testSummary = `Passed ${d.passed} / ${d.total} test cases`;
-        runRes.passedCount = d.passed;
-        runRes.totalCount = d.total;
-        runRes.verdict = d.verdict;
-        
-        const score = d.verdict === 'accepted' ? q.points : Math.round((d.passed / d.total) * q.points);
-        updateAnswer(ans.questionId, 'score', score);
-        updateAnswer(ans.questionId, 'verdict', d.verdict);
-        updateAnswer(ans.questionId, 'passedTests', d.passed);
-        updateAnswer(ans.questionId, 'totalTests', d.total);
-      }
-      setRunResult(runRes);
     } catch (e) { 
       setRunResult({ error: e.response?.data?.message || e.message || 'Execution failed', output: '' }); 
-    } finally { setRunning(false); }
+    } finally { 
+      setRunning(false); 
+    }
   };
 
+  // 🚀 SEPARATED: Only checks against test cases, NO RAW TERMINAL OUTPUT!
   const handleJudge = async () => {
     const ans = answers[currentQ];
     const q = exam?.questions?.[currentQ];
     if (!ans?.code || !q?.testCases?.length) return;
-    setJudging(true); setJudgeResult(null);
+    
+    setJudging(true); 
+    setJudgeResult(null); 
+    setRunResult(null); // Clear terminal panel so they don't overlap
+
     try {
       const r = await api.post('/compiler/judge', {
         language: ans.language, code: ans.code,
         testCases: q.testCases, timeLimitSec: q.timeLimitSeconds || 5,
       });
+      
       const d = r.data.data;
       setJudgeResult(d);
+      
       const score = d.verdict === 'accepted' ? q.points : Math.round((d.passed / d.total) * q.points);
       updateAnswer(ans.questionId, 'score', score);
       updateAnswer(ans.questionId, 'verdict', d.verdict);
@@ -486,7 +476,9 @@ export const LiveExamPage = () => {
       updateAnswer(ans.questionId, 'totalTests', d.total);
     } catch (e) { 
       console.error("Judge failed:", e);
-    } finally { setJudging(false); }
+    } finally { 
+      setJudging(false); 
+    }
   };
 
   const fmtTime = (s) => `${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
@@ -613,7 +605,7 @@ export const LiveExamPage = () => {
               disabled={submitting || !isSubmissionAllowed}
               className={`${isSubmissionAllowed ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-gray-700 opacity-50 cursor-not-allowed'} text-white font-bold py-2 px-6 rounded-lg text-sm transition-all shadow-lg`}
             >
-              {submitting ? '⏳ Submitting…' : !isSubmissionAllowed ? `🔒 Locked` : '✅ Submit'}
+              {submitting ? '⏳ Submitting…' : !isSubmissionAllowed ? `🔒 Locked` : '✅ Submit Exam'}
             </button>
           </div>
 
@@ -846,11 +838,11 @@ export const LiveExamPage = () => {
                       <div className="ml-auto flex gap-2">
                         <button onClick={handleRunCode} disabled={running || judging}
                           className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-bold px-4 py-1.5 rounded-lg">
-                          {running ? '⏳…' : '▶ Run'}
+                          {running ? '⏳…' : '▶ Compile'}
                         </button>
                         <button onClick={handleJudge} disabled={running || judging}
                           className="bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white text-xs font-bold px-4 py-1.5 rounded-lg">
-                          {judging ? '⏳…' : '⚖️ Judge'}
+                          {judging ? '⏳…' : '⚖️ Submit Code'}
                         </button>
                       </div>
                     </div>
@@ -880,50 +872,54 @@ export const LiveExamPage = () => {
                         }} />
                     </div>
 
-                    <div className="h-40 border-t border-gray-800 bg-[#0d1117] overflow-auto p-3 flex-shrink-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <input value={codeStdin} onChange={e => setCodeStdin(e.target.value)}
-                          className="flex-1 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-300 font-mono outline-none"
-                          placeholder="Custom stdin input…" />
-                      </div>
-                      {running && <p className="text-gray-500 text-xs">⏳ Running…</p>}
-                      {runResult && (
-                        <div className="flex flex-col gap-2">
-                          {runResult.testSummary && (
-                            <div className="flex items-center justify-between mb-1">
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${runResult.passedCount === runResult.totalCount ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                                {runResult.testSummary}
-                              </span>
-                              {runResult.executionTime && <span className="text-[10px] text-gray-500">{runResult.executionTime}</span>}
+                    <div className="h-48 border-t border-gray-800 bg-[#0d1117] overflow-auto p-4 flex-shrink-0">
+                      
+                      {/* TERMINAL OUTPUT PANE (Only visible during raw execution) */}
+                      {!judgeResult && (
+                        <>
+                          <div className="flex items-center gap-2 mb-3">
+                            <input value={codeStdin} onChange={e => setCodeStdin(e.target.value)}
+                              className="flex-1 bg-gray-800 border border-gray-700 rounded-md px-3 py-1.5 text-xs text-gray-300 font-mono outline-none focus:border-gray-500 transition-colors"
+                              placeholder="Custom stdin input…" />
+                          </div>
+                          {running && <p className="text-gray-500 text-xs font-mono animate-pulse">⏳ Compiling & Running...</p>}
+                          {runResult && (
+                            <div className="flex flex-col gap-2 animate-in fade-in duration-300">
+                              <pre className={`font-mono text-[12px] whitespace-pre-wrap p-4 rounded-xl border shadow-inner ${runResult.error ? 'text-red-400 bg-red-950/20 border-red-500/20' : 'text-emerald-400 bg-emerald-950/20 border-emerald-500/20'}`}>
+                                {runResult.error || runResult.output || '(No output provided by program)'}
+                              </pre>
                             </div>
                           )}
-                          {runResult.testSummary && (
-                            <div className="w-full h-1 bg-gray-800 rounded-full overflow-hidden mb-2">
-                              <div className={`h-full transition-all duration-500 ${runResult.passedCount === runResult.totalCount ? 'bg-emerald-500' : 'bg-red-500'}`}
-                                style={{ width: `${(runResult.passedCount / runResult.totalCount) * 100}%` }} />
-                            </div>
-                          )}
-                          <pre className={`font-mono text-[11px] whitespace-pre-wrap p-3 rounded-lg border ${runResult.error ? 'text-red-400 bg-red-500/5 border-red-500/20' : 'text-emerald-400 bg-emerald-500/5 border-emerald-500/20'}`}>
-                            {runResult.error || runResult.output || '(no output)'}
-                          </pre>
-                        </div>
+                        </>
                       )}
 
+                      {/* JUDGE TEST CASES PANE (Only visible after clicking Submit Code) */}
+                      {judging && <p className="text-gray-500 text-xs font-mono animate-pulse mt-2">⚖️ Judging against hidden test cases...</p>}
                       {judgeResult && (
-                        <div className="mt-2">
-                          <div className={`text-xs font-bold mb-1 ${judgeResult.verdict === 'accepted' ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {judgeResult.verdict === 'accepted' ? '✅ All Passed' : `❌ ${judgeResult.passed}/${judgeResult.total} passed`}
+                        <div className="animate-in slide-in-from-bottom-2 duration-300">
+                          <div className={`text-sm font-bold mb-3 pb-2 border-b ${judgeResult.verdict === 'accepted' ? 'text-emerald-400 border-emerald-500/20' : 'text-red-400 border-red-500/20'}`}>
+                            {judgeResult.verdict === 'accepted' ? '✅ All Test Cases Passed Successfully' : `❌ Passed ${judgeResult.passed} out of ${judgeResult.total} Test Cases`}
                           </div>
-                          <div className="flex gap-1 flex-wrap">
+                          
+                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                             {judgeResult.results?.map((r, i) => (
-                              <span key={i} className={`text-[10px] px-2 py-0.5 rounded ${r.passed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                                {r.hidden ? `H${i + 1}` : `T${i + 1}`}: {r.passed ? '✓' : '✗'}
-                              </span>
+                              <div key={i} className={`p-3 border rounded-xl flex-1 ${r.passed ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+                                <div className={`text-xs font-black tracking-wider uppercase flex items-center justify-between ${r.passed ? 'text-emerald-400' : 'text-red-400'}`}>
+                                  <span>{r.hidden ? `Secret TC ${i + 1}` : `Public TC ${i + 1}`}</span>
+                                  <span>{r.passed ? '✓' : '✗'}</span>
+                                </div>
+                                {r.hidden && !r.passed && (
+                                  <div className="mt-2 pt-2 border-t border-gray-700/50 text-[10px] font-mono text-gray-500 italic">
+                                    Output hidden for security.
+                                  </div>
+                                )}
+                              </div>
                             ))}
                           </div>
                         </div>
                       )}
                     </div>
+
                   </div>
                 </div>
               ) : (
