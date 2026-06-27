@@ -57,7 +57,8 @@ export const registerUser = async (req, res) => {
 };
 
 export const loginUser = async (req, res) => {
-  const { email, password, id } = req.body; 
+  // 🚀 WE NOW GRAB THE REQUESTED ROLE FROM THE LOGIN PORTAL!
+  const { email, password, id, role: requestedRole } = req.body; 
   const loginIdentifier = email || id;
 
   try {
@@ -74,6 +75,18 @@ export const loginUser = async (req, res) => {
 
     if (!user) return res.status(401).json({ success: false, message: 'Invalid credentials' });
     if (!user.isActive) return res.status(403).json({ success: false, message: 'Account is disabled. Please contact admin.' });
+
+    // 🚀 THE FIX: STRICT PORTAL-TO-ROLE VERIFICATION!
+    if (requestedRole) {
+      const isFacultyPortal = requestedRole === 'teacher' || requestedRole === 'faculty';
+      const isUserFaculty = user.role === 'teacher' || user.role === 'faculty';
+      
+      if (isFacultyPortal && !isUserFaculty) {
+        return res.status(403).json({ success: false, message: `Access Denied`});
+      } else if (!isFacultyPortal && user.role !== requestedRole) {
+        return res.status(403).json({ success: false, message: `Access Denied` });
+      }
+    }
 
     // Directly use bcrypt to compare
     const isMatch = await bcrypt.compare(password, user.password);

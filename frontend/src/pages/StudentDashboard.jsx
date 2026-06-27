@@ -3,6 +3,46 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 
+// 🚀 THE FIX: Dynamic Value Engine
+const getExamValue = (exam, sub) => {
+  // 1. If the student already started, their submission holds the absolute truth!
+  if (sub && sub.maxScore) return sub.maxScore;
+  
+  const isRandomized = exam.randomizeQuestions === true || exam.randomizeQuestions === 'true' || exam.randomizeQuestions === 1;
+  
+  // 2. If not randomized, just sum up the whole array
+  if (!isRandomized) {
+    return exam.totalMarks || exam.questions?.reduce((acc, q) => acc + (Number(q.points) || 10), 0) || 0;
+  }
+
+  const isTypeDistEnabled = exam.proctoringRules?.enableTypeDistribution || exam.proctoring?.enableTypeDistribution;
+  const dist = exam.proctoringRules?.typeDistribution || exam.proctoring?.typeDistribution;
+
+  // 3. If using Type Distribution (Berserk Mode!), calculate based on requested slice
+  if (isTypeDistEnabled && dist) {
+    let estimatedTotal = 0;
+    ['mcq', 'coding', 'matching', 'subjective'].forEach(t => {
+       const reqCount = parseInt(dist[t], 10) || 0;
+       if (reqCount > 0) {
+          // Find a question of this type to get its standard point value
+          const sampleQ = exam.questions?.find(q => q.type === t);
+          const pts = sampleQ ? (Number(sampleQ.points) || 10) : 10;
+          estimatedTotal += (reqCount * pts);
+       }
+    });
+    return estimatedTotal > 0 ? estimatedTotal : (exam.totalMarks || 0);
+  }
+
+  // 4. Fallback: If just grabbing N random questions unconditionally
+  const serveLimit = parseInt(exam.questionsToServe, 10);
+  if (!isNaN(serveLimit) && serveLimit > 0 && exam.questions?.length > 0) {
+     const avgPoints = exam.questions.reduce((acc, q) => acc + (Number(q.points) || 10), 0) / exam.questions.length;
+     return Math.round(serveLimit * avgPoints);
+  }
+
+  return exam.totalMarks || exam.questions?.reduce((acc, q) => acc + (Number(q.points) || 10), 0) || 0;
+};
+
 export const StudentDashboard = () => {
   const navigate = useNavigate();
   const { user, logout, loading: authLoading } = useAuth();
@@ -199,7 +239,6 @@ export const StudentDashboard = () => {
                     <div className="flex flex-col">
                       <span className="text-[10px] font-black text-gray-400 uppercase">Assessment Success Rate</span>
                       <span className="text-sm font-bold text-emerald-600">
-                        {/* 🚀 THE FIX: Threshold mapped to exactly 1/3 (33.33%) passing mark */}
                         {submissions.length > 0 ? Math.round((submissions.filter(s => s.percentage >= 33.33).length / submissions.length) * 100) : 0}%
                       </span>
                     </div>
@@ -237,10 +276,8 @@ export const StudentDashboard = () => {
                     const inProgress = sub && sub.status === 'in_progress';
                     const isExpired = exam.status === 'ended' || (exam.endTime && new Date(exam.endTime).getTime() < nowTime);
                     
-                    // 🚀 THE FIX: Displays dynamic points overriding generic total points
-                    const calculatedValue = exam.randomizeQuestions && exam.questionsToServe && exam.proctoring?.marksPerNode 
-                       ? (exam.questionsToServe * exam.proctoring.marksPerNode) 
-                       : (exam.totalMarks || exam.questions?.reduce((acc, q) => acc + (q.points || 10), 0) || 0);
+                    // 🚀 APPLIED FIX: Get dynamically calculated true value!
+                    const calculatedValue = getExamValue(exam, sub);
 
                     return (
                       <div key={examIdSafe} className={`bg-white rounded-[2rem] border border-gray-100 p-8 hover:shadow-2xl hover:shadow-gray-200/50 transition-all group ${isExpired && !done ? 'opacity-60 grayscale' : ''}`}>
@@ -313,9 +350,8 @@ export const StudentDashboard = () => {
                 <div className="space-y-4">
                   {upcomingExams.map(exam => {
                     const examIdSafe = exam._id || exam.id;
-                    const calculatedValue = exam.randomizeQuestions && exam.questionsToServe && exam.proctoring?.marksPerNode 
-                       ? (exam.questionsToServe * exam.proctoring.marksPerNode) 
-                       : (exam.totalMarks || exam.questions?.reduce((acc, q) => acc + (q.points || 10), 0) || 0);
+                    // 🚀 APPLIED FIX: Get dynamically calculated true value!
+                    const calculatedValue = getExamValue(exam, null);
 
                     return (
                     <div key={examIdSafe} className="bg-white rounded-[2rem] border border-gray-100 p-8 hover:shadow-2xl hover:shadow-gray-200/50 transition-all group opacity-80">
