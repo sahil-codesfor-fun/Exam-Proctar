@@ -581,7 +581,7 @@ export const LiveExamPage = () => {
             </div>
           )}
 
-          <div className="flex items-center justify-between px-6 py-3 bg-gray-900 border-b border-gray-800 flex-shrink-0">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-6 py-3 bg-gray-900 border-b border-gray-800 flex-shrink-0">
             <div className="flex items-center gap-4">
               <span className="text-lg font-bold flex items-center gap-2"><span className="text-2xl">🛡️</span> {exam?.title || 'Exam Terminal'}</span>
               
@@ -609,10 +609,10 @@ export const LiveExamPage = () => {
             </button>
           </div>
 
-          <div className="flex flex-1 overflow-hidden">
-            <div className="w-56 flex-shrink-0 bg-gray-900/50 border-r border-gray-800 flex flex-col overflow-y-auto p-4">
+          <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+            <div className="w-full md:w-56 flex-shrink-0 bg-gray-900/50 border-b md:border-r border-gray-800 flex flex-col p-4 md:overflow-y-auto">
               <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Questions ({exam?.questions?.length || 0})</h3>
-              <div className="grid grid-cols-4 gap-1.5">
+              <div className="flex md:grid md:grid-cols-4 gap-1.5 overflow-x-auto md:overflow-visible pb-2 md:pb-0">
                 {exam?.questions?.map((qq, idx) => {
                   const qqIdSafe = qq._id || qq.id;
                   const a = answers.find(x => x.questionId === qqIdSafe);
@@ -627,7 +627,7 @@ export const LiveExamPage = () => {
                   
                   return (
                     <button key={qqIdSafe} onClick={() => { setCurrentQ(idx); setRunResult(null); setJudgeResult(null); }}
-                      className={`h-9 rounded-lg text-xs font-bold border transition-all ${
+                      className={`min-w-[2.25rem] h-9 rounded-lg text-xs font-bold border transition-all ${
                         currentQ === idx ? 'bg-blue-600 border-blue-500 text-white' :
                         done ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300' :
                         'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600'

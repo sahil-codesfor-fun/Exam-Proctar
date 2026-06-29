@@ -78,7 +78,7 @@ const ExamDetail = () => {
     <div className="space-y-6 pb-20 animate-in fade-in duration-500">
       <button onClick={() => navigate('/teacher-dashboard/overview')} className="text-sm font-bold text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-colors">← Back to Registry</button>
       
-      <div className="flex justify-between items-start bg-white p-6 rounded-2xl border shadow-sm">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-6 rounded-2xl border shadow-sm gap-4">
         <div>
           <h2 className="text-2xl font-black flex items-center gap-3">
             {exam.title}
@@ -91,7 +91,7 @@ const ExamDetail = () => {
           </div>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {exam.status === 'draft' && (
              <button onClick={() => openEditModal(exam)} className="flex items-center gap-2 bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">
                <Edit size={14}/> Edit Details

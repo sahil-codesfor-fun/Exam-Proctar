@@ -143,10 +143,10 @@ export const StudentDashboard = () => {
           </div>
         </div>
         
-        <div className="flex items-center gap-4 w-full md:w-auto">
-          <NavLink to="/student-dashboard/overview" className={({ isActive }) => `flex-1 md:flex-none font-black text-[10px] uppercase tracking-widest py-4 px-8 rounded-2xl transition-all shadow-lg active:scale-95 ${isActive ? 'bg-gray-900 text-white shadow-gray-900/10' : 'bg-white text-gray-400 border border-gray-100'}`}>🏠 Dashboard</NavLink>
-          <button onClick={() => navigate('/compiler')} className="flex-1 md:flex-none bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-black text-[10px] uppercase tracking-widest py-4 px-8 rounded-2xl transition-all border border-emerald-100 active:scale-95">💻 Code Playground</button>
-          <NavLink to="/student-dashboard/profile" className={({ isActive }) => `flex-1 md:flex-none font-black text-[10px] uppercase tracking-widest py-4 px-8 rounded-2xl transition-all shadow-lg active:scale-95 ${isActive ? 'bg-emerald-600 text-white shadow-emerald-900/10' : 'bg-white text-gray-400 border border-gray-100'}`}>👤 Profile</NavLink>
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 w-full md:w-auto">
+          <NavLink to="/student-dashboard/overview" className={({ isActive }) => `text-center flex-1 md:flex-none font-black text-[10px] uppercase tracking-widest py-4 px-8 rounded-2xl transition-all shadow-lg active:scale-95 ${isActive ? 'bg-gray-900 text-white shadow-gray-900/10' : 'bg-white text-gray-400 border border-gray-100'}`}>🏠 Dashboard</NavLink>
+          <button onClick={() => navigate('/compiler')} className="text-center flex-1 md:flex-none bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-black text-[10px] uppercase tracking-widest py-4 px-8 rounded-2xl transition-all border border-emerald-100 active:scale-95">💻 Code Playground</button>
+          <NavLink to="/student-dashboard/profile" className={({ isActive }) => `text-center flex-1 md:flex-none font-black text-[10px] uppercase tracking-widest py-4 px-8 rounded-2xl transition-all shadow-lg active:scale-95 ${isActive ? 'bg-emerald-600 text-white shadow-emerald-900/10' : 'bg-white text-gray-400 border border-gray-100'}`}>👤 Profile</NavLink>
         </div>
       </div>
 

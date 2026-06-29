@@ -43,6 +43,7 @@ export const TeacherDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [modal, setModal] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [exams, setExams] = useState([]);
   const [subs, setSubs] = useState({});
   const [loading, setLoading] = useState(true);
@@ -521,7 +522,26 @@ export const TeacherDashboard = () => {
         </div>
       )}
 
-      <div className="w-64 bg-white border-r flex flex-col p-5 overflow-y-auto relative z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-gray-900/50 z-40 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Hamburger Button (Mobile Only) */}
+      <button 
+        onClick={() => setIsSidebarOpen(true)} 
+        className="md:hidden absolute top-4 left-4 z-30 p-2 bg-white rounded-lg shadow-md border border-gray-200 text-gray-700"
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+      </button>
+
+      <div className={`w-64 bg-white border-r flex flex-col p-5 overflow-y-auto z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)] fixed md:relative h-full transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+        <button onClick={() => setIsSidebarOpen(false)} className="md:hidden absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-900">
+           <X size={20} />
+        </button>
         <div className="flex items-center gap-3 mb-10 mt-4 cursor-pointer hover:scale-[1.02] transition-transform">
           <span className="text-3xl ml-2">🛡️</span>
           <span className="text-xl font-extrabold text-gray-900 tracking-tight hidden md:block">Nexus Proctor</span>
@@ -532,7 +552,7 @@ export const TeacherDashboard = () => {
             { icon: <ShieldAlert size={18}/>, label: 'MONITORING', to: 'monitoring' }].map(item => {
             const isActive = location.pathname.includes(item.to);
             return (
-            <NavLink key={item.label} to={item.to}
+            <NavLink key={item.label} to={item.to} onClick={() => setIsSidebarOpen(false)}
               className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-black text-[10px] tracking-[0.15em] transition-all shadow-sm border ${isActive ? 'bg-[#4B775E] text-white border-[#4B775E] shadow-emerald-900/20 translate-x-1' : 'bg-white text-gray-400 border-transparent hover:border-gray-100 hover:bg-gray-50 hover:text-gray-600'}`}>
               {item.icon}{item.label}
             </NavLink>
@@ -558,7 +578,7 @@ export const TeacherDashboard = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto bg-gray-50/50 p-8 lg:p-12 pb-24 relative">
+      <div className="flex-1 overflow-y-auto bg-gray-50/50 p-4 pt-16 md:p-8 lg:p-12 pb-24 relative w-full md:w-auto">
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none transform translate-x-1/3 -translate-y-1/3"></div>
 
         <Outlet context={{ exams, subs, loadSubs, loading, setModal, openEditModal, toggleStatus, deleteExam, showConfirm }} />

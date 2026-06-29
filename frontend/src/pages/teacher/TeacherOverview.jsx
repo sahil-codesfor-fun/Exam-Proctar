@@ -8,7 +8,7 @@ const TeacherOverview = () => {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative z-10">
-      <div className="flex justify-between items-end mb-10">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
         <div>
           <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-2 border-b border-emerald-100 inline-block pb-1">System Control</p>
           <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tight">OVERVIEW</h2>

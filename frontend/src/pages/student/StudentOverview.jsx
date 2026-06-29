@@ -85,8 +85,8 @@ const StudentOverview = () => {
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between pt-6 border-t border-gray-50">
-                      <div className="flex gap-6">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between pt-6 border-t border-gray-50 gap-4">
+                      <div className="flex flex-wrap gap-4 md:gap-6">
                         {exam.startTime && (
                           <div className="flex flex-col">
                             <span className="text-[9px] font-black text-gray-300 uppercase">Started At</span>
@@ -150,8 +150,8 @@ const StudentOverview = () => {
                     <span className="bg-blue-50 text-blue-600 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-blue-100 italic shadow-sm">Scheduled Node</span>
                   </div>
 
-                  <div className="flex items-center justify-between pt-6 border-t border-gray-50">
-                    <div className="flex gap-6">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between pt-6 border-t border-gray-50 gap-4">
+                    <div className="flex flex-wrap gap-4 md:gap-6">
                       <div className="flex flex-col">
                         <span className="text-[9px] font-black text-gray-300 uppercase">Starts On</span>
                         <span className="text-xs font-black text-blue-600">

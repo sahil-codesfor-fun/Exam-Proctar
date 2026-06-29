@@ -215,9 +215,9 @@ export function CompilerPage() {
     <div style={{ height: 'calc(100vh - 64px)', background: '#0d1117', color: '#e6edf3', display: 'flex', flexDirection: 'column', fontFamily: "'Inter', sans-serif" }}>
 
       {/* ── Top Bar ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 16px', background: '#161b22', borderBottom: '1px solid #30363d', flexShrink: 0 }}>
+      <div className="flex flex-wrap items-center gap-3 px-4 py-2 bg-[#161b22] border-b border-[#30363d] shrink-0">
         {/* Language picker */}
-        <div ref={langRef} style={{ position: 'relative' }}>
+        <div ref={langRef} className="relative">
           <button onClick={() => setLangOpen(p => !p)}
             style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', background: '#21262d', border: '1px solid #30363d', borderRadius: 8, color: '#e6edf3', fontSize: 13, cursor: 'pointer', minWidth: 160 }}>
             <span>{currentLang.icon}</span>
@@ -265,10 +265,10 @@ export function CompilerPage() {
       </div>
 
       {/* ── Main Layout ── */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
 
         {/* Left — Editor */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRight: '1px solid #30363d' }}>
+        <div className="flex-1 flex flex-col border-b md:border-b-0 md:border-r border-[#30363d] min-h-[50vh] md:min-h-0">
           <div style={{ flex: 1 }}>
             <Editor
               height="100%"
@@ -282,7 +282,7 @@ export function CompilerPage() {
         </div>
 
         {/* Right — Panels */}
-        <div style={{ width: 420, display: 'flex', flexDirection: 'column', background: '#0d1117' }}>
+        <div className="w-full md:w-[420px] flex flex-col bg-[#0d1117] min-h-[50vh] md:min-h-0">
 
           {/* Tabs */}
           <div style={{ display: 'flex', borderBottom: '1px solid #21262d', flexShrink: 0 }}>

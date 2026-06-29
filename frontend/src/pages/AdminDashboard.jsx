@@ -178,7 +178,7 @@ const AdminDashboard = () => {
           </div>
           <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">Faculty Management & Credential Portal</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <button onClick={() => navigate('/teacher-dashboard')} className="bg-blue-50 border border-blue-200 text-blue-600 font-black text-[10px] uppercase tracking-widest py-3 px-6 rounded-xl hover:bg-blue-100 transition-all shadow-sm">
             🧑‍🏫 Open Teacher Terminal
           </button>
@@ -208,7 +208,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Faculty Table */}
-        <div className="bg-white rounded-[2rem] border border-gray-100 shadow-xl overflow-hidden">
+        <div className="bg-white rounded-[2rem] border border-gray-100 shadow-xl overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/50 border-b border-gray-50">
