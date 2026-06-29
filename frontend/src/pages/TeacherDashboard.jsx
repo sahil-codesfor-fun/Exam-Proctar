@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import { Plus, X, Trash2, CheckCircle2, LayoutGrid, FileText, ShieldAlert, Upload, Edit, Users } from 'lucide-react';
 import * as XLSX from 'xlsx'; 
+import HistoricalSubmissions from '../components/results/HistoricalSubmissions';
 
 const EMPTY_Q = { 
   type: 'mcq', 
@@ -170,38 +171,7 @@ const ExamDetail = ({ exam, subs, loadSubs, setViewExam, openEditModal, toggleSt
         </div>
       )}
 
-      <div className="bg-white rounded-3xl border shadow-sm p-8">
-        <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6 border-b border-gray-100 pb-4">Historical Submissions ({uniqueSubs.length})</h3>
-        {uniqueSubs.length === 0 ? <p className="text-gray-400 text-sm italic">No records in the vault.</p> : (
-          <div className="overflow-hidden rounded-xl border border-gray-200">
-            <table className="w-full text-left text-sm bg-white">
-              <thead className="bg-gray-50/80"><tr className="text-[10px] font-black text-gray-400 uppercase tracking-widest"><th className="py-4 px-6">Student Node</th><th className="px-6">Score Matrix</th><th className="px-6">Status Flag</th><th className="px-6">Infractions</th></tr></thead>
-              <tbody className="divide-y divide-gray-100">
-                {uniqueSubs.map(s => (
-                  <tr key={s._id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="py-4 px-6">
-                      <p className="font-bold text-gray-900">{s.student?.name}</p>
-                      <p className="text-[10px] text-gray-400 font-mono mt-0.5">{s.student?.studentId}</p>
-                    </td>
-                    <td className="px-6">
-                      <div className="flex items-center gap-2">
-                         <span className="font-black text-gray-700">{s.totalScore}</span><span className="text-gray-300">/</span><span className="text-xs text-gray-400">{s.maxScore}</span>
-                         <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${s.percentage >= 33.33 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>{s.percentage}%</span>
-                      </div>
-                    </td>
-                    <td className="px-6"><span className={`text-[9px] font-black px-3 py-1.5 rounded-lg uppercase tracking-widest ${s.status === 'submitted' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : s.status === 'auto_submitted' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>{s.status.replace('_', ' ')}</span></td>
-                    <td className="px-6">
-                      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-black ${s.violationCount > 0 ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-gray-50 text-gray-400'}`}>
-                        {s.violationCount}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      <HistoricalSubmissions exam={exam} />
     </div>
   );
 };

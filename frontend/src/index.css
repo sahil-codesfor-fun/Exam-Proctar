@@ -16,3 +16,72 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* ─── Accordion & Results Animations ─────────────────────────── */
+@keyframes accordion-expand {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    max-height: 10000px;
+    transform: translateY(0);
+  }
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-accordion-expand {
+  animation: accordion-expand 300ms ease-out;
+}
+
+.animate-skeleton-pulse {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 400ms ease-out;
+}
+
+/* Smooth accordion chevron */
+.accordion-chevron {
+  transition: transform 200ms ease-in-out;
+}
+
+.accordion-chevron.expanded {
+  transform: rotate(180deg);
+}
+
+/* Custom scrollbar for report panels */
+.report-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.report-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.report-scrollbar::-webkit-scrollbar-thumb {
+  background: #e5e7eb;
+  border-radius: 999px;
+}
+
+.report-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #d1d5db;
+}
