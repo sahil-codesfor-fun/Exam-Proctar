@@ -172,8 +172,8 @@ const AdminDashboard = () => {
       {/* Header Area */}
       <div className="max-w-7xl mx-auto mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="bg-emerald-600 text-white p-1.5 rounded-lg shadow-lg">🛡️</span>
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-3xl">🛡️</span>
             <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase">Admin <span className="text-emerald-600">Control Center</span></h1>
           </div>
           <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">Faculty Management & Credential Portal</p>

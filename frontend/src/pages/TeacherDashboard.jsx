@@ -522,11 +522,9 @@ export const TeacherDashboard = () => {
       )}
 
       <div className="w-64 bg-white border-r flex flex-col p-5 overflow-y-auto relative z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
-        <div className="flex items-center gap-3 mb-10 px-2 mt-4 cursor-pointer hover:scale-[1.02] transition-transform">
-          <div className="bg-emerald-50 text-emerald-600 p-2 rounded-xl border border-emerald-100 shadow-sm">
-            <CheckCircle2 size={20} strokeWidth={3} />
-          </div>
-          <h1 className="text-[13px] font-black tracking-[0.2em] uppercase text-gray-900 leading-tight">Trainer<br/><span className="text-gray-400">Core_</span></h1>
+        <div className="flex items-center gap-3 mb-10 mt-4 cursor-pointer hover:scale-[1.02] transition-transform">
+          <span className="text-3xl ml-2">🛡️</span>
+          <span className="text-xl font-extrabold text-gray-900 tracking-tight hidden md:block">Nexus Proctor</span>
         </div>
         
         <nav className="flex-1 space-y-2">

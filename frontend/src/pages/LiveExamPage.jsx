@@ -519,7 +519,7 @@ export const LiveExamPage = () => {
     <React.Fragment>
       {phase === 'loading' && (
         <div className="h-screen flex items-center justify-center bg-gray-950 text-white">
-          <div className="text-center"><div className="text-4xl mb-4 animate-pulse">🛡️</div><p className="text-gray-400">Loading secure exam environment…</p></div>
+          <div className="text-center"><div className="text-6xl mx-auto mb-4 animate-pulse">🛡️</div><p className="text-gray-400">Loading secure exam environment…</p></div>
         </div>
       )}
 
@@ -583,7 +583,7 @@ export const LiveExamPage = () => {
 
           <div className="flex items-center justify-between px-6 py-3 bg-gray-900 border-b border-gray-800 flex-shrink-0">
             <div className="flex items-center gap-4">
-              <span className="text-lg font-bold">🛡️ {exam?.title || 'Exam Terminal'}</span>
+              <span className="text-lg font-bold flex items-center gap-2"><span className="text-2xl">🛡️</span> {exam?.title || 'Exam Terminal'}</span>
               
               {proctoring?.violationCount > 0 ? (
                 <span className="text-xs font-black px-3 py-1 rounded-lg bg-red-500/20 text-red-400 animate-pulse border border-red-500/40">

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext'; 
 
+
+
 export const LandingPage = () => {
   const navigate = useNavigate();
   const { login } = useAuth(); 
@@ -57,8 +59,8 @@ export const LandingPage = () => {
       {/* Left — Branding */}
       <div className="hidden lg:flex lg:w-5/12 bg-gray-50 flex-col justify-between p-12 border-r border-gray-200">
         <div className="flex items-center gap-3">
-          <span className="text-3xl bg-blue-100 text-blue-600 p-2.5 rounded-xl shadow-sm">🛡️</span>
-          <h1 className="text-2xl font-extrabold tracking-tight">NEXUS <span className="text-blue-600">PROCTOR</span></h1>
+          <span className="text-4xl">🛡️</span>
+          <span className="text-3xl font-extrabold text-gray-900 tracking-tight hidden md:block">Nexus Proctor</span>
         </div>
         <div className="max-w-sm">
           <h2 className="text-4xl font-bold mb-4 leading-tight text-gray-900">Ensuring Academic Integrity.</h2>
@@ -70,7 +72,9 @@ export const LandingPage = () => {
       {/* Right — Form */}
       <div className="w-full lg:w-7/12 flex items-center justify-center p-8 bg-white overflow-y-auto">
         <div className="w-full max-w-md py-10">
-          <div className="mb-8">
+          <div className="mb-8 text-center flex flex-col items-center">
+            <span className="text-5xl mb-4">🛡️</span>
+            <h1 className="text-2xl font-extrabold text-gray-900 mb-6 tracking-tight">Nexus Proctor</h1>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">{isSignUp ? 'Student Registration' : 'Student Login'}</h2>
             <p className={`text-sm font-medium transition-all ${status.type === 'error' ? 'text-red-500' : status.type === 'success' ? 'text-emerald-600' : 'text-gray-500'}`}>
               {status.message || `Welcome to the Student portal.`}

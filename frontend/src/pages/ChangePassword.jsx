@@ -49,8 +49,8 @@ const ChangePassword = () => {
           <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mt-1">Mandatory Password Update</p>
         </div>
 
-        <p className="text-[11px] text-blue-600 font-bold bg-blue-50 p-4 rounded-xl mb-8 leading-relaxed border border-blue-100">
-           🛡️ SYSTEM NOTICE: Your account currently uses a temporary credential. For your protection and institutional compliance, you must establish a new secure password before proceeding.
+        <p className="text-[11px] text-blue-600 font-bold bg-blue-50 p-4 rounded-xl mb-8 leading-relaxed border border-blue-100 flex items-start gap-2">
+           <span className="text-sm mt-0.5">🛡️</span> SYSTEM NOTICE: Your account currently uses a temporary credential. For your protection and institutional compliance, you must establish a new secure password before proceeding.
         </p>
 
         <form className="space-y-5" onSubmit={handleSubmit}>

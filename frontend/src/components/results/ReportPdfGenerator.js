@@ -3,10 +3,12 @@ import autoTable from 'jspdf-autotable';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
+
+
 /**
  * Generate a professional marksheet PDF for a student's exam report
  */
-export function generateReportPDF(report) {
+export async function generateReportPDF(report) {
   const doc = new jsPDF('p', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 15;
@@ -31,11 +33,11 @@ export function generateReportPDF(report) {
   doc.setTextColor(...white);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
-  doc.text('NEXUS PROCTOR', margin, 14);
+  doc.text('NEXUS PROCTOR', margin, 16);
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text('Official Examination Report', margin, 21);
+  doc.text('Official Examination Report', margin, 23);
 
   doc.setFontSize(8);
   doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth - margin, 14, { align: 'right' });
@@ -283,9 +285,9 @@ export function generateReportPDF(report) {
 /**
  * Download a single student's report PDF
  */
-export function downloadReportPDF(report) {
+export async function downloadReportPDF(report) {
   try {
-    const doc = generateReportPDF(report);
+    const doc = await generateReportPDF(report);
     const studentName = (report.student?.name || 'Student').replace(/[^a-zA-Z0-9]/g, '_');
     const examName = (report.exam?.name || 'Exam').replace(/[^a-zA-Z0-9]/g, '_');
     doc.save(`${studentName}_${examName}_Report.pdf`);
@@ -302,12 +304,13 @@ export async function downloadAllReportsPDF(reports, examTitle) {
   try {
     const zip = new JSZip();
 
-    reports.forEach((report, index) => {
-      const doc = generateReportPDF(report);
+    for (let index = 0; index < reports.length; index++) {
+      const report = reports[index];
+      const doc = await generateReportPDF(report);
       const pdfBlob = doc.output('arraybuffer');
       const studentName = (report.student?.name || `Student_${index + 1}`).replace(/[^a-zA-Z0-9]/g, '_');
       zip.file(`${studentName}_Report.pdf`, pdfBlob);
-    });
+    }
 
     const content = await zip.generateAsync({ type: 'blob' });
     saveAs(content, `${(examTitle || 'Exam').replace(/[^a-zA-Z0-9]/g, '_')}_All_Reports.zip`);
