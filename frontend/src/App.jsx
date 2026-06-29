@@ -1,11 +1,16 @@
 import React from 'react';
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LandingPage } from './pages/LandingPage';
 import { FacultyLogin } from './pages/FacultyLogin';
 import { AdminLogin } from './pages/AdminLogin';
 import { StudentDashboard } from './pages/StudentDashboard';
+import StudentOverview from './pages/student/StudentOverview';
+import StudentProfile from './pages/student/StudentProfile';
 import { TeacherDashboard } from './pages/TeacherDashboard';
+import TeacherOverview from './pages/teacher/TeacherOverview';
+import TeacherMonitoring from './pages/teacher/TeacherMonitoring';
+import ExamDetail from './pages/teacher/ExamDetail';
 import { CompilerPage } from './pages/CompilerPage';
 import { LiveExamPage } from './pages/LiveExamPage';
 import AdminDashboard from './pages/AdminDashboard';
@@ -54,11 +59,21 @@ function App() {
 
             <Route path="/student-dashboard" element={
               <ProtectedRoute roles={['student']}><StudentDashboard /></ProtectedRoute>
-            } />
+            }>
+              <Route index element={<Navigate to="overview" replace />} />
+              <Route path="overview" element={<StudentOverview />} />
+              <Route path="profile" element={<StudentProfile />} />
+            </Route>
 
             <Route path="/teacher-dashboard" element={
               <ProtectedRoute roles={['faculty','teacher']}><TeacherDashboard /></ProtectedRoute>
-            } />
+            }>
+              <Route index element={<Navigate to="overview" replace />} />
+              <Route path="overview" element={<TeacherOverview />} />
+              <Route path="monitoring" element={<TeacherMonitoring />} />
+              <Route path="exams/:examId" element={<ExamDetail />} />
+              <Route path="exams/:examId/submissions/:submissionId" element={<ExamDetail />} />
+            </Route>
 
             <Route path="/admin" element={
               <ProtectedRoute roles={['admin']}><AdminDashboard /></ProtectedRoute>

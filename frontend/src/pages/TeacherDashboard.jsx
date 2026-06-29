@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import { Plus, X, Trash2, CheckCircle2, LayoutGrid, FileText, ShieldAlert, Upload, Edit, Users } from 'lucide-react';
 import * as XLSX from 'xlsx'; 
-import HistoricalSubmissions from '../components/results/HistoricalSubmissions';
 
 const EMPTY_Q = { 
   type: 'mcq', 
@@ -39,153 +38,15 @@ const formatForInput = (dateString) => {
   return `${y}-${m}-${day}T${h}:${min}`;
 };
 
-const ExamDetail = ({ exam, subs, loadSubs, setViewExam, openEditModal, toggleStatus, deleteExam, showConfirm }) => {
-  const [liveStudents, setLiveStudents] = useState([]);
-
-  useEffect(() => { loadSubs(exam._id); }, [exam._id, loadSubs]);
-  const es = subs[exam._id] || [];
-
-  const uniqueSubsMap = new Map();
-  es.forEach(s => {
-    const sid = s.student?.id || s.student?._id || s.studentId;
-    if (!uniqueSubsMap.has(sid)) {
-      uniqueSubsMap.set(sid, s);
-    } else {
-      const existing = uniqueSubsMap.get(sid);
-      if (s.status === 'submitted' || s.status === 'auto_submitted') {
-        uniqueSubsMap.set(sid, s);
-      } else if (existing.status !== 'submitted' && existing.status !== 'auto_submitted') {
-        if (new Date(s.createdAt) > new Date(existing.createdAt)) uniqueSubsMap.set(sid, s);
-      }
-    }
-  });
-  const uniqueSubs = Array.from(uniqueSubsMap.values());
-
-  useEffect(() => {
-    let socket;
-    import('../services/socket').then(({ connectSocket }) => {
-      socket = connectSocket();
-      socket.emit('join_monitoring', { examId: exam._id });
-
-      socket.on('active_students', (data) => {
-        const uniqueStudents = Array.from(new Map(data.students.map(s => [s.studentId, s])).values());
-        setLiveStudents(uniqueStudents);
-      });
-
-      socket.on('student_joined', (data) => {
-        setLiveStudents(p => {
-          const filtered = p.filter(s => s.studentId !== data.studentId);
-          return [...filtered, data];
-        });
-      });
-
-      socket.on('student_left', (data) => {
-        setLiveStudents(p => p.filter(s => s.studentId !== data.studentId));
-      });
-
-      socket.on('violation_alert', (data) => {
-        setLiveStudents(p => p.map(s => s.studentId === data.studentId ? { ...s, violations: (s.violations || 0) + 1 } : s));
-      });
-    });
-
-    return () => {
-      if (socket) {
-        socket.off('active_students');
-        socket.off('student_joined');
-        socket.off('student_left');
-        socket.off('violation_alert');
-      }
-    };
-  }, [exam._id]);
-
-  const forceSubmit = (studentId) => {
-    showConfirm('Are you sure you want to forcibly submit and lock this student out of the exam?', () => {
-      import('../services/socket').then(({ getSocket }) => {
-        const socket = getSocket();
-        if (socket) {
-          socket.emit('force_submit_student', { examId: exam._id, studentId, reason: 'Manual termination by proctor' });
-        }
-      });
-    });
-  };
-
-  return (
-    <div className="space-y-6 pb-20 animate-in fade-in duration-500">
-      <button onClick={() => setViewExam(null)} className="text-sm font-bold text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-colors">← Back to Registry</button>
-      
-      <div className="flex justify-between items-start bg-white p-6 rounded-2xl border shadow-sm">
-        <div>
-          <h2 className="text-2xl font-black flex items-center gap-3">
-            {exam.title}
-            {exam.status === 'active' && <span className="bg-red-500 text-white text-[10px] uppercase px-3 py-1 rounded-full animate-pulse shadow-sm tracking-widest">LIVE NOW</span>}
-            {exam.status === 'published' && <span className="bg-blue-50 text-blue-600 text-[10px] uppercase px-3 py-1 rounded-full border border-blue-100 tracking-widest shadow-sm">PUBLISHED</span>}
-          </h2>
-          <div className="flex items-center gap-3 mt-2 text-sm">
-             <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg font-bold text-xs">{exam.course || 'General Sector'}</span>
-             <span className="text-gray-400 font-medium">• {exam.durationMinutes}min window • {exam.questions.length} total nodes • {exam.randomizeQuestions ? `🎲 Random` : 'Static Layout'}</span>
-          </div>
-        </div>
-        
-        <div className="flex gap-2">
-          {exam.status === 'draft' && (
-             <button onClick={() => openEditModal(exam)} className="flex items-center gap-2 bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">
-               <Edit size={14}/> Edit Details
-             </button>
-          )}
-          {exam.status === 'draft' && <button onClick={() => toggleStatus(exam, 'published')} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-600/20">Publish Network</button>}
-          {exam.status === 'published' && <button onClick={() => toggleStatus(exam, 'draft')} className="bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200 px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">Revoke</button>}
-          {(exam.status === 'published' || exam.status === 'draft') && <button onClick={() => toggleStatus(exam, 'active')} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-600/20">FORCE START NOW</button>}
-          {exam.status === 'active' && <button onClick={() => toggleStatus(exam, 'ended')} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-red-600/20 animate-pulse">TERMINATE SESSION</button>}
-          <button onClick={() => deleteExam(exam._id)} className="bg-white text-red-500 hover:bg-red-50 border border-gray-200 hover:border-red-200 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1"><Trash2 size={14}/> Dump</button>
-        </div>
-      </div>
-
-      {exam.status === 'active' && (
-        <div className="bg-gray-900 text-white rounded-3xl p-8 border border-gray-800 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none transform translate-x-1/2 -translate-y-1/2"></div>
-          
-          <h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-8 flex items-center gap-3 relative z-10">
-            <Users size={16}/> Live Proctoring Matrix ({liveStudents.length} Connected)
-          </h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 relative z-10">
-            {liveStudents.length === 0 ? <p className="text-xs text-gray-600 italic font-medium">Awaiting incoming student nodes...</p> : liveStudents.map(s => (
-              <div key={s.studentId} className="bg-gray-800/50 p-5 rounded-2xl border border-gray-700 flex justify-between items-center group hover:bg-gray-800 transition-all">
-                <div className="flex items-center gap-4">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></span>
-                  <div>
-                    <p className="font-bold text-sm text-gray-100">{s.name}</p>
-                    <p className="text-[10px] text-gray-500 font-mono tracking-tighter">{s.studentId}</p>
-                  </div>
-                </div>
-                <div className="text-center group-hover:hidden">
-                   <p className="text-[9px] text-gray-400 uppercase tracking-wider font-black">Infractions</p>
-                   <span className={`text-xl font-black ${s.violations > 0 ? 'text-red-500' : 'text-emerald-500'}`}>{s.violations || 0}</span>
-                </div>
-                <button onClick={() => forceSubmit(s.studentId)} className="hidden group-hover:block text-[9px] font-black bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500 hover:text-white px-3 py-2 rounded-lg transition-all uppercase tracking-widest">
-                  Force Kill
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <HistoricalSubmissions exam={exam} />
-    </div>
-  );
-};
-
 export const TeacherDashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState('OVERVIEW');
+  const location = useLocation();
   const [modal, setModal] = useState(false);
   const [exams, setExams] = useState([]);
   const [subs, setSubs] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [viewExam, setViewExam] = useState(null);
   const [toast, setToast] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null); 
   const [editingId, setEditingId] = useState(null);
@@ -376,32 +237,26 @@ export const TeacherDashboard = () => {
     setModal(true);
   };
 
-  // 🚀 SOCKET INJECTED: Toggling status now forcefully broadcasts changes!
   const toggleStatus = async (exam, status) => {
     await api.patch(`/exams/${exam._id}/status`, { status }).catch(() => {});
     
-    // Broadcast status change immediately
     import('../services/socket').then(({ getSocket }) => {
       const socket = getSocket();
       if (socket) socket.emit('exam_status_changed', { examId: exam._id, status });
     });
 
     load();
-    if (viewExam && viewExam._id === exam._id) setViewExam({...viewExam, status});
   };
 
-  // 🚀 SOCKET INJECTED: Dumping an exam immediately drops connected students!
   const deleteExam = async (id) => {
     showConfirm('Are you sure you want to dump this exam?', async () => {
       await api.delete(`/exams/${id}`).catch(() => {});
       
-      // Broadcast deletion signal
       import('../services/socket').then(({ getSocket }) => {
         const socket = getSocket();
         if (socket) socket.emit('exam_deleted', { examId: id });
       });
 
-      if (viewExam?._id === id) setViewExam(null);
       load();
     });
   };
@@ -449,7 +304,6 @@ export const TeacherDashboard = () => {
       if (editingId) {
         await api.put(`/exams/${editingId}`, payload); 
         
-        // 🚀 SOCKET INJECTED: Updating an exam broadcasts a status refresh!
         import('../services/socket').then(({ getSocket }) => {
           const socket = getSocket();
           if (socket) socket.emit('exam_status_changed', { examId: editingId, status });
@@ -460,10 +314,6 @@ export const TeacherDashboard = () => {
       }
       
       setModal(false); setEditingId(null); setForm(defaultForm); load();
-      if (viewExam && editingId) {
-        const updatedRes = await api.get(`/exams/${editingId}`);
-        setViewExam(updatedRes.data.data);
-      }
     } catch (e) { showToast('Deployment failed.', 'error'); } finally { setSaving(false); }
   };
 
@@ -680,12 +530,15 @@ export const TeacherDashboard = () => {
         </div>
         
         <nav className="flex-1 space-y-2">
-          {[{ icon: <LayoutGrid size={18}/>, label: 'OVERVIEW' }, { icon: <FileText size={18}/>, label: 'EXAMS' }, { icon: <ShieldAlert size={18}/>, label: 'MONITORING' }].map(item => (
-            <button key={item.label} onClick={() => { setTab(item.label); setViewExam(null); }}
-              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-black text-[10px] tracking-[0.15em] transition-all shadow-sm border ${tab === item.label ? 'bg-[#4B775E] text-white border-[#4B775E] shadow-emerald-900/20 translate-x-1' : 'bg-white text-gray-400 border-transparent hover:border-gray-100 hover:bg-gray-50 hover:text-gray-600'}`}>
+          {[{ icon: <LayoutGrid size={18}/>, label: 'OVERVIEW', to: 'overview' }, 
+            { icon: <ShieldAlert size={18}/>, label: 'MONITORING', to: 'monitoring' }].map(item => {
+            const isActive = location.pathname.includes(item.to);
+            return (
+            <NavLink key={item.label} to={item.to}
+              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-black text-[10px] tracking-[0.15em] transition-all shadow-sm border ${isActive ? 'bg-[#4B775E] text-white border-[#4B775E] shadow-emerald-900/20 translate-x-1' : 'bg-white text-gray-400 border-transparent hover:border-gray-100 hover:bg-gray-50 hover:text-gray-600'}`}>
               {item.icon}{item.label}
-            </button>
-          ))}
+            </NavLink>
+          )})}
         </nav>
         
         <div className="mt-auto pt-6 border-t border-gray-100 relative group mb-4">
@@ -710,97 +563,8 @@ export const TeacherDashboard = () => {
       <div className="flex-1 overflow-y-auto bg-gray-50/50 p-8 lg:p-12 pb-24 relative">
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none transform translate-x-1/3 -translate-y-1/3"></div>
 
-        {viewExam ? <ExamDetail exam={viewExam} subs={subs} loadSubs={loadSubs} setViewExam={setViewExam} openEditModal={openEditModal} toggleStatus={toggleStatus} deleteExam={deleteExam} showConfirm={showConfirm} /> : (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative z-10">
-            <div className="flex justify-between items-end mb-10">
-              <div>
-                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em] mb-2 border-b border-emerald-100 inline-block pb-1">System Control</p>
-                <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tight">{tab}</h2>
-              </div>
-              <button onClick={() => { setEditingId(null); setForm(defaultForm); setModal(true); }} className="bg-gray-900 hover:bg-black text-white px-6 py-4 rounded-2xl font-black text-[10px] tracking-[0.1em] uppercase flex items-center gap-3 shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all">
-                <div className="bg-white/20 p-1 rounded-md"><Plus size={14}/></div> Generate Exam
-              </button>
-            </div>
+        <Outlet context={{ exams, subs, loadSubs, loading, setModal, openEditModal, toggleStatus, deleteExam, showConfirm }} />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-              {[{ l: 'Total Exams', v: exams.length, c: 'text-gray-900', i: '📦' },
-                { l: 'Live Exams', v: exams.filter(e => e.status === 'active' || e.status === 'published').length, c: 'text-emerald-600', i: '📡' },
-                { l: 'Drafted Exams', v: exams.filter(e => e.status === 'draft').length, c: 'text-amber-500', i: '📝' },
-                { l: 'Past Exams', v: exams.filter(e => e.status === 'ended').length, c: 'text-gray-400', i: '🏁' }
-              ].map((s, i) => (
-                <div key={i} className="bg-white p-8 rounded-3xl border border-gray-100 shadow-[0_4px_24px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.04)] transition-all hover:-translate-y-1 group">
-                  <div className="flex justify-between items-start mb-6">
-                    <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-lg shadow-sm border border-gray-100 group-hover:scale-110 transition-transform">{s.i}</div>
-                  </div>
-                  <h3 className={`text-4xl font-black mb-2 ${s.c}`}>{s.v}</h3>
-                  <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em]">{s.l}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-[0_8px_32px_rgba(0,0,0,0.02)] overflow-hidden">
-              <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-                <h4 className="text-xs font-black text-gray-900 uppercase tracking-[0.15em] flex items-center gap-3">
-                  <div className="w-2 h-8 bg-[#4B775E] rounded-full"></div>
-                  Exams Registry
-                </h4>
-              </div>
-              
-              {loading ? (
-                <div className="p-16 flex flex-col items-center justify-center opacity-50">
-                   <div className="w-8 h-8 border-4 border-gray-200 border-t-[#4B775E] rounded-full animate-spin mb-4"></div>
-                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Querying Databanks...</p>
-                </div>
-              ) : exams.length === 0 ? (
-                <div className="p-20 text-center">
-                   <div className="text-5xl mb-4 opacity-20">📂</div>
-                   <p className="text-xs font-black text-gray-300 uppercase tracking-widest italic">No deployments found.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead className="bg-white border-b border-gray-100"><tr className="text-[9px] font-black text-gray-400 uppercase tracking-[0.15em]">
-                      <th className="px-8 py-5">Exam Profile</th><th className="px-6 py-5">Course</th><th className="px-6 py-5">Questions</th><th className="px-6 py-5">Exam Status</th><th className="px-8 py-5 text-right">Actions</th>
-                    </tr></thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {exams.map(exam => (
-                        <tr key={exam._id} className="hover:bg-gray-50/80 cursor-pointer transition-colors group" onClick={() => setViewExam(exam)}>
-                          <td className="px-8 py-6">
-                            <p className="font-black text-sm text-gray-900 group-hover:text-[#4B775E] transition-colors">{exam.title}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                               <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Window: {exam.durationMinutes}m</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-6 text-xs font-bold text-gray-500">{exam.course || '—'}</td>
-                          <td className="px-6 py-6"><span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-lg text-[10px] font-black border border-gray-200">{exam.questions?.length || 0} Nodes</span></td>
-                          <td className="px-6 py-6">
-                            <div className="flex items-center gap-2">
-                              {exam.status === 'active' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>}
-                              <span className={`text-[9px] font-black px-3 py-1.5 rounded-md uppercase tracking-widest shadow-sm ${exam.status === 'active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : exam.status === 'published' ? 'bg-blue-50 text-blue-600 border border-blue-100' : exam.status === 'draft' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-gray-50 text-gray-400 border border-gray-200'}`}>{exam.status}</span>
-                            </div>
-                          </td>
-                          <td className="px-8 py-6 text-right" onClick={e => e.stopPropagation()}>
-                            <div className="flex gap-2 justify-end opacity-60 group-hover:opacity-100 transition-opacity">
-                              {exam.status === 'draft' && (
-                                <button onClick={() => openEditModal(exam)} className="text-[10px] bg-white border border-gray-200 text-gray-600 hover:border-gray-400 hover:text-gray-900 px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm transition-all flex items-center gap-1">
-                                  <Edit size={12}/> Edit
-                                </button>
-                              )}
-                              {exam.status === 'draft' && <button onClick={() => toggleStatus(exam, 'published')} className="text-[10px] bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-100 px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm transition-all">Publish</button>}
-                              {exam.status === 'published' && <button onClick={() => toggleStatus(exam, 'draft')} className="text-[10px] bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-100 px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm transition-all">Revoke</button>}
-                              {exam.status === 'active' && <button onClick={() => toggleStatus(exam, 'ended')} className="text-[10px] bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm transition-all">End</button>}
-                              <button onClick={() => deleteExam(exam._id)} className="text-gray-300 hover:text-red-500 p-1.5 bg-white border border-transparent hover:border-red-100 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={14}/></button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

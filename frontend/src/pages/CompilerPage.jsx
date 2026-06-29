@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
 import api from '../services/api';
 
@@ -81,7 +82,14 @@ export function CompilerPage() {
   const [code, setCode]         = useState('');
   const [stdin, setStdin]       = useState('');
   const [fontSize, setFontSize] = useState(14);
-  const [tab, setTab]           = useState('output'); // output | testcases | judge
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'output';
+  const setTab = (newTab) => {
+    setSearchParams(prev => {
+      prev.set('tab', newTab);
+      return prev;
+    });
+  };
   const [running, setRunning]   = useState(false);
   const [judging, setJudging]   = useState(false);
   const [runResult, setRunResult]   = useState(null);

@@ -1,4 +1,5 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronDown, Download, Check, X, Minus, AlertCircle } from 'lucide-react';
 import api from '../../services/api';
 import StudentReport from './StudentReport';
@@ -12,7 +13,8 @@ const statusConfig = {
 };
 
 const StudentAccordionTable = ({ results, examId, examTitle }) => {
-  const [expandedId, setExpandedId] = useState(null);
+  const { submissionId: expandedId } = useParams();
+  const navigate = useNavigate();
   const [reportData, setReportData] = useState({});
   const [loadingId, setLoadingId] = useState(null);
   const reportCache = useRef({});
@@ -40,12 +42,15 @@ const StudentAccordionTable = ({ results, examId, examTitle }) => {
 
   const toggleExpand = useCallback((submissionId) => {
     if (expandedId === submissionId) {
-      setExpandedId(null);
+      navigate(`/teacher-dashboard/exams/${examId}`);
     } else {
-      setExpandedId(submissionId);
-      if (!reportCache.current[submissionId]) {
-        fetchReport(submissionId);
-      }
+      navigate(`/teacher-dashboard/exams/${examId}/submissions/${submissionId}`);
+    }
+  }, [expandedId, examId, navigate]);
+
+  useEffect(() => {
+    if (expandedId && !reportCache.current[expandedId]) {
+      fetchReport(expandedId);
     }
   }, [expandedId, fetchReport]);
 
