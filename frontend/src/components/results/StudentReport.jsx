@@ -1,8 +1,6 @@
 import React from 'react';
-import { Download, FileSpreadsheet, FileText, User, BookOpen, BarChart3, ClipboardList, MessageSquare } from 'lucide-react';
+import { User, BookOpen, BarChart3, ClipboardList, MessageSquare } from 'lucide-react';
 import QuestionAccordion from './QuestionAccordion';
-import { downloadReportPDF } from './ReportPdfGenerator';
-import { exportStudentReportAsExcel, exportStudentReportAsCSV } from './ExportUtils';
 
 // ─── Skeleton Loader ─────────────────────────────────────────
 const ReportSkeleton = () => (
@@ -55,28 +53,7 @@ const StudentReport = ({ report, loading }) => {
 
   return (
     <div className="p-6 space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
-      {/* ─── Download Buttons ─── */}
-      <div className="flex items-center gap-2 justify-end flex-wrap">
-        <button
-          onClick={() => downloadReportPDF(report)}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-black hover:-translate-y-0.5 transition-all"
-        >
-          <Download size={12} /> Download PDF
-        </button>
-        <button
-          onClick={() => exportStudentReportAsExcel(report)}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-100 transition-all"
-        >
-          <FileSpreadsheet size={12} /> Excel
-        </button>
-        <button
-          onClick={() => exportStudentReportAsCSV(report)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 border border-blue-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-100 transition-all"
-        >
-          <FileText size={12} /> CSV
-        </button>
-      </div>
-
+      
       {/* ─── Student & Exam Info (Two Cards) ─── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Student Info Card */}
