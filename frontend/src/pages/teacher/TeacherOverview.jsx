@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Edit, Trash2, BarChart2 } from 'lucide-react';
 
 const TeacherOverview = () => {
   const navigate = useNavigate();
@@ -60,7 +60,7 @@ const TeacherOverview = () => {
               </tr></thead>
               <tbody className="divide-y divide-gray-50">
                 {exams.map(exam => (
-                  <tr key={exam._id} className="hover:bg-gray-50/80 cursor-pointer transition-colors group" onClick={() => navigate(`/teacher-dashboard/exams/${exam._id}`)}>
+                  <tr key={exam._id} className="hover:bg-gray-50/80 transition-colors group">
                     <td className="px-8 py-6">
                       <p className="font-black text-sm text-gray-900 group-hover:text-[#4B775E] transition-colors">{exam.title}</p>
                       <div className="flex items-center gap-2 mt-1">
@@ -75,8 +75,13 @@ const TeacherOverview = () => {
                         <span className={`text-[9px] font-black px-3 py-1.5 rounded-md uppercase tracking-widest shadow-sm ${exam.status === 'active' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : exam.status === 'published' ? 'bg-blue-50 text-blue-600 border border-blue-100' : exam.status === 'draft' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-gray-50 text-gray-400 border border-gray-200'}`}>{exam.status}</span>
                       </div>
                     </td>
-                    <td className="px-8 py-6 text-right" onClick={e => e.stopPropagation()}>
+                    <td className="px-8 py-6 text-right">
                       <div className="flex gap-2 justify-end opacity-60 group-hover:opacity-100 transition-opacity">
+                        
+                        <button onClick={() => navigate(`/teacher-dashboard/exams/${exam._id}`)} className="text-[10px] bg-purple-50 text-purple-600 hover:bg-purple-100 border border-purple-100 px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm transition-all flex items-center gap-1">
+                          <BarChart2 size={12}/> Results
+                        </button>
+                        
                         {exam.status === 'draft' && (
                           <button onClick={() => openEditModal(exam)} className="text-[10px] bg-white border border-gray-200 text-gray-600 hover:border-gray-400 hover:text-gray-900 px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm transition-all flex items-center gap-1">
                             <Edit size={12}/> Edit
