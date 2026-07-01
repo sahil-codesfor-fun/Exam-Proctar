@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext'; 
+import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 
 export const LandingPage = () => {
   const navigate = useNavigate();
@@ -9,19 +10,54 @@ export const LandingPage = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [status, setStatus] = useState({ message: '', type: 'info' });
   const [loading, setLoading] = useState(false);
-  // 🚀 NEW FIELDS FOR REGISTRATION
-  const [credentials, setCredentials] = useState({ name: '', studentId: '', email: '', password: '', course: '', section: '' });
+  
+  const [credentials, setCredentials] = useState({ name: '', studentId: '', email: '', password: '', course: '', section: '', leetcodeUsername: '' });
+  
+  // Real-Time Verification State
+  const [leetStatus, setLeetStatus] = useState('idle'); 
+  const debounceTimer = useRef(null);
 
-  const handleChange = (e) => setCredentials({ ...credentials, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setCredentials(prev => ({ ...prev, [name]: value }));
+
+    if (name === 'leetcodeUsername') {
+      if (value.trim() === '') {
+        setLeetStatus('idle');
+        return;
+      }
+      
+      setLeetStatus('checking');
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      
+      debounceTimer.current = setTimeout(async () => {
+        try {
+          const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/leetcode/verify/${value}`);
+          if (res.data.success) {
+            setLeetStatus('valid');
+          } else {
+            setLeetStatus('invalid');
+          }
+        } catch (error) {
+          setLeetStatus('invalid');
+        }
+      }, 800);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSignUp && credentials.leetcodeUsername && leetStatus === 'invalid') {
+      setStatus({ message: '❌ Please provide a valid LeetCode username.', type: 'error' });
+      return;
+    }
+
     setLoading(true);
     setStatus({ message: isSignUp ? 'Creating account…' : 'Authenticating…', type: 'info' });
     const endpoint = isSignUp ? '/auth/signup' : '/auth/login';
+    
     try {
       const payload = { ...credentials, role: 'student' };
-      
       if (!isSignUp && !credentials.email.includes('@')) {
         payload.id = credentials.email;
         delete payload.email;
@@ -89,7 +125,6 @@ export const LandingPage = () => {
                   <input type="text" name="studentId" value={credentials.studentId} onChange={handleChange} required className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white outline-none transition-all focus:border-emerald-400" placeholder="e.g. 2401301059" />
                 </div>
                 
-                {/* 🚀 TARGETING DROPDOWNS */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-800 mb-1 uppercase tracking-wider">Course</label>
@@ -114,6 +149,27 @@ export const LandingPage = () => {
                     </select>
                   </div>
                 </div>
+
+                <div className="relative">
+                  <label className="block text-xs font-bold text-gray-800 mb-1 uppercase tracking-wider">LeetCode Username</label>
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      name="leetcodeUsername" 
+                      value={credentials.leetcodeUsername} 
+                      onChange={handleChange} 
+                      required 
+                      className={`w-full px-4 py-3 rounded-lg border bg-gray-50 focus:bg-white outline-none transition-all pr-12 ${leetStatus === 'valid' ? 'border-emerald-400' : leetStatus === 'invalid' ? 'border-red-400' : 'border-gray-200 focus:border-emerald-400'}`} 
+                      placeholder="e.g. neetcode" 
+                    />
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                      {leetStatus === 'checking' && <Loader2 size={18} className="animate-spin text-blue-500" />}
+                      {leetStatus === 'valid' && <CheckCircle2 size={18} className="text-emerald-500" />}
+                      {leetStatus === 'invalid' && <XCircle size={18} className="text-red-500" />}
+                    </div>
+                  </div>
+                  {leetStatus === 'invalid' && <p className="text-[10px] font-bold text-red-500 mt-1 uppercase">User not found</p>}
+                </div>
               </>
             )}
 
@@ -127,7 +183,7 @@ export const LandingPage = () => {
               <input type="password" name="password" value={credentials.password} onChange={handleChange} required className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white outline-none transition-all focus:border-emerald-400" placeholder="••••••••" />
             </div>
 
-            <button type="submit" disabled={loading} className="w-full bg-[#1A5F53] hover:bg-[#134d42] disabled:opacity-60 text-white font-bold py-4 rounded-lg shadow-lg transition-all transform active:scale-[0.98]">
+            <button type="submit" disabled={loading || (isSignUp && leetStatus === 'invalid')} className="w-full bg-[#1A5F53] hover:bg-[#134d42] disabled:opacity-60 text-white font-bold py-4 rounded-lg shadow-lg transition-all transform active:scale-[0.98]">
               {loading ? '⏳ Please wait…' : isSignUp ? 'CREATE ACCOUNT' : 'SIGN IN'}
             </button>
           </form>

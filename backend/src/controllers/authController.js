@@ -7,8 +7,7 @@ const generateToken = (id) => {
 };
 
 export const registerUser = async (req, res) => {
-  // 🚀 GRAB THE NEW COURSE AND SECTION
-  const { name, studentId, email, password, role, course, section } = req.body;
+  const { name, studentId, email, password, role, course, section, leetcodeUsername } = req.body;
 
   try {
     const userExists = await prisma.user.findFirst({
@@ -32,9 +31,9 @@ export const registerUser = async (req, res) => {
       role: role || 'student',
       isActive: true,
       passwordResetRequired: false,
-      // 🚀 INJECT THEM INTO THE DB
       course: role === 'student' ? course : null,
-      section: role === 'student' ? section : null
+      section: role === 'student' ? section : null,
+      leetcodeUsername: role === 'student' ? leetcodeUsername : null
     };
 
     if (newUserData.role === 'teacher' || newUserData.role === 'faculty') {

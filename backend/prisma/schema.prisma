@@ -16,8 +16,9 @@ model User {
   studentId             String?
   facultyId             String?      @unique
   department            String?
-  course                String?      // 🚀 NEW: Student's Course
-  section               String?      // 🚀 NEW: Student's Section
+  course                String?
+  section               String?
+  leetcodeUsername      String?      // New field for LeetCode tracking
   isActive              Boolean      @default(true)
   passwordResetRequired Boolean      @default(false)
   lastLogin             DateTime?
@@ -26,6 +27,7 @@ model User {
   submissions           Submission[]
   violations            Violation[]
   examsCreated          Exam[]
+  codingMetrics         StudentCodingMetrics[] 
 }
 
 model Exam {
@@ -33,8 +35,8 @@ model Exam {
   title              String
   description        String?      @db.Text
   course             String?
-  targetBatch        String?      // 🚀 NEW: Which Batch can see this?
-  targetSection      String?      // 🚀 NEW: Which Section can see this?
+  targetBatch        String?      
+  targetSection      String?      
   startTime          DateTime?
   endTime            DateTime?    
   durationMinutes    Int
@@ -116,4 +118,21 @@ model Violation {
   timestamp DateTime @default(now())
   exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
   student   User     @relation(fields: [studentId], references: [id])
+}
+
+// NEW: The Upsert Table for Tracking Progress
+model StudentCodingMetrics {
+  id           String   @id @default(uuid())
+  studentId    String
+  platform     String   // e.g., "leetcode"
+  totalSolved  Int      @default(0)
+  easySolved   Int      @default(0)
+  mediumSolved Int      @default(0)
+  hardSolved   Int      @default(0)
+  ranking      Int      @default(0)
+  lastUpdated  DateTime @default(now())
+  user         User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, platform])
+  @@index([studentId])
 }
