@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
+import { LayoutGrid, Code, User as UserIcon, LogOut, Terminal } from 'lucide-react';
 
 export const StudentDashboard = () => {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ export const StudentDashboard = () => {
   
   const [nowTime, setNowTime] = useState(Date.now());
 
+  // Timer interval for real-time exam status updates
   useEffect(() => {
     const ticker = setInterval(() => setNowTime(Date.now()), 1000);
     return () => clearInterval(ticker);
@@ -35,6 +37,7 @@ export const StudentDashboard = () => {
     return null;
   }
 
+  // Your original Data Fetching & Socket Logic 🚀
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -63,10 +66,9 @@ export const StudentDashboard = () => {
     };
     
     fetchData();
-
     const silentPoll = setInterval(fetchData, 15000);
-
     let socket;
+    
     import('../services/socket').then(({ connectSocket }) => {
       socket = connectSocket();
       socket.emit('join_dashboard', { role: 'student' });
@@ -117,47 +119,68 @@ export const StudentDashboard = () => {
     return false;
   });
 
-  const currentTab = location.pathname.includes('profile') ? 'PROFILE' : 'DASHBOARD';
-
   return (
-    <div className="max-w-7xl mx-auto min-h-screen bg-gray-50/30 p-6 sm:p-10 animate-in fade-in duration-700">
+    <div className="flex h-[calc(100vh-80px)] -mt-4 md:-mt-8 -mx-4 md:-mx-8 bg-gray-50/50 overflow-hidden font-sans">
       
-      <div className="fixed bottom-6 left-6 z-50">
-        <button 
-          onClick={() => { logout(); navigate('/'); }} 
-          className="flex items-center gap-2 bg-white hover:bg-red-50 text-gray-500 hover:text-red-600 font-bold py-3 px-5 rounded-xl shadow-lg border border-gray-200 transition-all"
-        >
-          🚪 Logout
+      {/* 🚀 THE NEW LEFT SIDEBAR NAVIGATION */}
+      <div className="w-64 bg-white border-r border-gray-200 flex flex-col justify-between p-6 shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10">
+        <div className="space-y-6">
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2">Main Menu</p>
+          
+          <nav className="space-y-2">
+            <NavLink to="overview" className={({ isActive }) => `flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-200 ${isActive ? 'bg-[#1A5F53] text-white shadow-lg shadow-emerald-900/20' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'}`}>
+              <LayoutGrid size={16} /> Dashboard
+            </NavLink>
+
+            <NavLink to="coding-progress" className={({ isActive }) => `flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider  transition-all duration-200 ${isActive ? 'bg-[#1A5F53] text-white shadow-lg shadow-emerald-900/20' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'}`}>
+              <Code size={16} /> Coding Progress
+            </NavLink>
+
+            <button onClick={() => navigate('/compiler')} className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-200">
+              <Terminal size={16} /> Code Playground
+            </button>
+
+            <NavLink to="profile" className={({ isActive }) => `flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-emerald-100 transition-all duration-200 ${isActive ? 'bg-[#1A5F53] text-white shadow-lg shadow-emerald-900/20' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'}`}>
+              <UserIcon size={16} /> Profile
+            </NavLink>
+          </nav>
+        </div>
+
+        <button onClick={() => { logout(); navigate('/'); }} className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl text-red-500 bg-red-50 hover:bg-red-100 font-bold text-xs uppercase tracking-widest transition-all duration-200 border border-red-100">
+          <LogOut size={16} /> Logout
         </button>
       </div>
 
-      <div className="bg-white rounded-[2.5rem] p-8 xl:p-10 border border-gray-100 shadow-xl shadow-gray-200/20 mb-10 flex flex-col md:flex-row justify-between items-center gap-6">
-        <div>
-          <h2 className="text-3xl xl:text-4xl font-black text-gray-900 mb-2 uppercase tracking-tight">
-            Welcome, {user?.name?.split(' ')[0]} <span className="animate-pulse">👋</span>
-          </h2>
-          <div className="flex items-center gap-3">
-             <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Node ID: {user?.studentId || 'EXTERNAL'}</p>
-             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-             <span className="text-[10px] font-black text-emerald-600 uppercase tracking-tighter bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">Live Status: Verified</span>
+      {/* 🚀 THE MAIN CONTENT AREA */}
+      <div className="flex-1 h-full overflow-y-auto p-6 md:p-10 relative">
+        <div className="max-w-6xl mx-auto w-full">
+          
+          {/* Your Original Welcome Banner */}
+          <div className="bg-white rounded-[2.5rem] p-8 xl:p-10 border border-gray-100 shadow-xl shadow-gray-200/20 mb-8 flex justify-between items-center gap-6">
+            <div>
+              <h2 className="text-3xl xl:text-4xl font-black text-gray-900 mb-2 uppercase tracking-tight">
+                Welcome, {user?.name?.split(' ')[0]} <span className="animate-pulse">👋</span>
+              </h2>
+              <div className="flex items-center gap-3">
+                 <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Node ID: {user?.studentId || 'EXTERNAL'}</p>
+                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                 <span className="text-[10px] font-black text-emerald-600 uppercase tracking-tighter bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">Live Status: Verified</span>
+              </div>
+            </div>
           </div>
-        </div>
-        
-        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 w-full md:w-auto">
-          <NavLink to="/student-dashboard/overview" className={({ isActive }) => `text-center flex-1 md:flex-none font-black text-[10px] uppercase tracking-widest py-4 px-8 rounded-2xl transition-all shadow-lg active:scale-95 ${isActive ? 'bg-gray-900 text-white shadow-gray-900/10' : 'bg-white text-gray-400 border border-gray-100'}`}>🏠 Dashboard</NavLink>
-          <button onClick={() => navigate('/compiler')} className="text-center flex-1 md:flex-none bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-black text-[10px] uppercase tracking-widest py-4 px-8 rounded-2xl transition-all border border-emerald-100 active:scale-95">💻 Code Playground</button>
-          <NavLink to="/student-dashboard/profile" className={({ isActive }) => `text-center flex-1 md:flex-none font-black text-[10px] uppercase tracking-widest py-4 px-8 rounded-2xl transition-all shadow-lg active:scale-95 ${isActive ? 'bg-emerald-600 text-white shadow-emerald-900/10' : 'bg-white text-gray-400 border border-gray-100'}`}>👤 Profile</NavLink>
+
+          {/* Dynamic Content Outlet */}
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-32 opacity-30">
+              <div className="w-10 h-10 border-2 border-gray-900 border-t-transparent rounded-full animate-spin mb-4"></div>
+              <p className="text-[10px] font-black uppercase tracking-widest">Querying Assessments...</p>
+            </div>
+          ) : (
+            <Outlet context={{ exams, submissions, activeExams, upcomingExams, getSub, nowTime, user }} />
+          )}
+
         </div>
       </div>
-
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-32 opacity-30">
-          <div className="w-10 h-10 border-2 border-gray-900 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-[10px] font-black uppercase tracking-widest">Querying Assessments...</p>
-        </div>
-      ) : (
-        <Outlet context={{ exams, submissions, activeExams, upcomingExams, getSub, nowTime, user }} />
-      )}
     </div>
   );
 };

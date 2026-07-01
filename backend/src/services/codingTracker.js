@@ -19,7 +19,7 @@ const fetchLeetCodeStats = async (username) => {
   const response = await axios.post('https://leetcode.com/graphql', {
     query, variables: { username }
   }, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (Nexus Proctor System)' }
+    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
   });
 
   const submissions = response.data?.data?.matchedUser?.submitStats?.acSubmissionNum || [];
@@ -34,57 +34,70 @@ const fetchLeetCodeStats = async (username) => {
 };
 
 export const startCodingTracker = () => {
-  // Runs every Sunday at 03:00 AM
-  cron.schedule('0 3 * * 0', async () => {
-    console.log('🔄 [CRON] Starting Throttled LeetCode Sync...');
+  // 🚀 Set back to Thursday 12:02 AM (02 00 * * 4) so it stops looping!
+  cron.schedule('18 00 * * 4', async () => {
+    console.log('🔄 [CRON] Executing Weekly LeetCode Sync Engine...');
     
     try {
+      // 1. Check how many students the database has
       const students = await prisma.user.findMany({
         where: { leetcodeUsername: { not: null }, role: 'student' }
       });
 
+      console.log(`📊 [CRON] Found ${students.length} students to sync.`);
+      
+      // The "Penalty Box" for failed syncs
+      const failedQueue = [];
+
+      // Helper function to update DB
+      const processStudentData = async (student) => {
+        const stats = await fetchLeetCodeStats(student.leetcodeUsername);
+        await prisma.studentCodingMetrics.upsert({
+          where: { studentId_platform: { studentId: student.id, platform: 'leetcode' } },
+          update: {
+            totalSolved: stats.total, easySolved: stats.easy, mediumSolved: stats.medium,
+            hardSolved: stats.hard, ranking: stats.ranking, weekStartCount: stats.total,
+            lastUpdated: new Date()
+          },
+          create: {
+            studentId: student.id, platform: 'leetcode', totalSolved: stats.total,
+            easySolved: stats.easy, mediumSolved: stats.medium, hardSolved: stats.hard,
+            ranking: stats.ranking, weekStartCount: stats.total, monthStartCount: stats.total
+          }
+        });
+      };
+
+      // 2. FIRST PASS: Try everyone once
       for (const student of students) {
         try {
-          const stats = await fetchLeetCodeStats(student.leetcodeUsername);
-          
-          await prisma.studentCodingMetrics.upsert({
-            where: {
-              studentId_platform: {
-                studentId: student.id,
-                platform: 'leetcode'
-              }
-            },
-            update: {
-              totalSolved: stats.total,
-              easySolved: stats.easy,
-              mediumSolved: stats.medium,
-              hardSolved: stats.hard,
-              ranking: stats.ranking,
-              lastUpdated: new Date()
-            },
-            create: {
-              studentId: student.id,
-              platform: 'leetcode',
-              totalSolved: stats.total,
-              easySolved: stats.easy,
-              mediumSolved: stats.medium,
-              hardSolved: stats.hard,
-              ranking: stats.ranking
-            }
-          });
-
-          // Wait 3 seconds before next student
-          await sleep(3000);
-
+          await processStudentData(student);
+          await sleep(3000); // Polite 3-second break
         } catch (err) {
-          console.error(`❌ Failed to sync ${student.leetcodeUsername}:`, err.message);
+          console.warn(`⚠️ [CRON] First attempt failed for ${student.leetcodeUsername}. Adding to retry queue.`);
+          failedQueue.push(student); // Push to the back of the line
           await sleep(3000);
         }
       }
-      
-      console.log('✅ [CRON] LeetCode Sync Complete!');
+
+      // 3. SECOND PASS: Try the failed ones exactly one more time at the end
+      if (failedQueue.length > 0) {
+        console.log(`🔄 [CRON] Attempting final retry for ${failedQueue.length} failed students...`);
+        
+        for (const student of failedQueue) {
+          try {
+            await processStudentData(student);
+            console.log(`✅ [CRON] Success on retry for ${student.leetcodeUsername}!`);
+            await sleep(3000);
+          } catch (err) {
+            console.error(`❌ [CRON] Final failure for ${student.leetcodeUsername}. Skipping until next week.`, err.message);
+            await sleep(3000);
+          }
+        }
+      }
+
+      console.log('✅ [CRON] Finished Syncing All Active Profiles!');
     } catch (error) {
-      console.error('❌ [CRON] Critical Failure in Tracking Engine:', error);
+      console.error('❌ [CRON] Fatal runtime error inside sync engine:', error);
     }
   });
 };

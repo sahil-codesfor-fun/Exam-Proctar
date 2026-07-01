@@ -18,7 +18,7 @@ model User {
   department            String?
   course                String?
   section               String?
-  leetcodeUsername      String?      // New field for LeetCode tracking
+  leetcodeUsername      String?      
   isActive              Boolean      @default(true)
   passwordResetRequired Boolean      @default(false)
   lastLogin             DateTime?
@@ -120,18 +120,23 @@ model Violation {
   student   User     @relation(fields: [studentId], references: [id])
 }
 
-// NEW: The Upsert Table for Tracking Progress
+// Highly Optimized Metrics Table
 model StudentCodingMetrics {
-  id           String   @id @default(uuid())
-  studentId    String
-  platform     String   // e.g., "leetcode"
-  totalSolved  Int      @default(0)
-  easySolved   Int      @default(0)
-  mediumSolved Int      @default(0)
-  hardSolved   Int      @default(0)
-  ranking      Int      @default(0)
-  lastUpdated  DateTime @default(now())
-  user         User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  id              String   @id @default(uuid())
+  studentId       String
+  platform        String   
+  totalSolved     Int      @default(0)
+  easySolved      Int      @default(0)
+  mediumSolved    Int      @default(0)
+  hardSolved      Int      @default(0)
+  ranking         Int      @default(0)
+  
+  // 🚀 NEW TRACKER FIELDS: Stores snapshot counts to calculate delta differences
+  weekStartCount  Int      @default(0)
+  monthStartCount Int      @default(0)
+  
+  lastUpdated     DateTime @default(now())
+  user            User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, platform])
   @@index([studentId])

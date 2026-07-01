@@ -7,6 +7,8 @@ import { AdminLogin } from './pages/AdminLogin';
 import { StudentDashboard } from './pages/StudentDashboard';
 import StudentOverview from './pages/student/StudentOverview';
 import StudentProfile from './pages/student/StudentProfile';
+// 🚀 NEW IMPORT: Your Coding Progress Page!
+import { CodingProgress } from './pages/student/CodingProgress'; 
 import { TeacherDashboard } from './pages/TeacherDashboard';
 import TeacherOverview from './pages/teacher/TeacherOverview';
 import TeacherMonitoring from './pages/teacher/TeacherMonitoring';
@@ -63,6 +65,8 @@ function App() {
               <Route index element={<Navigate to="overview" replace />} />
               <Route path="overview" element={<StudentOverview />} />
               <Route path="profile" element={<StudentProfile />} />
+              {/* 🚀 NEW ROUTE MOUNTED HERE */}
+              <Route path="coding-progress" element={<CodingProgress />} />
             </Route>
 
             <Route path="/teacher-dashboard" element={

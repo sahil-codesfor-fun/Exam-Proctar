@@ -7,12 +7,14 @@ import app from './src/app.js';
 import { setupProctorSockets } from './src/sockets/proctorSocket.js';
 import { sendEmail } from './src/services/emailService.js';
 import leetcodeRoutes from './src/routes/leetcodeRoutes.js';
-app.use('/api/leetcode', leetcodeRoutes);
+import codingMetricsRoutes from './src/routes/codingMetricsRoutes.js';
 import { startCodingTracker } from './src/services/codingTracker.js';
 startCodingTracker();
 
 console.log("EMAIL_USER:", process.env.EMAIL_USER);
 console.log("EMAIL_PASS:", process.env.EMAIL_PASS);
+app.use('/api/leetcode', leetcodeRoutes);
+app.use('/api/metrics', codingMetricsRoutes);
 
 // ── SMTP Test Route ───────────────────────────────────
 app.get("/test-email", async (req, res) => {
