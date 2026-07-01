@@ -6,23 +6,11 @@ import { Plus, X, Trash2, CheckCircle2, LayoutGrid, FileText, ShieldAlert, Uploa
 import * as XLSX from 'xlsx'; 
 
 const EMPTY_Q = { 
-  type: 'mcq', 
-  title: '', 
-  description: '', 
-  points: 10, 
-  options: [
-    { text: '', isCorrect: false },
-    { text: '', isCorrect: false },
-    { text: '', isCorrect: false },
-    { text: '', isCorrect: false }
-  ], 
+  type: 'mcq', title: '', description: '', points: 10, 
+  options: [{ text: '', isCorrect: false }, { text: '', isCorrect: false }, { text: '', isCorrect: false }, { text: '', isCorrect: false }], 
   testCases: [{ input: '', expectedOutput: '', isHidden: false }], 
-  matchingPairs: [
-    { leftItem: '', rightItem: '' }, 
-    { leftItem: '', rightItem: '' }
-  ], 
-  timeLimitSeconds: 5, 
-  constraints: '' 
+  matchingPairs: [{ leftItem: '', rightItem: '' }, { leftItem: '', rightItem: '' }], 
+  timeLimitSeconds: 5, constraints: '' 
 };
 
 const formatForInput = (dateString) => {
@@ -30,11 +18,8 @@ const formatForInput = (dateString) => {
   const d = new Date(dateString);
   if (isNaN(d.getTime())) return '';
   const pad = (n) => String(n).padStart(2, '0');
-  const y = d.getFullYear();
-  const m = pad(d.getMonth() + 1);
-  const day = pad(d.getDate());
-  const h = pad(d.getHours());
-  const min = pad(d.getMinutes());
+  const y = d.getFullYear(); const m = pad(d.getMonth() + 1); const day = pad(d.getDate());
+  const h = pad(d.getHours()); const min = pad(d.getMinutes());
   return `${y}-${m}-${day}T${h}:${min}`;
 };
 
@@ -57,7 +42,7 @@ export const TeacherDashboard = () => {
   const [activeTcIndex, setActiveTcIndex] = useState(null);
 
   const defaultForm = { 
-    title: '', description: '', course: '', startTime: '', durationMinutes: 60, 
+    title: '', description: '', course: '', targetBatch: '', targetSection: '', startTime: '', durationMinutes: 60, 
     randomizeQuestions: false, questionsToServe: '', 
     proctoring: { maxViolations: 3, restrictionMinutes: 30, requireFullscreen: true, disableCopyPaste: true, autoSubmitOnMax: true, enableWebcam: false, enableTypeDistribution: false, typeDistribution: { mcq: '', coding: '', matching: '', subjective: '' } }, 
     questions: [{ ...EMPTY_Q }] 
@@ -80,8 +65,7 @@ export const TeacherDashboard = () => {
   const updQ = (i, field, val) => setForm(p => ({ ...p, questions: p.questions.map((q, idx) => idx === i ? { ...q, [field]: val } : q) }));
   const updOpt = (qi, oi, field, val) => {
     setForm(p => {
-      const qs = [...p.questions];
-      const opts = [...qs[qi].options];
+      const qs = [...p.questions]; const opts = [...qs[qi].options];
       if (field === 'isCorrect') opts.forEach((o, i) => o.isCorrect = i === oi);
       else opts[oi] = { ...opts[oi], [field]: val };
       qs[qi] = { ...qs[qi], options: opts };
@@ -90,19 +74,10 @@ export const TeacherDashboard = () => {
   };
   const addTc = (qi) => updQ(qi, 'testCases', [...form.questions[qi].testCases, { input: '', expectedOutput: '', isHidden: false }]);
   const rmTc = (qi, ti) => updQ(qi, 'testCases', form.questions[qi].testCases.filter((_, i) => i !== ti));
-  const updTc = (qi, ti, field, val) => {
-    const tcs = [...form.questions[qi].testCases];
-    tcs[ti] = { ...tcs[ti], [field]: val };
-    updQ(qi, 'testCases', tcs);
-  };
-
+  const updTc = (qi, ti, field, val) => { const tcs = [...form.questions[qi].testCases]; tcs[ti] = { ...tcs[ti], [field]: val }; updQ(qi, 'testCases', tcs); };
   const addMp = (qi) => updQ(qi, 'matchingPairs', [...(form.questions[qi].matchingPairs || []), { leftItem: '', rightItem: '' }]);
   const rmMp = (qi, mpi) => updQ(qi, 'matchingPairs', form.questions[qi].matchingPairs.filter((_, i) => i !== mpi));
-  const updMp = (qi, mpi, field, val) => {
-    const mps = [...(form.questions[qi].matchingPairs || [])];
-    mps[mpi] = { ...mps[mpi], [field]: val };
-    updQ(qi, 'matchingPairs', mps);
-  };
+  const updMp = (qi, mpi, field, val) => { const mps = [...(form.questions[qi].matchingPairs || [])]; mps[mpi] = { ...mps[mpi], [field]: val }; updQ(qi, 'matchingPairs', mps); };
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
@@ -135,36 +110,26 @@ export const TeacherDashboard = () => {
             else if (upper.startsWith('PAIR:')) {
               const pairText = line.substring(5).trim();
               const [left, right] = pairText.split('|').map(s => s.trim());
-              if (left && right) {
-                q.matchingPairs.push({ leftItem: left, rightItem: right });
-              }
+              if (left && right) { q.matchingPairs.push({ leftItem: left, rightItem: right }); }
             }
           });
           if (q.type === 'coding' && q.testCases.length === 0) q.testCases.push({ input: '', expectedOutput: '', isHidden: false });
           parsedQs.push(q);
         });
       } else if (ext === 'csv' || ext === 'xlsx') {
-        const data = await file.arrayBuffer();
-        const workbook = XLSX.read(data);
-        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+        const data = await file.arrayBuffer(); const workbook = XLSX.read(data); const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
         rows.forEach(row => {
           const type = (row['Type'] || 'subjective').toLowerCase().trim();
           let q = { ...EMPTY_Q, type, title: row['Title'] || 'Imported Question', description: row['Description'] || '', points: Number(row['Points']) || 10, options: [], testCases: [], matchingPairs: [] };
           if (type === 'mcq') {
             const correctIndex = Number(row['Correct Option']) || 1;
-            [1, 2, 3, 4].forEach(i => {
-              if (row[`Option ${i}`]) q.options.push({ text: String(row[`Option ${i}`]), isCorrect: i === correctIndex });
-            });
+            [1, 2, 3, 4].forEach(i => { if (row[`Option ${i}`]) q.options.push({ text: String(row[`Option ${i}`]), isCorrect: i === correctIndex }); });
             if (q.options.length === 0) q.options = [{text:'Option A', isCorrect:true}, {text:'Option B', isCorrect:false}];
           } else if (type === 'coding') {
             q.constraints = row['Constraints'] || '';
             for (let i = 1; i <= 10; i++) {
                if (row[`TC${i}_IN`] !== undefined || row[`TC${i}_OUT`] !== undefined) {
-                  q.testCases.push({
-                     input: String(row[`TC${i}_IN`] || '').replace(/\\n/g, '\n'),
-                     expectedOutput: String(row[`TC${i}_OUT`] || '').replace(/\\n/g, '\n'),
-                     isHidden: String(row[`TC${i}_HIDDEN`] || '').toLowerCase() === 'true'
-                  });
+                  q.testCases.push({ input: String(row[`TC${i}_IN`] || '').replace(/\\n/g, '\n'), expectedOutput: String(row[`TC${i}_OUT`] || '').replace(/\\n/g, '\n'), isHidden: String(row[`TC${i}_HIDDEN`] || '').toLowerCase() === 'true' });
                }
             }
             if (q.testCases.length === 0) q.testCases.push({ input: '', expectedOutput: '', isHidden: false });
@@ -186,14 +151,12 @@ export const TeacherDashboard = () => {
   };
 
   const handleTcUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file || activeTcIndex === null) return;
+    const file = e.target.files[0]; if (!file || activeTcIndex === null) return;
     const ext = file.name.split('.').pop().toLowerCase();
     try {
       let newTcs = [];
       if (ext === 'txt') {
-        const text = await file.text();
-        const blocks = text.split('---').map(b => b.trim()).filter(Boolean);
+        const text = await file.text(); const blocks = text.split('---').map(b => b.trim()).filter(Boolean);
         blocks.forEach(block => {
           const lines = block.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
           let tc = { input: '', expectedOutput: '', isHidden: false };
@@ -206,24 +169,12 @@ export const TeacherDashboard = () => {
           if (tc.input || tc.expectedOutput) newTcs.push(tc);
         });
       } else if (ext === 'csv' || ext === 'xlsx') {
-        const data = await file.arrayBuffer();
-        const workbook = XLSX.read(data);
-        const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-        rows.forEach(row => {
-          newTcs.push({
-            input: String(row['Input'] || '').replace(/\\n/g, '\n'),
-            expectedOutput: String(row['Expected Output'] || '').replace(/\\n/g, '\n'),
-            isHidden: String(row['Is Hidden'] || '').toLowerCase() === 'true'
-          });
-        });
+        const data = await file.arrayBuffer(); const workbook = XLSX.read(data); const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+        rows.forEach(row => { newTcs.push({ input: String(row['Input'] || '').replace(/\\n/g, '\n'), expectedOutput: String(row['Expected Output'] || '').replace(/\\n/g, '\n'), isHidden: String(row['Is Hidden'] || '').toLowerCase() === 'true' }); });
       }
-      if (newTcs.length > 0) {
-        updQ(activeTcIndex, 'testCases', [...form.questions[activeTcIndex].testCases, ...newTcs]);
-        showToast(`✅ Automatically added ${newTcs.length} test cases!`, 'success');
-      }
+      if (newTcs.length > 0) { updQ(activeTcIndex, 'testCases', [...form.questions[activeTcIndex].testCases, ...newTcs]); showToast(`✅ Added ${newTcs.length} test cases!`, 'success'); }
     } catch (err) { showToast('❌ Error reading test case file.', 'error'); }
-    e.target.value = null;
-    setActiveTcIndex(null);
+    e.target.value = null; setActiveTcIndex(null);
   };
 
   const showFormatGuide = () => { showToast(`TEXT FORMAT: Use PAIR: Left Item | Right Item for matching questions! CSV FORMAT: Use columns TC1_IN, TC1_OUT, TC1_HIDDEN for bulk test cases.`, 'info'); };
@@ -240,256 +191,260 @@ export const TeacherDashboard = () => {
 
   const toggleStatus = async (exam, status) => {
     await api.patch(`/exams/${exam._id}/status`, { status }).catch(() => {});
-    
-    import('../services/socket').then(({ getSocket }) => {
-      const socket = getSocket();
-      if (socket) socket.emit('exam_status_changed', { examId: exam._id, status });
-    });
-
+    import('../services/socket').then(({ getSocket }) => { const socket = getSocket(); if (socket) socket.emit('exam_status_changed', { examId: exam._id, status }); });
     load();
   };
 
   const deleteExam = async (id) => {
     showConfirm('Are you sure you want to dump this exam?', async () => {
       await api.delete(`/exams/${id}`).catch(() => {});
-      
-      import('../services/socket').then(({ getSocket }) => {
-        const socket = getSocket();
-        if (socket) socket.emit('exam_deleted', { examId: id });
-      });
-
+      import('../services/socket').then(({ getSocket }) => { const socket = getSocket(); if (socket) socket.emit('exam_deleted', { examId: id }); });
       load();
     });
   };
 
   const deploy = async (status = 'published') => {
     if (!form.title.trim()) return showToast('Exam title is required.', 'error');
-    for (let i = 0; i < form.questions.length; i++) {
-      if (!form.questions[i].title.trim()) return showToast(`Question ${i + 1} title is required.`, 'error');
-    }
-    let computedEndTime = undefined;
-    let isoStartTime = undefined;
+    for (let i = 0; i < form.questions.length; i++) { if (!form.questions[i].title.trim()) return showToast(`Question ${i + 1} title is required.`, 'error'); }
+    let computedEndTime = undefined; let isoStartTime = undefined;
     if (form.startTime) {
       const st = new Date(form.startTime);
-      if (!isNaN(st.getTime())) {
-        isoStartTime = st.toISOString(); 
-        if (form.durationMinutes) computedEndTime = new Date(st.getTime() + form.durationMinutes * 60000).toISOString();
-      }
+      if (!isNaN(st.getTime())) { isoStartTime = st.toISOString(); if (form.durationMinutes) computedEndTime = new Date(st.getTime() + form.durationMinutes * 60000).toISOString(); }
     }
 
     const cleanedQuestions = form.questions.map(q => {
       const base = { type: q.type, title: q.title.trim(), description: q.description || '', points: q.points || 10 };
       if (q.type === 'mcq') base.options = q.options;
-      else if (q.type === 'coding') {
-        base.testCases = (q.testCases || []).filter(tc => tc.expectedOutput.trim() !== '');
-        base.constraints = q.constraints || '';
-        base.timeLimitSeconds = q.timeLimitSeconds || 5;
-      }
-      else if (q.type === 'matching') {
-        base.matchingPairs = (q.matchingPairs || []).filter(mp => mp.leftItem.trim() !== '' && mp.rightItem.trim() !== '');
-      }
+      else if (q.type === 'coding') { base.testCases = (q.testCases || []).filter(tc => tc.expectedOutput.trim() !== ''); base.constraints = q.constraints || ''; base.timeLimitSeconds = q.timeLimitSeconds || 5; }
+      else if (q.type === 'matching') { base.matchingPairs = (q.matchingPairs || []).filter(mp => mp.leftItem.trim() !== '' && mp.rightItem.trim() !== ''); }
       return base;
     });
 
     const payload = { 
       ...form, 
-      questions: cleanedQuestions,
-      randomizeQuestions: form.randomizeQuestions === true, 
-      questionsToServe: form.questionsToServe ? parseInt(form.questionsToServe, 10) : null,
-      startTime: isoStartTime,
-      endTime: computedEndTime
+      targetBatch: form.targetBatch || null,
+      targetSection: form.targetSection || null,
+      questions: cleanedQuestions, randomizeQuestions: form.randomizeQuestions === true, questionsToServe: form.questionsToServe ? parseInt(form.questionsToServe, 10) : null, startTime: isoStartTime, endTime: computedEndTime
     };
     if (!editingId || status === 'draft') payload.status = status;
     setSaving(true);
     try {
       if (editingId) {
         await api.put(`/exams/${editingId}`, payload); 
-        
-        import('../services/socket').then(({ getSocket }) => {
-          const socket = getSocket();
-          if (socket) socket.emit('exam_status_changed', { examId: editingId, status });
-        });
-        
-      } else {
-        await api.post('/exams', payload); 
-      }
-      
+        import('../services/socket').then(({ getSocket }) => { const socket = getSocket(); if (socket) socket.emit('exam_status_changed', { examId: editingId, status }); });
+      } else { await api.post('/exams', payload); }
       setModal(false); setEditingId(null); setForm(defaultForm); load();
     } catch (e) { showToast('Deployment failed.', 'error'); } finally { setSaving(false); }
   };
 
-  const renderModal = () => (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95">
-        <div className="px-8 py-5 border-b flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
-          <h2 className="text-lg font-black uppercase tracking-tight">{editingId ? '✏️ Edit Exam' : 'Deploy New Exam'}</h2>
-          <button onClick={() => { setModal(false); setEditingId(null); setForm(defaultForm); }} className="p-2 hover:bg-gray-200 rounded-lg transition-colors"><X size={20} /></button>
-        </div>
-        <div className="p-8 overflow-y-auto flex-1 space-y-6">
-          <input value={form.title} onChange={e => setForm(p => ({...p, title: e.target.value}))} placeholder="Exam Title *" className="w-full px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
-          
-          <div className="grid grid-cols-3 gap-4">
-            <input value={form.course} onChange={e => setForm(p => ({...p, course: e.target.value}))} placeholder="Course" className="px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
-            <input type="number" value={form.durationMinutes} onChange={e => setForm(p => ({...p, durationMinutes: +e.target.value}))} placeholder="Duration (min)" className="px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
-            <div className="flex flex-col">
-              <label className="text-[10px] font-bold text-gray-500 uppercase ml-2 mb-1">Start Time</label>
-              <input type="datetime-local" step="60" value={form.startTime} onChange={e => setForm(p => ({...p, startTime: e.target.value}))} className="px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none text-gray-600 border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
-            </div>
+  const renderModal = () => {
+    // 🚀 DYNAMIC YEAR CALCULATION
+    const currentYear = new Date().getFullYear();
+
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm animate-in fade-in">
+        <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95">
+          <div className="px-8 py-5 border-b flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
+            <h2 className="text-lg font-black uppercase tracking-tight">{editingId ? '✏️ Edit Exam' : 'Deploy New Exam'}</h2>
+            <button onClick={() => { setModal(false); setEditingId(null); setForm(defaultForm); }} className="p-2 hover:bg-gray-200 rounded-lg transition-colors"><X size={20} /></button>
           </div>
-          <textarea value={form.description} onChange={e => setForm(p => ({...p, description: e.target.value}))} placeholder="Description" className="w-full px-4 py-3 bg-gray-50 rounded-xl outline-none h-20 resize-none border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
+          <div className="p-8 overflow-y-auto flex-1 space-y-6">
+            <input value={form.title} onChange={e => setForm(p => ({...p, title: e.target.value}))} placeholder="Exam Title *" className="w-full px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
+            
+            {/* 🚀 TARGETING DROPDOWNS WITH DYNAMIC YEARS */}
+            <div className="bg-gray-50 border border-gray-200 p-4 rounded-xl space-y-4">
+              <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">🎯 Audience Targeting</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <select value={form.course} onChange={e => setForm(p => ({...p, course: e.target.value}))} className="px-4 py-3 bg-white rounded-xl font-bold text-gray-600 outline-none border border-gray-200 focus:border-emerald-400 transition-all cursor-pointer">
+                  <option value="B.Tech CSE">B.Tech CSE</option>
+                  <option value="B.Tech CSE (AI/ML)">B.Tech CSE (AI/ML)</option>
+                  <option value="B.Tech CSE (Data Science)">B.Tech CSE (Data Science)</option>
+                  <option value="B.Tech CSE (Cyber Security)">B.Tech CSE (Cyber Security)</option>
+                  <option value="Pharmacy">Pharmacy</option>
+                  <option value="Management">Management</option>
+                </select>
+                
+                <select value={form.targetBatch} onChange={e => setForm(p => ({...p, targetBatch: e.target.value}))} className="px-4 py-3 bg-white rounded-xl font-bold text-gray-600 outline-none border border-gray-200 focus:border-emerald-400 transition-all cursor-pointer">
+                  <option value={currentYear.toString()}>1st Year (Batch {currentYear})</option>
+                  <option value={(currentYear - 1).toString()}>2nd Year (Batch {currentYear - 1})</option>
+                  <option value={(currentYear - 2).toString()}>3rd Year (Batch {currentYear - 2})</option>
+                  <option value={(currentYear - 3).toString()}>4th Year (Batch {currentYear - 3})</option>
+                </select>
 
-          <div className="bg-blue-50/50 p-5 rounded-xl space-y-3 border border-blue-100 mt-4">
-            <h3 className="text-xs font-black text-blue-700 uppercase tracking-widest">Assessment Matrix (Randomization)</h3>
-            <div className="flex items-center gap-6 text-sm flex-wrap">
-              <label className="flex items-center gap-2 font-medium">
-                <input type="checkbox" checked={form.randomizeQuestions} onChange={e => setForm(p => ({...p, randomizeQuestions: e.target.checked}))} className="accent-blue-600 w-4 h-4" /> 
-                Pool & Randomize Questions
-              </label>
+                <select value={form.targetSection} onChange={e => setForm(p => ({...p, targetSection: e.target.value}))} className="px-4 py-3 bg-white rounded-xl font-bold text-gray-600 outline-none border border-gray-200 focus:border-emerald-400 transition-all cursor-pointer">
+                  <option value="">All Sections</option>
+                  <option value="A">Section A</option>
+                  <option value="B">Section B</option>
+                  <option value="C">Section C</option>
+                </select>
+              </div>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest px-2">Leave blank to make the exam available to everyone. Parent courses automatically include their specializations.</p>
             </div>
 
-            {form.randomizeQuestions && (
-              <div className="w-full mt-3 p-4 bg-blue-100/50 rounded-xl border border-blue-200">
-                <label className="flex items-center gap-2 font-black text-[10px] text-blue-800 uppercase tracking-widest mb-4 cursor-pointer hover:text-blue-600 transition-colors border-b border-blue-200 pb-3">
-                  <input type="checkbox" checked={form.proctoring.enableTypeDistribution} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, enableTypeDistribution: e.target.checked}}))} className="accent-blue-600 w-4 h-4" />
-                  Mixed Question Types (Fairness Engine)
-                </label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col">
+                <label className="text-[10px] font-bold text-gray-500 uppercase ml-2 mb-1">Duration (min)</label>
+                <input type="number" value={form.durationMinutes} onChange={e => setForm(p => ({...p, durationMinutes: +e.target.value}))} className="px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-[10px] font-bold text-gray-500 uppercase ml-2 mb-1">Start Time</label>
+                <input type="datetime-local" step="60" value={form.startTime} onChange={e => setForm(p => ({...p, startTime: e.target.value}))} className="px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none text-gray-600 border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
+              </div>
+            </div>
+            
+            <textarea value={form.description} onChange={e => setForm(p => ({...p, description: e.target.value}))} placeholder="Description" className="w-full px-4 py-3 bg-gray-50 rounded-xl outline-none h-20 resize-none border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
 
-                {form.proctoring.enableTypeDistribution ? (
-                  <div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">MCQ Nodes <input type="number" value={form.proctoring.typeDistribution.mcq} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, mcq: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" /></label>
-                      <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">Coding Nodes <input type="number" value={form.proctoring.typeDistribution.coding} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, coding: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" /></label>
-                      <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">Matching Nodes <input type="number" value={form.proctoring.typeDistribution.matching} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, matching: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" /></label>
-                      <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">Subject Nodes <input type="number" value={form.proctoring.typeDistribution.subjective} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, subjective: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" /></label>
+            <div className="bg-blue-50/50 p-5 rounded-xl space-y-3 border border-blue-100 mt-4">
+              <h3 className="text-xs font-black text-blue-700 uppercase tracking-widest">Assessment Matrix (Randomization)</h3>
+              <div className="flex items-center gap-6 text-sm flex-wrap">
+                <label className="flex items-center gap-2 font-medium">
+                  <input type="checkbox" checked={form.randomizeQuestions} onChange={e => setForm(p => ({...p, randomizeQuestions: e.target.checked}))} className="accent-blue-600 w-4 h-4" /> 
+                  Pool & Randomize Questions
+                </label>
+              </div>
+
+              {form.randomizeQuestions && (
+                <div className="w-full mt-3 p-4 bg-blue-100/50 rounded-xl border border-blue-200">
+                  <label className="flex items-center gap-2 font-black text-[10px] text-blue-800 uppercase tracking-widest mb-4 cursor-pointer hover:text-blue-600 transition-colors border-b border-blue-200 pb-3">
+                    <input type="checkbox" checked={form.proctoring.enableTypeDistribution} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, enableTypeDistribution: e.target.checked}}))} className="accent-blue-600 w-4 h-4" />
+                    Mixed Question Types (Fairness Engine)
+                  </label>
+
+                  {form.proctoring.enableTypeDistribution ? (
+                    <div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">MCQ Nodes <input type="number" value={form.proctoring.typeDistribution.mcq} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, mcq: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" /></label>
+                        <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">Coding Nodes <input type="number" value={form.proctoring.typeDistribution.coding} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, coding: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" /></label>
+                        <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">Matching Nodes <input type="number" value={form.proctoring.typeDistribution.matching} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, matching: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" /></label>
+                        <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">Subject Nodes <input type="number" value={form.proctoring.typeDistribution.subjective} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, subjective: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" /></label>
+                      </div>
                     </div>
-                    <p className="text-[9px] font-bold text-blue-600 mt-3 uppercase tracking-wider">Set specific numbers to enforce perfectly fair categorical randomization across different question types!</p>
+                  ) : (
+                    <div>
+                      <label className="flex flex-col gap-1 text-xs font-bold text-gray-700 w-1/3">Total Nodes to Serve <input type="number" value={form.questionsToServe || ''} onChange={e => setForm(p => ({...p, questionsToServe: +e.target.value}))} placeholder="All" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white shadow-sm" /></label>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-emerald-50/50 p-5 rounded-xl space-y-3 border border-emerald-100">
+              <h3 className="text-xs font-black text-emerald-700 uppercase tracking-widest">Security Settings</h3>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <label className="flex items-center gap-2 font-medium"><input type="number" value={form.proctoring.maxViolations} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, maxViolations: +e.target.value}}))} className="w-16 px-2 py-1.5 rounded-lg border outline-none font-bold shadow-sm" /> Max Violations</label>
+                <label className="flex items-center gap-2 font-medium"><input type="number" value={form.proctoring.restrictionMinutes} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, restrictionMinutes: +e.target.value}}))} className="w-16 px-2 py-1.5 rounded-lg border outline-none font-bold shadow-sm" /> Restriction (min)</label>
+                <label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={form.proctoring.requireFullscreen} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, requireFullscreen: e.target.checked}}))} className="accent-emerald-600 w-4 h-4" /> Require Fullscreen</label>
+                <label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={form.proctoring.disableCopyPaste} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, disableCopyPaste: e.target.checked}}))} className="accent-emerald-600 w-4 h-4" /> Disable Copy/Paste</label>
+                <label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={form.proctoring.autoSubmitOnMax} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, autoSubmitOnMax: e.target.checked}}))} className="accent-emerald-600 w-4 h-4" /> Auto-submit on Max</label>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center flex-wrap gap-3">
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Questions ({form.questions.length})</h3>
+              <div className="flex gap-2">
+                <button onClick={showFormatGuide} className="text-xs font-bold text-gray-500 flex items-center gap-1 bg-white px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-all border border-gray-200 shadow-sm">❔ Format Guide</button>
+                <input type="file" accept=".txt,.csv,.xlsx" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
+                <button onClick={() => fileInputRef.current?.click()} className="text-xs font-bold text-blue-600 flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-all border border-blue-100 shadow-sm"><Upload size={14} /> Bulk Upload Qs</button>
+                <button onClick={addQ} className="text-xs font-bold text-emerald-600 flex items-center gap-1 bg-emerald-50 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-all border border-emerald-100 shadow-sm"><Plus size={14} /> Add Question</button>
+              </div>
+            </div>
+
+            <input type="file" accept=".txt,.csv,.xlsx" ref={tcFileInputRef} className="hidden" onChange={handleTcUpload} />
+
+            {form.questions.map((q, qi) => (
+              <div key={qi} className="bg-gray-50 rounded-2xl p-6 space-y-4 border border-gray-100">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <span className="bg-white px-3 py-1 rounded-lg text-xs font-black border shadow-sm">Q{qi+1}</span>
+                    <select value={q.type} onChange={e => updQ(qi, 'type', e.target.value)} className="bg-emerald-50 text-emerald-700 rounded-lg px-3 py-1.5 text-xs font-black border border-emerald-100 cursor-pointer outline-none">
+                      <option value="mcq">MCQ</option>
+                      <option value="coding">CODING</option>
+                      <option value="matching">MATCHING</option>
+                      <option value="subjective">SUBJECTIVE</option>
+                    </select>
+                    <input type="number" value={q.points} onChange={e => updQ(qi, 'points', +e.target.value)} className="w-16 px-2 py-1.5 rounded-lg border outline-none font-bold text-xs" placeholder="Points" />
                   </div>
-                ) : (
-                  <div>
-                    <label className="flex flex-col gap-1 text-xs font-bold text-gray-700 w-1/3">Total Nodes to Serve <input type="number" value={form.questionsToServe || ''} onChange={e => setForm(p => ({...p, questionsToServe: +e.target.value}))} placeholder="All" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white shadow-sm" /></label>
-                    <p className="text-[9px] font-bold text-blue-600 mt-3 uppercase tracking-wider">Specify how many questions to randomly pull from the entire unified pool.</p>
+                  <button onClick={() => rmQ(qi)} className="text-gray-400 hover:text-red-500 bg-white p-1.5 rounded-lg border shadow-sm transition-all"><Trash2 size={16} /></button>
+                </div>
+
+                <input value={q.title} onChange={e => updQ(qi, 'title', e.target.value)} placeholder="Question title *" className="w-full bg-white border rounded-lg py-2.5 px-4 font-bold outline-none focus:border-emerald-400 transition-all" />
+                <textarea value={q.description} onChange={e => updQ(qi, 'description', e.target.value)} placeholder="Description / problem statement" className="w-full bg-white border rounded-lg p-4 text-sm outline-none h-20 resize-none focus:border-emerald-400 transition-all" />
+
+                {q.type === 'mcq' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    {q.options.map((o, oi) => (
+                      <div key={oi} className={`flex items-center gap-3 bg-white p-3 rounded-xl border transition-all ${o.isCorrect ? 'border-emerald-400 bg-emerald-50/30' : ''}`}>
+                        <input type="radio" name={`correct-${qi}`} checked={o.isCorrect} onChange={() => updOpt(qi, oi, 'isCorrect', true)} className="accent-emerald-500 w-4 h-4 cursor-pointer" />
+                        <input value={o.text} onChange={e => updOpt(qi, oi, 'text', e.target.value)} placeholder={`Option ${oi+1}`} className="flex-1 text-sm outline-none bg-transparent font-medium" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {q.type === 'matching' && (
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-gray-400 uppercase">Matching Pairs ({(q.matchingPairs || []).length})</span>
+                      <button onClick={() => addMp(qi)} className="text-xs font-bold text-blue-600 flex items-center gap-1 bg-white border px-3 py-1.5 rounded-lg shadow-sm hover:bg-gray-50 transition-all"><Plus size={12} /> Add Pair</button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 mb-2 px-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                      <div>Left Item (Prompt)</div>
+                      <div>Right Item (Target)</div>
+                    </div>
+                    {(q.matchingPairs || []).map((mp, mpi) => (
+                      <div key={mpi} className="flex gap-4 items-center bg-white p-3 rounded-xl border shadow-sm">
+                        <input value={mp.leftItem} onChange={e => updMp(qi, mpi, 'leftItem', e.target.value)} placeholder={`e.g., Apple`} className="flex-1 text-sm outline-none bg-gray-50 border border-transparent focus:border-gray-200 focus:bg-white rounded-lg p-2 transition-colors font-medium" />
+                        <span className="text-gray-300 font-bold">⇄</span>
+                        <input value={mp.rightItem} onChange={e => updMp(qi, mpi, 'rightItem', e.target.value)} placeholder={`e.g., Fruit`} className="flex-1 text-sm outline-none bg-gray-50 border border-transparent focus:border-gray-200 focus:bg-white rounded-lg p-2 transition-colors font-medium" />
+                        <button onClick={() => rmMp(qi, mpi)} className="text-gray-400 hover:text-red-500 p-2"><X size={14} /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {q.type === 'coding' && (
+                  <div className="space-y-3">
+                    <textarea value={q.constraints} onChange={e => updQ(qi, 'constraints', e.target.value)} placeholder="Constraints (e.g. 1 ≤ n ≤ 10^5)" className="w-full bg-white border rounded-lg p-3 text-sm outline-none h-14 resize-none font-mono" />
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-gray-400 uppercase">Test Cases ({q.testCases.length})</span>
+                      <div className="flex gap-2">
+                        <button onClick={() => { setActiveTcIndex(qi); tcFileInputRef.current?.click(); }} className="text-xs font-bold text-emerald-600 flex items-center gap-1 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-lg shadow-sm hover:bg-emerald-100 transition-all"><Upload size={12} /> Bulk TCs</button>
+                        <button onClick={() => addTc(qi)} className="text-xs font-bold text-blue-600 flex items-center gap-1 bg-white border px-3 py-1.5 rounded-lg shadow-sm hover:bg-gray-50 transition-all"><Plus size={12} /> Add TC</button>
+                      </div>
+                    </div>
+                    {q.testCases.map((tc, ti) => (
+                      <div key={ti} className="bg-white rounded-xl border p-4 space-y-3 shadow-sm">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-bold text-gray-500">TC {ti+1}</span>
+                          <div className="flex items-center gap-3">
+                            <label className="text-xs font-bold text-gray-500 flex items-center gap-1"><input type="checkbox" checked={tc.isHidden} onChange={e => updTc(qi, ti, 'isHidden', e.target.checked)} className="accent-blue-500" /> Hidden</label>
+                            <button onClick={() => rmTc(qi, ti)} className="text-gray-400 hover:text-red-500"><X size={14} /></button>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <textarea value={tc.input} onChange={e => updTc(qi, ti, 'input', e.target.value)} placeholder="Input" className="bg-gray-50 rounded-lg p-3 text-xs font-mono outline-none h-16 resize-none border border-transparent focus:border-gray-200 focus:bg-white" />
+                          <textarea value={tc.expectedOutput} onChange={e => updTc(qi, ti, 'expectedOutput', e.target.value)} placeholder="Expected Output" className="bg-gray-50 rounded-lg p-3 text-xs font-mono outline-none h-16 resize-none border border-transparent focus:border-gray-200 focus:bg-white" />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
+            ))}
+          </div>
+          <div className="px-8 py-5 border-t flex justify-end gap-3 bg-gray-50 rounded-b-2xl">
+            <button onClick={() => { setModal(false); setEditingId(null); setForm(defaultForm); }} className="px-6 py-3.5 text-gray-500 font-bold text-xs uppercase tracking-widest hover:text-gray-700 bg-white border border-gray-200 rounded-xl shadow-sm transition-all">Cancel</button>
+            {(!editingId || form.status === 'draft') && (
+              <button onClick={() => deploy('draft')} disabled={saving} className="px-6 py-3.5 border border-amber-200 bg-amber-50 text-amber-700 rounded-xl font-bold text-xs uppercase tracking-widest disabled:opacity-50 hover:bg-amber-100 transition-all shadow-sm">Save Draft</button>
             )}
+            <button onClick={() => deploy('published')} disabled={saving} className="px-8 py-3.5 bg-emerald-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg disabled:opacity-50 hover:bg-emerald-700 transition-all active:scale-95">
+              {saving ? '⏳ Processing…' : editingId ? '🔄 Update Exam' : '🚀 Publish Exam'}
+            </button>
           </div>
-
-          <div className="bg-emerald-50/50 p-5 rounded-xl space-y-3 border border-emerald-100">
-            <h3 className="text-xs font-black text-emerald-700 uppercase tracking-widest">Security Settings</h3>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <label className="flex items-center gap-2 font-medium"><input type="number" value={form.proctoring.maxViolations} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, maxViolations: +e.target.value}}))} className="w-16 px-2 py-1.5 rounded-lg border outline-none font-bold shadow-sm" /> Max Violations</label>
-              <label className="flex items-center gap-2 font-medium"><input type="number" value={form.proctoring.restrictionMinutes} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, restrictionMinutes: +e.target.value}}))} className="w-16 px-2 py-1.5 rounded-lg border outline-none font-bold shadow-sm" /> Restriction (min)</label>
-              <label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={form.proctoring.requireFullscreen} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, requireFullscreen: e.target.checked}}))} className="accent-emerald-600 w-4 h-4" /> Require Fullscreen</label>
-              <label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={form.proctoring.disableCopyPaste} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, disableCopyPaste: e.target.checked}}))} className="accent-emerald-600 w-4 h-4" /> Disable Copy/Paste</label>
-              <label className="flex items-center gap-2 font-medium"><input type="checkbox" checked={form.proctoring.autoSubmitOnMax} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, autoSubmitOnMax: e.target.checked}}))} className="accent-emerald-600 w-4 h-4" /> Auto-submit on Max</label>
-            </div>
-          </div>
-
-          <div className="flex justify-between items-center flex-wrap gap-3">
-            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Questions ({form.questions.length})</h3>
-            <div className="flex gap-2">
-              <button onClick={showFormatGuide} className="text-xs font-bold text-gray-500 flex items-center gap-1 bg-white px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-all border border-gray-200 shadow-sm">❔ Format Guide</button>
-              <input type="file" accept=".txt,.csv,.xlsx" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
-              <button onClick={() => fileInputRef.current?.click()} className="text-xs font-bold text-blue-600 flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-all border border-blue-100 shadow-sm"><Upload size={14} /> Bulk Upload Qs</button>
-              <button onClick={addQ} className="text-xs font-bold text-emerald-600 flex items-center gap-1 bg-emerald-50 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-all border border-emerald-100 shadow-sm"><Plus size={14} /> Add Question</button>
-            </div>
-          </div>
-
-          <input type="file" accept=".txt,.csv,.xlsx" ref={tcFileInputRef} className="hidden" onChange={handleTcUpload} />
-
-          {form.questions.map((q, qi) => (
-            <div key={qi} className="bg-gray-50 rounded-2xl p-6 space-y-4 border border-gray-100">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  <span className="bg-white px-3 py-1 rounded-lg text-xs font-black border shadow-sm">Q{qi+1}</span>
-                  <select value={q.type} onChange={e => updQ(qi, 'type', e.target.value)} className="bg-emerald-50 text-emerald-700 rounded-lg px-3 py-1.5 text-xs font-black border border-emerald-100 cursor-pointer outline-none">
-                    <option value="mcq">MCQ</option>
-                    <option value="coding">CODING</option>
-                    <option value="matching">MATCHING</option>
-                    <option value="subjective">SUBJECTIVE</option>
-                  </select>
-                  <input type="number" value={q.points} onChange={e => updQ(qi, 'points', +e.target.value)} className="w-16 px-2 py-1.5 rounded-lg border outline-none font-bold text-xs" placeholder="Points" />
-                </div>
-                <button onClick={() => rmQ(qi)} className="text-gray-400 hover:text-red-500 bg-white p-1.5 rounded-lg border shadow-sm transition-all"><Trash2 size={16} /></button>
-              </div>
-
-              <input value={q.title} onChange={e => updQ(qi, 'title', e.target.value)} placeholder="Question title *" className="w-full bg-white border rounded-lg py-2.5 px-4 font-bold outline-none focus:border-emerald-400 transition-all" />
-              <textarea value={q.description} onChange={e => updQ(qi, 'description', e.target.value)} placeholder="Description / problem statement" className="w-full bg-white border rounded-lg p-4 text-sm outline-none h-20 resize-none focus:border-emerald-400 transition-all" />
-
-              {q.type === 'mcq' && (
-                <div className="grid grid-cols-2 gap-3">
-                  {q.options.map((o, oi) => (
-                    <div key={oi} className={`flex items-center gap-3 bg-white p-3 rounded-xl border transition-all ${o.isCorrect ? 'border-emerald-400 bg-emerald-50/30' : ''}`}>
-                      <input type="radio" name={`correct-${qi}`} checked={o.isCorrect} onChange={() => updOpt(qi, oi, 'isCorrect', true)} className="accent-emerald-500 w-4 h-4 cursor-pointer" />
-                      <input value={o.text} onChange={e => updOpt(qi, oi, 'text', e.target.value)} placeholder={`Option ${oi+1}`} className="flex-1 text-sm outline-none bg-transparent font-medium" />
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {q.type === 'matching' && (
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-gray-400 uppercase">Matching Pairs ({(q.matchingPairs || []).length})</span>
-                    <button onClick={() => addMp(qi)} className="text-xs font-bold text-blue-600 flex items-center gap-1 bg-white border px-3 py-1.5 rounded-lg shadow-sm hover:bg-gray-50 transition-all"><Plus size={12} /> Add Pair</button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 mb-2 px-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                    <div>Left Item (Prompt)</div>
-                    <div>Right Item (Target)</div>
-                  </div>
-                  {(q.matchingPairs || []).map((mp, mpi) => (
-                    <div key={mpi} className="flex gap-4 items-center bg-white p-3 rounded-xl border shadow-sm">
-                      <input value={mp.leftItem} onChange={e => updMp(qi, mpi, 'leftItem', e.target.value)} placeholder={`e.g., Apple`} className="flex-1 text-sm outline-none bg-gray-50 border border-transparent focus:border-gray-200 focus:bg-white rounded-lg p-2 transition-colors font-medium" />
-                      <span className="text-gray-300 font-bold">⇄</span>
-                      <input value={mp.rightItem} onChange={e => updMp(qi, mpi, 'rightItem', e.target.value)} placeholder={`e.g., Fruit`} className="flex-1 text-sm outline-none bg-gray-50 border border-transparent focus:border-gray-200 focus:bg-white rounded-lg p-2 transition-colors font-medium" />
-                      <button onClick={() => rmMp(qi, mpi)} className="text-gray-400 hover:text-red-500 p-2"><X size={14} /></button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {q.type === 'coding' && (
-                <div className="space-y-3">
-                  <textarea value={q.constraints} onChange={e => updQ(qi, 'constraints', e.target.value)} placeholder="Constraints (e.g. 1 ≤ n ≤ 10^5)" className="w-full bg-white border rounded-lg p-3 text-sm outline-none h-14 resize-none font-mono" />
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-gray-400 uppercase">Test Cases ({q.testCases.length})</span>
-                    <div className="flex gap-2">
-                      <button onClick={() => { setActiveTcIndex(qi); tcFileInputRef.current?.click(); }} className="text-xs font-bold text-emerald-600 flex items-center gap-1 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-lg shadow-sm hover:bg-emerald-100 transition-all"><Upload size={12} /> Bulk TCs</button>
-                      <button onClick={() => addTc(qi)} className="text-xs font-bold text-blue-600 flex items-center gap-1 bg-white border px-3 py-1.5 rounded-lg shadow-sm hover:bg-gray-50 transition-all"><Plus size={12} /> Add TC</button>
-                    </div>
-                  </div>
-                  {q.testCases.map((tc, ti) => (
-                    <div key={ti} className="bg-white rounded-xl border p-4 space-y-3 shadow-sm">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold text-gray-500">TC {ti+1}</span>
-                        <div className="flex items-center gap-3">
-                          <label className="text-xs font-bold text-gray-500 flex items-center gap-1"><input type="checkbox" checked={tc.isHidden} onChange={e => updTc(qi, ti, 'isHidden', e.target.checked)} className="accent-blue-500" /> Hidden</label>
-                          <button onClick={() => rmTc(qi, ti)} className="text-gray-400 hover:text-red-500"><X size={14} /></button>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <textarea value={tc.input} onChange={e => updTc(qi, ti, 'input', e.target.value)} placeholder="Input" className="bg-gray-50 rounded-lg p-3 text-xs font-mono outline-none h-16 resize-none border border-transparent focus:border-gray-200 focus:bg-white" />
-                        <textarea value={tc.expectedOutput} onChange={e => updTc(qi, ti, 'expectedOutput', e.target.value)} placeholder="Expected Output" className="bg-gray-50 rounded-lg p-3 text-xs font-mono outline-none h-16 resize-none border border-transparent focus:border-gray-200 focus:bg-white" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-        <div className="px-8 py-5 border-t flex justify-end gap-3 bg-gray-50 rounded-b-2xl">
-          <button onClick={() => { setModal(false); setEditingId(null); setForm(defaultForm); }} className="px-6 py-3.5 text-gray-500 font-bold text-xs uppercase tracking-widest hover:text-gray-700 bg-white border border-gray-200 rounded-xl shadow-sm transition-all">Cancel</button>
-          {(!editingId || form.status === 'draft') && (
-            <button onClick={() => deploy('draft')} disabled={saving} className="px-6 py-3.5 border border-amber-200 bg-amber-50 text-amber-700 rounded-xl font-bold text-xs uppercase tracking-widest disabled:opacity-50 hover:bg-amber-100 transition-all shadow-sm">Save Draft</button>
-          )}
-          <button onClick={() => deploy('published')} disabled={saving} className="px-8 py-3.5 bg-emerald-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg disabled:opacity-50 hover:bg-emerald-700 transition-all active:scale-95">
-            {saving ? '⏳ Processing…' : editingId ? '🔄 Update Exam' : '🚀 Publish Exam'}
-          </button>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="flex h-[calc(100vh-8.5rem)] bg-gray-50 overflow-hidden font-sans relative rounded-xl border border-gray-100 shadow-sm">
@@ -497,10 +452,7 @@ export const TeacherDashboard = () => {
 
       {toast && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[600] animate-in slide-in-from-bottom-10 fade-in duration-300">
-          <div className={`px-6 py-3.5 rounded-full shadow-2xl border flex items-center gap-3 text-sm font-bold ${
-            toast.type === 'error' ? 'bg-red-600 text-white border-red-500 shadow-red-600/20' : 
-            'bg-gray-900 text-white border-gray-700 shadow-xl'
-          }`}>
+          <div className={`px-6 py-3.5 rounded-full shadow-2xl border flex items-center gap-3 text-sm font-bold ${toast.type === 'error' ? 'bg-red-600 text-white border-red-500 shadow-red-600/20' : 'bg-gray-900 text-white border-gray-700 shadow-xl'}`}>
             <span className="text-lg">{toast.type === 'error' ? '⚠️' : '✨'}</span>
             <span className="tracking-wide pr-2">{toast.message}</span>
             <button onClick={() => setToast(null)} className="ml-2 opacity-50 hover:opacity-100 transition-opacity">✕</button>
@@ -522,34 +474,20 @@ export const TeacherDashboard = () => {
         </div>
       )}
 
-      {/* Mobile Sidebar Overlay */}
-      {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-gray-900/50 z-40 md:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
-
-      {/* Hamburger Button (Mobile Only) */}
-      <button 
-        onClick={() => setIsSidebarOpen(true)} 
-        className="md:hidden absolute top-4 left-4 z-30 p-2 bg-white rounded-lg shadow-md border border-gray-200 text-gray-700"
-      >
+      {isSidebarOpen && <div className="fixed inset-0 bg-gray-900/50 z-40 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
+      <button onClick={() => setIsSidebarOpen(true)} className="md:hidden absolute top-4 left-4 z-30 p-2 bg-white rounded-lg shadow-md border border-gray-200 text-gray-700">
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
       </button>
 
       <div className={`w-64 bg-white border-r flex flex-col p-5 overflow-y-auto z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)] fixed md:relative h-full transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
-        <button onClick={() => setIsSidebarOpen(false)} className="md:hidden absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-900">
-           <X size={20} />
-        </button>
+        <button onClick={() => setIsSidebarOpen(false)} className="md:hidden absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-900"><X size={20} /></button>
         <div className="flex items-center gap-3 mb-10 mt-4 cursor-pointer hover:scale-[1.02] transition-transform">
           <span className="text-3xl ml-2">🛡️</span>
           <span className="text-xl font-extrabold text-gray-900 tracking-tight hidden md:block">Nexus Proctor</span>
         </div>
         
         <nav className="flex-1 space-y-2">
-          {[{ icon: <LayoutGrid size={18}/>, label: 'OVERVIEW', to: 'overview' }, 
-            { icon: <ShieldAlert size={18}/>, label: 'MONITORING', to: 'monitoring' }].map(item => {
+          {[{ icon: <LayoutGrid size={18}/>, label: 'OVERVIEW', to: 'overview' }, { icon: <ShieldAlert size={18}/>, label: 'MONITORING', to: 'monitoring' }].map(item => {
             const isActive = location.pathname.includes(item.to);
             return (
             <NavLink key={item.label} to={item.to} onClick={() => setIsSidebarOpen(false)}
@@ -561,28 +499,18 @@ export const TeacherDashboard = () => {
         
         <div className="mt-auto pt-6 border-t border-gray-100 relative group mb-4">
           <div className="absolute -top-14 left-0 right-0 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 translate-y-4 group-hover:translate-y-0 z-50">
-            <button onClick={() => { logout(); navigate('/'); }} className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-red-100 rounded-xl text-[10px] uppercase tracking-widest font-black text-red-500 shadow-xl hover:bg-red-50 hover:scale-[1.02] active:scale-[0.98] transition-all">
-              <span>🚪</span> Log Out
-            </button>
+            <button onClick={() => { logout(); navigate('/'); }} className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-red-100 rounded-xl text-[10px] uppercase tracking-widest font-black text-red-500 shadow-xl hover:bg-red-50 hover:scale-[1.02] active:scale-[0.98] transition-all"><span>🚪</span> Log Out</button>
           </div>
-          
           <div className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 border border-transparent hover:border-gray-100 cursor-pointer transition-all">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 flex items-center justify-center text-emerald-600 font-black text-sm border border-emerald-100/50 shadow-sm shrink-0">
-              {user?.name?.[0] || 'A'}
-            </div>
-            <div className="overflow-hidden">
-              <p className="text-xs font-bold text-gray-900 truncate">{user?.name}</p>
-              <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600/70 mt-0.5">Faculty Auth</p>
-            </div>
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 flex items-center justify-center text-emerald-600 font-black text-sm border border-emerald-100/50 shadow-sm shrink-0">{user?.name?.[0] || 'A'}</div>
+            <div className="overflow-hidden"><p className="text-xs font-bold text-gray-900 truncate">{user?.name}</p><p className="text-[9px] font-black uppercase tracking-widest text-emerald-600/70 mt-0.5">Faculty Auth</p></div>
           </div>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto bg-gray-50/50 p-4 pt-16 md:p-8 lg:p-12 pb-24 relative w-full md:w-auto">
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none transform translate-x-1/3 -translate-y-1/3"></div>
-
         <Outlet context={{ exams, subs, loadSubs, loading, setModal, openEditModal, toggleStatus, deleteExam, showConfirm }} />
-
       </div>
     </div>
   );

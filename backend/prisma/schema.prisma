@@ -16,6 +16,8 @@ model User {
   studentId             String?
   facultyId             String?      @unique
   department            String?
+  course                String?      // 🚀 NEW: Student's Course
+  section               String?      // 🚀 NEW: Student's Section
   isActive              Boolean      @default(true)
   passwordResetRequired Boolean      @default(false)
   lastLogin             DateTime?
@@ -31,6 +33,8 @@ model Exam {
   title              String
   description        String?      @db.Text
   course             String?
+  targetBatch        String?      // 🚀 NEW: Which Batch can see this?
+  targetSection      String?      // 🚀 NEW: Which Section can see this?
   startTime          DateTime?
   endTime            DateTime?    
   durationMinutes    Int
@@ -58,7 +62,7 @@ model Question {
   exam             Exam           @relation(fields: [examId], references: [id], onDelete: Cascade)
   options          Option[]
   testCases        TestCase[]
-  matchingPairs    MatchingPair[] // 👈 NEW: Links to the pairs!
+  matchingPairs    MatchingPair[]
 }
 
 model Option {
@@ -78,7 +82,6 @@ model TestCase {
   question       Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 }
 
-// 👈 NEW: The absolute truth matrix for Match the Following
 model MatchingPair {
   id         String   @id @default(uuid())
   questionId String

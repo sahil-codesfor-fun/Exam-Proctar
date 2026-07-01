@@ -3,15 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext'; 
 
-
-
 export const LandingPage = () => {
   const navigate = useNavigate();
   const { login } = useAuth(); 
   const [isSignUp, setIsSignUp] = useState(false);
   const [status, setStatus] = useState({ message: '', type: 'info' });
   const [loading, setLoading] = useState(false);
-  const [credentials, setCredentials] = useState({ name: '', studentId: '', email: '', password: '' });
+  // 🚀 NEW FIELDS FOR REGISTRATION
+  const [credentials, setCredentials] = useState({ name: '', studentId: '', email: '', password: '', course: '', section: '' });
 
   const handleChange = (e) => setCredentials({ ...credentials, [e.target.name]: e.target.value });
 
@@ -21,7 +20,6 @@ export const LandingPage = () => {
     setStatus({ message: isSignUp ? 'Creating account…' : 'Authenticating…', type: 'info' });
     const endpoint = isSignUp ? '/auth/signup' : '/auth/login';
     try {
-      // 🚨 Hardcoded to student
       const payload = { ...credentials, role: 'student' };
       
       if (!isSignUp && !credentials.email.includes('@')) {
@@ -56,7 +54,6 @@ export const LandingPage = () => {
 
   return (
     <div className="h-screen w-full flex overflow-hidden bg-white font-sans text-gray-900">
-      {/* Left — Branding */}
       <div className="hidden lg:flex lg:w-5/12 bg-gray-50 flex-col justify-between p-12 border-r border-gray-200">
         <div className="flex items-center gap-3">
           <span className="text-4xl">🛡️</span>
@@ -69,7 +66,6 @@ export const LandingPage = () => {
         <div className="text-sm text-gray-400 font-medium">© {new Date().getFullYear()} Nexus Systems. All rights reserved.</div>
       </div>
 
-      {/* Right — Form */}
       <div className="w-full lg:w-7/12 flex items-center justify-center p-8 bg-white overflow-y-auto">
         <div className="w-full max-w-md py-10">
           <div className="mb-8 text-center flex flex-col items-center">
@@ -91,6 +87,32 @@ export const LandingPage = () => {
                 <div>
                   <label className="block text-xs font-bold text-gray-800 mb-1 uppercase tracking-wider">Roll No.</label>
                   <input type="text" name="studentId" value={credentials.studentId} onChange={handleChange} required className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white outline-none transition-all focus:border-emerald-400" placeholder="e.g. 2401301059" />
+                </div>
+                
+                {/* 🚀 TARGETING DROPDOWNS */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-800 mb-1 uppercase tracking-wider">Course</label>
+                    <select name="course" value={credentials.course} onChange={handleChange} required className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white outline-none transition-all focus:border-emerald-400 cursor-pointer">
+                      <option value="" disabled>Select</option>
+                      <option value="B.Tech CSE">B.Tech CSE (Core)</option>
+                      <option value="B.Tech CSE (AI/ML)">B.Tech CSE (AI/ML)</option>
+                      <option value="B.Tech CSE (Data Science)">B.Tech CSE (Data Science)</option>
+                      <option value="B.Tech CSE (Cyber Security)">B.Tech CSE (Cyber Security)</option>
+                      <option value="Pharmacy">Pharmacy</option>
+                      <option value="Management">Management</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-800 mb-1 uppercase tracking-wider">Section</label>
+                    <select name="section" value={credentials.section} onChange={handleChange} required className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white outline-none transition-all focus:border-emerald-400 cursor-pointer">
+                      <option value="" disabled>Select</option>
+                      <option value="A">Section A</option>
+                      <option value="B">Section B</option>
+                      <option value="C">Section C</option>
+                      <option value="D">Section D</option>
+                    </select>
+                  </div>
                 </div>
               </>
             )}

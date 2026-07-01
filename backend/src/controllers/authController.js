@@ -7,10 +7,10 @@ const generateToken = (id) => {
 };
 
 export const registerUser = async (req, res) => {
-  const { name, studentId, email, password, role } = req.body;
+  // 🚀 GRAB THE NEW COURSE AND SECTION
+  const { name, studentId, email, password, role, course, section } = req.body;
 
   try {
-    // 🚨 PRISMA OR QUERY
     const userExists = await prisma.user.findFirst({
       where: {
         OR: [
@@ -31,7 +31,10 @@ export const registerUser = async (req, res) => {
       password: hashedPassword,
       role: role || 'student',
       isActive: true,
-      passwordResetRequired: false
+      passwordResetRequired: false,
+      // 🚀 INJECT THEM INTO THE DB
+      course: role === 'student' ? course : null,
+      section: role === 'student' ? section : null
     };
 
     if (newUserData.role === 'teacher' || newUserData.role === 'faculty') {
@@ -40,12 +43,11 @@ export const registerUser = async (req, res) => {
       newUserData.studentId = studentId;
     }
 
-    // 🚨 PRISMA CREATE
     const user = await prisma.user.create({ data: newUserData });
 
     res.status(201).json({
       success: true,
-      _id: user.id, // Mapped to _id for frontend compatibility
+      _id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
@@ -57,12 +59,10 @@ export const registerUser = async (req, res) => {
 };
 
 export const loginUser = async (req, res) => {
-  // 🚀 WE NOW GRAB THE REQUESTED ROLE FROM THE LOGIN PORTAL!
   const { email, password, id, role: requestedRole } = req.body; 
   const loginIdentifier = email || id;
 
   try {
-    // 🚨 PRISMA MULTI-FIELD SEARCH
     const user = await prisma.user.findFirst({
       where: {
         OR: [
@@ -76,7 +76,6 @@ export const loginUser = async (req, res) => {
     if (!user) return res.status(401).json({ success: false, message: 'Invalid credentials' });
     if (!user.isActive) return res.status(403).json({ success: false, message: 'Account is disabled. Please contact admin.' });
 
-    // 🚀 THE FIX: STRICT PORTAL-TO-ROLE VERIFICATION!
     if (requestedRole) {
       const isFacultyPortal = requestedRole === 'teacher' || requestedRole === 'faculty';
       const isUserFaculty = user.role === 'teacher' || user.role === 'faculty';
@@ -88,11 +87,9 @@ export const loginUser = async (req, res) => {
       }
     }
 
-    // Directly use bcrypt to compare
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (isMatch) {
-      // 🚨 PRISMA UPDATE
       await prisma.user.update({
         where: { id: user.id },
         data: { lastLogin: new Date() }
