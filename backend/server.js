@@ -4,6 +4,7 @@ dotenv.config();
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import app from './src/app.js';
+import { seedSuperAdmin } from './prisma/seedSuperAdmin.js';
 import { setupProctorSockets } from './src/sockets/proctorSocket.js';
 import { sendEmail } from './src/services/emailService.js';
 import leetcodeRoutes from './src/routes/leetcodeRoutes.js';
@@ -32,6 +33,9 @@ const startServer = async () => {
     console.error("❌ FATAL ERROR: Missing JWT_SECRET in environment variables.");
     process.exit(1);
   }
+
+  // 1.5 Seed Default Super Admin
+  await seedSuperAdmin();
 
   // 2. Start Express server
   const PORT = process.env.PORT || 5002; 
