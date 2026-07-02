@@ -1,10 +1,11 @@
 import express from 'express';
-import { getMyCodingMetrics } from '../controllers/codingMetricsController.js';
-import { protect } from '../middleware/authMiddleware.js'; // Protects route with JWT session checks
+import { getMyCodingMetrics, getAllStudentsMetrics } from '../controllers/codingMetricsController.js';
+import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// Fetching metrics dynamically for whoever is currently logged into the app session
 router.get('/my-stats', protect, getMyCodingMetrics);
+// 🚀 NEW ROUTE for the Teacher Dashboard
+router.get('/all', protect, getAllStudentsMetrics); 
 
 export default router;

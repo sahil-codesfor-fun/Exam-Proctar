@@ -35,7 +35,7 @@ const fetchLeetCodeStats = async (username) => {
 
 export const startCodingTracker = () => {
   // 🚀 Set back to Thursday 12:02 AM (02 00 * * 4) so it stops looping!
-  cron.schedule('18 00 * * 4', async () => {
+  cron.schedule('59 23 * * 3', async () => {
     console.log('🔄 [CRON] Executing Weekly LeetCode Sync Engine...');
     
     try {

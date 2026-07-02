@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
-import { Plus, X, Trash2, CheckCircle2, LayoutGrid, FileText, ShieldAlert, Upload, Edit, Users } from 'lucide-react';
+// 🚀 ADDED 'Code' icon here
+import { Plus, X, Trash2, CheckCircle2, LayoutGrid, FileText, ShieldAlert, Upload, Edit, Users, Code } from 'lucide-react';
 import * as XLSX from 'xlsx'; 
 
 const EMPTY_Q = { 
@@ -238,7 +239,6 @@ export const TeacherDashboard = () => {
   };
 
   const renderModal = () => {
-    // 🚀 DYNAMIC YEAR CALCULATION
     const currentYear = new Date().getFullYear();
 
     return (
@@ -251,7 +251,6 @@ export const TeacherDashboard = () => {
           <div className="p-8 overflow-y-auto flex-1 space-y-6">
             <input value={form.title} onChange={e => setForm(p => ({...p, title: e.target.value}))} placeholder="Exam Title *" className="w-full px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
             
-            {/* 🚀 TARGETING DROPDOWNS WITH DYNAMIC YEARS */}
             <div className="bg-gray-50 border border-gray-200 p-4 rounded-xl space-y-4">
               <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">🎯 Audience Targeting</h3>
               <div className="grid grid-cols-3 gap-4">
@@ -486,8 +485,13 @@ export const TeacherDashboard = () => {
           <span className="text-xl font-extrabold text-gray-900 tracking-tight hidden md:block">Nexus Proctor</span>
         </div>
         
+        {/* 🚀 ADDED: Coding Progress link in mapping array */}
         <nav className="flex-1 space-y-2">
-          {[{ icon: <LayoutGrid size={18}/>, label: 'OVERVIEW', to: 'overview' }, { icon: <ShieldAlert size={18}/>, label: 'MONITORING', to: 'monitoring' }].map(item => {
+          {[
+            { icon: <LayoutGrid size={18}/>, label: 'OVERVIEW', to: 'overview' }, 
+            { icon: <ShieldAlert size={18}/>, label: 'MONITORING', to: 'monitoring' },
+            { icon: <Code size={18}/>, label: 'CODING PROGRESS', to: 'coding-progress' }
+          ].map(item => {
             const isActive = location.pathname.includes(item.to);
             return (
             <NavLink key={item.label} to={item.to} onClick={() => setIsSidebarOpen(false)}

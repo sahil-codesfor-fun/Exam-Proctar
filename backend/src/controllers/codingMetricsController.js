@@ -47,3 +47,28 @@ export const getMyCodingMetrics = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error parsing coding metrics' });
   }
 };
+
+export const getAllStudentsMetrics = async (req, res) => {
+  try {
+    const metrics = await prisma.studentCodingMetrics.findMany({
+      include: {
+        user: {
+          select: { name: true, studentId: true } // Grab the student's name and ID
+        }
+      },
+      orderBy: { totalSolved: 'desc' } // Sort by top performers first!
+    });
+
+    // Calculate the deltas for the teacher view
+    const processedData = metrics.map(m => ({
+      ...m,
+      thisWeek: Math.max(0, m.totalSolved - m.weekStartCount),
+      thisMonth: Math.max(0, m.totalSolved - m.monthStartCount)
+    }));
+
+    res.json({ success: true, data: processedData });
+  } catch (error) {
+    console.error('Error fetching all metrics for teacher:', error.message);
+    res.status(500).json({ success: false, message: 'Server error parsing leaderboards' });
+  }
+};

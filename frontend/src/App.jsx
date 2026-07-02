@@ -7,11 +7,12 @@ import { AdminLogin } from './pages/AdminLogin';
 import { StudentDashboard } from './pages/StudentDashboard';
 import StudentOverview from './pages/student/StudentOverview';
 import StudentProfile from './pages/student/StudentProfile';
-// 🚀 NEW IMPORT: Your Coding Progress Page!
 import { CodingProgress } from './pages/student/CodingProgress'; 
 import { TeacherDashboard } from './pages/TeacherDashboard';
 import TeacherOverview from './pages/teacher/TeacherOverview';
 import TeacherMonitoring from './pages/teacher/TeacherMonitoring';
+// 🚀 NEW IMPORT: Teacher's Coding Progress View
+import { TeacherCodingProgress } from './pages/teacher/TeacherCodingProgress';
 import ExamDetail from './pages/teacher/ExamDetail';
 import { CompilerPage } from './pages/CompilerPage';
 import { LiveExamPage } from './pages/LiveExamPage';
@@ -36,7 +37,6 @@ function App() {
   const isAdmin = location.pathname === '/admin';
   const isChangePass = location.pathname === '/change-password';
   
-  // 🚨 Hide the header on ALL our VIP entrance pages!
   const isAuthPage = ['/', '/fac', '/adm'].includes(location.pathname);
 
   return (
@@ -54,7 +54,6 @@ function App() {
 
         <main className={`flex-grow ${isLiveExam || isCompiler || isAuthPage || isAdmin || isChangePass ? '' : 'p-4 md:p-8'}`}>
           <Routes>
-            {/* 🚨 THE 3 EXCLUSIVE VIP DOORS */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/fac" element={<FacultyLogin />} />
             <Route path="/adm" element={<AdminLogin />} />
@@ -65,7 +64,6 @@ function App() {
               <Route index element={<Navigate to="overview" replace />} />
               <Route path="overview" element={<StudentOverview />} />
               <Route path="profile" element={<StudentProfile />} />
-              {/* 🚀 NEW ROUTE MOUNTED HERE */}
               <Route path="coding-progress" element={<CodingProgress />} />
             </Route>
 
@@ -75,6 +73,8 @@ function App() {
               <Route index element={<Navigate to="overview" replace />} />
               <Route path="overview" element={<TeacherOverview />} />
               <Route path="monitoring" element={<TeacherMonitoring />} />
+              {/* 🚀 NEW ROUTE: Mounted right here in the Teacher section */}
+              <Route path="coding-progress" element={<TeacherCodingProgress />} />
               <Route path="exams/:examId" element={<ExamDetail />} />
               <Route path="exams/:examId/submissions/:submissionId" element={<ExamDetail />} />
             </Route>
