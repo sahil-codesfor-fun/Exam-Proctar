@@ -7,6 +7,7 @@ import submissionRoutes from './routes/submission.routes.js';
 import violationRoutes from './routes/violation.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import trainerResultsRoutes from './routes/trainerResults.routes.js';
+import superadminRoutes from './routes/superadmin/index.js';
 import { sendTestEmail } from './services/emailService.js';
 
 const app = express();
@@ -40,6 +41,7 @@ app.use('/api/submissions', submissionRoutes);
 app.use('/api/violations',  violationRoutes);
 app.use('/api/admin',       adminRoutes);
 app.use('/api/trainer',     trainerResultsRoutes);
+app.use('/api/superadmin',  superadminRoutes);
 
 // ── Health check ──────────────────────────────────────────────
 app.get('/api/test', (_req, res) => {

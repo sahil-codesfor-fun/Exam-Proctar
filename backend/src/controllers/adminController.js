@@ -124,3 +124,14 @@ export const deleteFaculty = async (req, res) => {
 export const testEmail = async (req, res) => {
   res.status(200).json({ success: true, message: 'Email system disabled by admin.' });
 };
+
+export const getSubjects = async (req, res) => {
+  try {
+    const subjects = await prisma.subject.findMany({
+      where: { departmentId: req.user.departmentId }
+    });
+    res.json({ success: true, data: subjects });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

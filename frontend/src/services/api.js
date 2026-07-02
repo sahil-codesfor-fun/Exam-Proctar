@@ -19,7 +19,14 @@ api.interceptors.response.use(
     if (err.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('role');
-      window.location.href = '/';
+
+      // If the failed request was to a superadmin endpoint, redirect to superadmin login
+      const requestUrl = err.config?.url || '';
+      if (requestUrl.includes('superadmin')) {
+        window.location.href = '/superadmin/login';
+      } else {
+        window.location.href = '/';
+      }
     }
     return Promise.reject(err);
   }

@@ -6,8 +6,10 @@ import {
   toggleFacultyStatus,
   resetFacultyPassword,
   deleteFaculty,
-  testEmail
+  testEmail,
+  getSubjects
 } from '../controllers/adminController.js';
+import teacherRoutes from './admin/teacherRoutes.js';
 
 const router = express.Router();
 
@@ -29,5 +31,9 @@ router.route('/faculty/:id/reset-password')
 
 router.route('/faculty/:id')
   .delete(deleteFaculty);
+
+router.get('/subjects', getSubjects);
+
+router.use('/teachers', teacherRoutes);
 
 export default router;

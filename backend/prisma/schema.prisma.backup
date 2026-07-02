@@ -13,18 +13,12 @@ model User {
   password              String
   name                  String
   role                  String       @default("student")
-  status                String       @default("ACTIVE")
-  mustChangePassword    Boolean      @default(false)
   studentId             String?
   facultyId             String?      @unique
   department            String?
   departmentId          String?
   course                String?
   section               String?
-  designation           String?
-  qualification         String?
-  experience            Int?
-  phone                 String?
   leetcodeUsername      String?      
   isActive              Boolean      @default(true)
   passwordResetRequired Boolean      @default(false)
@@ -36,11 +30,9 @@ model User {
   examsCreated          Exam[]
   codingMetrics         StudentCodingMetrics[] 
   
-  departmentRel         Department?  @relation("DepartmentUsers", fields: [departmentId], references: [id])
-  departmentHeadOf      Department?  @relation("DepartmentHead")
+  departmentRel         Department?  @relation(fields: [departmentId], references: [id])
   subjectsTeaching      Subject[]    @relation("TeacherSubjects")
   activityLogs          ActivityLog[]
-  loginHistory          LoginHistory[]
   notifications         Notification[]
 }
 
@@ -165,14 +157,12 @@ model Department {
   phone       String?
   building    String?
   floor       String?
-  status      String   @default("ACTIVE")
-  headId      String?  @unique
-  head        User?    @relation("DepartmentHead", fields: [headId], references: [id])
+  status      String   @default("active")
   logo        String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  users       User[]   @relation("DepartmentUsers")
+  users       User[]
   subjects    Subject[]
 }
 
@@ -187,7 +177,8 @@ model Subject {
   departmentId String?
   department   Department? @relation(fields: [departmentId], references: [id])
   
-  teachers     User[]      @relation("TeacherSubjects")
+  teacherId    String?
+  teacher      User?       @relation("TeacherSubjects", fields: [teacherId], references: [id])
   
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
@@ -198,15 +189,11 @@ model ActivityLog {
   action    String
   entity    String
   entityId  String?
-  details        String?  @db.Text
-  ipAddress      String?
-  userAgent      String?
-  status         String   @default("success")
-  previousValues Json?
-  newValues      Json?
-  userId         String?
-  user           User?    @relation(fields: [userId], references: [id])
-  timestamp      DateTime @default(now())
+  details   String?  @db.Text
+  ipAddress String?
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  timestamp DateTime @default(now())
 }
 
 model Notification {
@@ -230,16 +217,4 @@ model UniversitySettings {
   smtpConfig   Json?
   backupEmail  String?
   updatedAt    DateTime @updatedAt
-}
-
-model LoginHistory {
-  id         String   @id @default(uuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  loginTime  DateTime @default(now())
-  logoutTime DateTime?
-  ipAddress  String?
-  browser    String?
-  os         String?
-  deviceType String?
 }

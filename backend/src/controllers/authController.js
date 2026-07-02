@@ -69,6 +69,9 @@ export const loginUser = async (req, res) => {
           { studentId: loginIdentifier },
           { facultyId: loginIdentifier }
         ]
+      },
+      include: {
+        departmentRel: { select: { name: true, code: true } }
       }
     });
 
@@ -89,10 +92,27 @@ export const loginUser = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (isMatch) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { lastLogin: new Date() }
-      });
+      const userAgent = req.headers['user-agent'] || '';
+      const browser = userAgent.match(/(firefox|edge|msie|chrome|safari|trident)/i)?.[0] || 'Unknown';
+      const os = userAgent.match(/(windows|macintosh|linux|android|iphone|ipad)/i)?.[0] || 'Unknown';
+      const deviceType = userAgent.match(/(mobi|tablet)/i) ? 'Mobile/Tablet' : 'Desktop';
+      const ipAddress = req.ip || req.headers['x-forwarded-for'] || 'Unknown';
+
+      await prisma.$transaction([
+        prisma.user.update({
+          where: { id: user.id },
+          data: { lastLogin: new Date() }
+        }),
+        prisma.loginHistory.create({
+          data: {
+            userId: user.id,
+            ipAddress,
+            browser,
+            os,
+            deviceType
+          }
+        })
+      ]);
 
       res.json({
         success: true,
@@ -102,6 +122,7 @@ export const loginUser = async (req, res) => {
         role: user.role,
         studentId: user.studentId,
         facultyId: user.facultyId,
+        departmentRel: user.departmentRel,
         passwordResetRequired: user.passwordResetRequired,
         token: generateToken(user.id),
       });

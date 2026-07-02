@@ -11,7 +11,8 @@ export const protect = async (req, res, next) => {
       
       // 🚨 PRISMA TRANSLATION
       const user = await prisma.user.findUnique({
-        where: { id: decoded.id }
+        where: { id: decoded.id },
+        include: { departmentRel: { select: { name: true, code: true } } }
       });
 
       if (!user) {
@@ -39,8 +40,15 @@ export const teacherOnly = (req, res, next) => {
 };
 
 export const adminOnly = (req, res, next) => {
-  if (req.user?.role !== 'admin') {
+  if (req.user?.role !== 'admin' && req.user?.role !== 'superadmin') {
     return res.status(403).json({ message: 'Admin access only' });
+  }
+  next();
+};
+
+export const superAdminOnly = (req, res, next) => {
+  if (req.user?.role !== 'superadmin') {
+    return res.status(403).json({ message: 'Super Admin access only' });
   }
   next();
 };
