@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api'; 
-import { Code2, Target, Flame, Users } from 'lucide-react';
+import { Users, Code2 } from 'lucide-react';
 
 export const TeacherCodingProgress = () => {
   const [students, setStudents] = useState([]);
@@ -54,121 +54,102 @@ export const TeacherCodingProgress = () => {
         </div>
         <div>
           <h3 className="text-2xl font-black text-gray-900 tracking-tight uppercase">Coding Progress Monitor</h3>
-          <p className="text-sm font-medium text-gray-400 mt-1">Real-time platform integrations across all active students.</p>
+          <p className="text-sm font-medium text-gray-400 mt-1">Real-time LeetCode integrations across all active students.</p>
         </div>
       </div>
 
-      {/* RENDER EACH STUDENT */}
-      <div className="space-y-12">
-        {students.map((metrics) => (
-          <div key={metrics.id} className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)]">
-            
-            {/* Student Name Header */}
-            <div className="mb-4 px-4 border-b border-gray-50 pb-4">
-              <h4 className="text-xl font-black text-gray-900 tracking-tight">{metrics.user?.name || 'Unknown Student'}</h4>
-              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">Node ID: {metrics.user?.studentId || 'N/A'}</p>
-            </div>
-
-            {/* 🚀 HORIZONTAL SCROLLING CONTAINER (The exact "Red Box" layout) */}
-            <div className="flex overflow-x-auto gap-6 pb-4 snap-x pt-2 px-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full">
-              
-              {/* --- LEETCODE CARD --- */}
-              <div className="snap-start shrink-0 w-full max-w-[420px] bg-white rounded-[2rem] border border-gray-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#FFA116] to-amber-300"></div>
-                <div className="p-8">
-                  <div className="flex justify-between items-center mb-8">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center text-[#FFA116]">
-                        <Code2 size={24} strokeWidth={2.5} />
-                      </div>
-                      <div>
-                        <h2 className="text-2xl font-black text-gray-900 tracking-tight leading-none mb-1">LeetCode</h2>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                          Rank #{metrics?.ranking ? metrics.ranking.toLocaleString() : '0'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end">
-                      <span className="text-4xl font-black text-gray-900 leading-none">{metrics?.totalSolved || 0}</span>
-                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Solved</span>
-                    </div>
-                  </div>
-
-                  {/* Difficulty Breakdown */}
-                  <div className="space-y-4 mb-8">
-                    {/* Easy */}
-                    <div>
-                      <div className="flex justify-between text-sm mb-1.5 font-bold">
-                        <span className="text-[#00B8A3]">Easy</span>
-                        <span className="text-gray-900">{metrics?.easySolved || 0}</span>
-                      </div>
-                      <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                        <div className="bg-[#00B8A3] h-full rounded-full" style={{ width: `${metrics?.totalSolved ? (metrics.easySolved / metrics.totalSolved) * 100 : 0}%` }}></div>
-                      </div>
-                    </div>
-
-                    {/* Medium */}
-                    <div>
-                      <div className="flex justify-between text-sm mb-1.5 font-bold">
-                        <span className="text-[#FFC01E]">Medium</span>
-                        <span className="text-gray-900">{metrics?.mediumSolved || 0}</span>
-                      </div>
-                      <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                        <div className="bg-[#FFC01E] h-full rounded-full" style={{ width: `${metrics?.totalSolved ? (metrics.mediumSolved / metrics.totalSolved) * 100 : 0}%` }}></div>
-                      </div>
-                    </div>
-
-                    {/* Hard */}
-                    <div>
-                      <div className="flex justify-between text-sm mb-1.5 font-bold">
-                        <span className="text-[#EF4743]">Hard</span>
-                        <span className="text-gray-900">{metrics?.hardSolved || 0}</span>
-                      </div>
-                      <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                        <div className="bg-[#EF4743] h-full rounded-full" style={{ width: `${metrics?.totalSolved ? (metrics.hardSolved / metrics.totalSolved) * 100 : 0}%` }}></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Consistency Footer */}
-                  <div className="pt-5 border-t border-gray-100 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Flame size={20} className="text-orange-500" />
-                      <span className="text-sm font-bold text-gray-900">Consistency</span>
-                    </div>
-                    <div className="flex gap-4">
-                      <div className="text-right">
-                        <span className="block text-[9px] font-black text-gray-400 uppercase tracking-widest">This Week</span>
-                        <span className="text-sm font-black text-[#1A5F53]">{metrics?.thisWeek > 0 ? `+${metrics.thisWeek}` : '0'}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="block text-[9px] font-black text-gray-400 uppercase tracking-widest">This Month</span>
-                        <span className="text-sm font-black text-[#1A5F53]">{metrics?.thisMonth > 0 ? `+${metrics.thisMonth}` : '0'}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* --- PLACEHOLDER CARD --- */}
-              <div className="snap-start shrink-0 w-full max-w-[420px] bg-gray-50/50 rounded-[2rem] border-2 border-dashed border-gray-200 flex flex-col items-center justify-center p-8 text-gray-400">
-                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
-                  <Target size={28} className="text-gray-300" />
-                </div>
-                <h3 className="font-black text-gray-500 mb-1 text-lg">Add Platform</h3>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-center">Connect HackerRank or CodeChef</p>
-              </div>
-
-            </div>
-          </div>
-        ))}
+      {/* 🚀 THE SLEEK LIST UI */}
+      <div className="bg-white rounded-[2rem] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] overflow-hidden">
         
-        {students.length === 0 && !loading && (
-           <div className="text-center py-20 bg-gray-50 rounded-[2rem] border border-dashed border-gray-200">
-              <p className="text-gray-400 font-bold uppercase tracking-widest">No student metrics found.</p>
-           </div>
-        )}
+        {/* Table Header Row */}
+        <div className="flex items-center justify-between py-4 px-8 bg-gray-50 border-b border-gray-100 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+          <div className="w-1/4">Student</div>
+          <div className="w-1/5">Global Rank</div>
+          <div className="w-1/6">Total Solved</div>
+          <div className="w-1/5">Easy / Med / Hard</div>
+          <div className="w-1/6 text-right">Activity (Wk/Mo)</div>
+        </div>
+
+        {/* Student Data Rows */}
+        <div className="flex flex-col">
+          {students.map((metrics) => (
+            <div key={metrics.id} className="flex items-center justify-between py-5 px-8 bg-white border-b border-gray-50 hover:bg-gray-50/50 transition-colors group">
+              
+              {/* Column 1: Student Name & ID */}
+              <div className="w-1/4 pr-4">
+                <h4 className="text-sm font-black text-gray-900 group-hover:text-[#1A5F53] transition-colors truncate">
+                  {metrics.user?.name || 'Unknown Student'}
+                </h4>
+                <p className="text-xs text-gray-400 font-medium mt-0.5 font-mono truncate">
+                  {metrics.user?.studentId || 'N/A'}
+                </p>
+              </div>
+
+              {/* Column 2: Platform & Rank */}
+              <div className="w-1/5 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-orange-50 text-[#FFA116] flex items-center justify-center shrink-0">
+                  <Code2 size={16} strokeWidth={2.5} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold text-gray-700">#{metrics?.ranking?.toLocaleString() || '0'}</span>
+                  <span className="text-[9px] text-gray-400 uppercase tracking-widest font-black">LeetCode</span>
+                </div>
+              </div>
+
+              {/* Column 3: Total Solved */}
+              <div className="w-1/6 flex items-baseline gap-1.5">
+                <span className="text-xl font-black text-gray-900">{metrics?.totalSolved || 0}</span>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Solved</span>
+              </div>
+
+              {/* Column 4: Difficulty Breakdown */}
+              <div className="w-1/5 flex items-center gap-4 text-sm font-black">
+                <div className="flex flex-col items-center">
+                  <span className="text-[#00B8A3]">{metrics?.easySolved || 0}</span>
+                </div>
+                <span className="text-gray-200">/</span>
+                <div className="flex flex-col items-center">
+                  <span className="text-[#FFC01E]">{metrics?.mediumSolved || 0}</span>
+                </div>
+                <span className="text-gray-200">/</span>
+                <div className="flex flex-col items-center">
+                  <span className="text-[#EF4743]">{metrics?.hardSolved || 0}</span>
+                </div>
+              </div>
+
+              {/* Column 5: Consistency / Status (Now with Both Wk & Mo!) */}
+              <div className="w-1/6 flex flex-col items-end justify-center gap-1.5">
+                {/* Weekly Badge */}
+                <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest transition-all ${
+                  metrics?.thisWeek > 0 
+                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
+                    : 'bg-gray-50 text-gray-400 border border-gray-100'
+                }`}>
+                  {metrics?.thisWeek > 0 ? `+${metrics.thisWeek} This Week` : '0 This Week'}
+                </span>
+                
+                {/* Monthly Badge */}
+                <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest transition-all ${
+                  metrics?.thisMonth > 0 
+                    ? 'bg-blue-50 text-blue-600 border border-blue-100' 
+                    : 'bg-gray-50 text-gray-400 border border-gray-100'
+                }`}>
+                  {metrics?.thisMonth > 0 ? `+${metrics.thisMonth} This Month` : '0 This Month'}
+                </span>
+              </div>
+
+            </div>
+          ))}
+
+          {/* Empty State */}
+          {students.length === 0 && !loading && (
+             <div className="text-center py-20 bg-white">
+                <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">No student metrics found in the database.</p>
+             </div>
+          )}
+        </div>
       </div>
+
     </div>
   );
 };
