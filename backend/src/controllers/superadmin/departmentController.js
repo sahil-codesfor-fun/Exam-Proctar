@@ -20,8 +20,17 @@ export const createDepartment = async (req, res) => {
 
 export const updateDepartment = async (req, res) => {
   try {
-    // Basic update logic if needed
-    res.status(501).json({ success: false, message: "Not implemented yet" });
+    const result = await departmentService.updateDepartment(req.params.id, req.body, req.user.id);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+export const deleteDepartment = async (req, res) => {
+  try {
+    const result = await departmentService.deleteDepartment(req.params.id, req.user.id);
+    res.status(200).json(result);
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }

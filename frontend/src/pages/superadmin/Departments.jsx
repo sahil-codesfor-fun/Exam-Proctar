@@ -7,6 +7,8 @@ const Departments = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({ name: '', code: '' });
+  const [editId, setEditId] = useState(null);
+  const [activeDropdown, setActiveDropdown] = useState(null);
 
   const fetchDepartments = async () => {
     try {
@@ -23,17 +25,47 @@ const Departments = () => {
     fetchDepartments();
   }, []);
 
-  const handleCreate = async (e) => {
+  const handleCreateOrUpdate = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/superadmin/departments', formData);
+      if (editId) {
+        await api.put(`/superadmin/departments/${editId}`, formData);
+      } else {
+        await api.post('/superadmin/departments', formData);
+      }
       setShowModal(false);
       setFormData({ name: '', code: '' });
+      setEditId(null);
       fetchDepartments();
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to create department');
+      alert(err.response?.data?.message || 'Failed to save department');
     }
   };
+
+  const handleEdit = (dept) => {
+    setFormData({ name: dept.name, code: dept.code });
+    setEditId(dept.id);
+    setShowModal(true);
+    setActiveDropdown(null);
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this department?")) return;
+    try {
+      await api.delete(`/superadmin/departments/${id}`);
+      fetchDepartments();
+      setActiveDropdown(null);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to delete department');
+    }
+  };
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = () => setActiveDropdown(null);
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -43,15 +75,19 @@ const Departments = () => {
           <p className="text-gray-500 mt-1">Manage university departments and assignments.</p>
         </div>
         <button 
-          onClick={() => setShowModal(true)}
+          onClick={() => {
+            setEditId(null);
+            setFormData({ name: '', code: '' });
+            setShowModal(true);
+          }}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2"
         >
           <Plus className="w-5 h-5" /> Add Department
         </button>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
+        <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 rounded-t-xl">
           <div className="relative w-64">
             <Search className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
             <input 
@@ -91,8 +127,22 @@ const Departments = () => {
                     {dept.status}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-right">
-                  <button className="text-gray-400 hover:text-gray-900"><MoreVertical className="w-5 h-5" /></button>
+                <td className="px-6 py-4 text-right relative">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveDropdown(activeDropdown === dept.id ? null : dept.id);
+                    }}
+                    className="text-gray-400 hover:text-gray-900 focus:outline-none p-1 rounded-md hover:bg-gray-100"
+                  >
+                    <MoreVertical className="w-5 h-5" />
+                  </button>
+                  {activeDropdown === dept.id && (
+                    <div className="absolute right-6 top-10 mt-1 w-32 bg-white rounded-lg shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-gray-100 z-50 py-1" onClick={e => e.stopPropagation()}>
+                      <button onClick={() => handleEdit(dept)} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors">Edit</button>
+                      <button onClick={() => handleDelete(dept.id)} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">Delete</button>
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}
@@ -111,9 +161,9 @@ const Departments = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
             <div className="p-6 border-b border-gray-100">
-              <h3 className="text-xl font-bold text-gray-900">Add New Department</h3>
+              <h3 className="text-xl font-bold text-gray-900">{editId ? 'Edit Department' : 'Add New Department'}</h3>
             </div>
-            <form onSubmit={handleCreate} className="p-6 space-y-4">
+            <form onSubmit={handleCreateOrUpdate} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Department Name</label>
                 <input 
@@ -132,7 +182,9 @@ const Departments = () => {
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">Create Department</button>
+                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+                  {editId ? 'Save Changes' : 'Create Department'}
+                </button>
               </div>
             </form>
           </div>

@@ -22,7 +22,10 @@ import SuperAdminLayout from './components/superadmin/SuperAdminLayout';
 import SuperAdminDashboard from './pages/superadmin/Dashboard';
 import Departments from './pages/superadmin/Departments';
 import DepartmentHeads from './pages/superadmin/DepartmentHeads';
+import SuperAdminTeachers from './pages/superadmin/Teachers';
+import SuperAdminSubjects from './pages/superadmin/Subjects';
 import SuperAdminLogin from './pages/superadmin/Login';
+import AdminSubjects from './pages/admin/Subjects';
 
 // ── Protected Route wrapper ──────────────────────────────────────
 // Supports a `redirectTo` prop so superadmin routes redirect to their
@@ -127,7 +130,7 @@ function App() {
               <Route path="dashboard" element={<ComingSoon title="Dashboard Overview" />} />
               <Route path="teachers" element={<AdminDashboard />} />
               <Route path="students" element={<ComingSoon title="Students" />} />
-              <Route path="subjects" element={<ComingSoon title="Subjects" />} />
+              <Route path="subjects" element={<AdminSubjects />} />
               <Route path="exams" element={<ComingSoon title="Exams" />} />
               <Route path="reports" element={<ComingSoon title="Reports" />} />
               <Route path="activity-logs" element={<ComingSoon title="Activity Logs" />} />
@@ -144,9 +147,9 @@ function App() {
               <Route path="dashboard" element={<SuperAdminDashboard />} />
               <Route path="departments" element={<Departments />} />
               <Route path="department-heads" element={<DepartmentHeads />} />
-              <Route path="teachers" element={<ComingSoon title="Teachers" />} />
+              <Route path="teachers" element={<SuperAdminTeachers />} />
               <Route path="students" element={<ComingSoon title="Students" />} />
-              <Route path="subjects" element={<ComingSoon title="Subjects" />} />
+              <Route path="subjects" element={<SuperAdminSubjects />} />
               <Route path="exams" element={<ComingSoon title="Exams" />} />
               <Route path="reports" element={<ComingSoon title="Reports" />} />
               <Route path="activity-logs" element={<ComingSoon title="Activity Logs" />} />

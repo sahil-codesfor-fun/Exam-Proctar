@@ -58,6 +58,61 @@ class DepartmentService {
     };
   }
 
+  async updateDepartment(id, data, userId) {
+    if (!data.name || !data.code) {
+      throw new Error('Department name and code are required');
+    }
+
+    const existing = await departmentRepository.findById(id);
+    if (!existing) throw new Error('Department not found');
+
+    const updated = await departmentRepository.update(id, {
+      name: data.name,
+      code: data.code,
+      description: data.description || null,
+      email: data.email || null,
+      phone: data.phone || null,
+      building: data.building || null,
+      floor: data.floor || null,
+    });
+
+    await AuditService.log({
+      userId,
+      action: 'UPDATED_DEPARTMENT',
+      entity: 'Department',
+      entityId: id,
+      newValues: updated
+    });
+
+    return {
+      success: true,
+      message: 'Department updated successfully',
+      data: updated
+    };
+  }
+
+  async deleteDepartment(id, userId) {
+    const existing = await departmentRepository.findById(id);
+    if (!existing) throw new Error('Department not found');
+
+    // We only support soft delete (ARCHIVED) to preserve relations, or hard delete if it has no users.
+    // Let's use soft delete.
+    const updated = await departmentRepository.update(id, { status: 'ARCHIVED' });
+
+    await AuditService.log({
+      userId,
+      action: 'DELETED_DEPARTMENT',
+      entity: 'Department',
+      entityId: id,
+      newValues: { status: 'ARCHIVED' }
+    });
+
+    return {
+      success: true,
+      message: 'Department deleted successfully'
+    };
+  }
+
   async updateDepartmentStatus(id, newStatus, userId) {
     const existing = await departmentRepository.findById(id);
     if (!existing) throw new Error('Department not found');

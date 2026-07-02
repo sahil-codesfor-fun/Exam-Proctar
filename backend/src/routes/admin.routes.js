@@ -6,9 +6,13 @@ import {
   toggleFacultyStatus,
   resetFacultyPassword,
   deleteFaculty,
-  testEmail,
-  getSubjects
+  testEmail
 } from '../controllers/adminController.js';
+import {
+  getSubjects,
+  getTeacherSubjects,
+  assignSubjectsToTeacher
+} from '../controllers/adminSubjectController.js';
 import teacherRoutes from './admin/teacherRoutes.js';
 
 const router = express.Router();
@@ -33,6 +37,10 @@ router.route('/faculty/:id')
   .delete(deleteFaculty);
 
 router.get('/subjects', getSubjects);
+
+router.route('/teachers/:teacherId/subjects')
+  .get(getTeacherSubjects)
+  .post(assignSubjectsToTeacher);
 
 router.use('/teachers', teacherRoutes);
 

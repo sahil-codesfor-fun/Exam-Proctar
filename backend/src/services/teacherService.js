@@ -120,9 +120,12 @@ class TeacherService {
     const teacher = await teacherRepository.findByIdAndDepartment(teacherId, departmentId);
     if (!teacher) throw new Error('Teacher not found');
 
+    // If superadmin is assigning (departmentId is undefined), use the teacher's departmentId
+    const targetDeptId = departmentId || teacher.departmentId;
+
     // Verify subjects belong to this department
     const subjects = await prisma.subject.findMany({
-      where: { id: { in: subjectIds }, departmentId }
+      where: { id: { in: subjectIds }, departmentId: targetDeptId }
     });
     if (subjects.length !== subjectIds.length) {
       throw new Error('One or more subjects do not belong to this department');

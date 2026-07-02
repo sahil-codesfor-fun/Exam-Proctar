@@ -4,8 +4,13 @@ import {
   getDepartments,
   createDepartment,
   updateDepartment,
-  updateDepartmentStatus
+  updateDepartmentStatus,
+  deleteDepartment
 } from '../../controllers/superadmin/departmentController.js';
+import {
+  getDepartmentSubjects,
+  createSubject
+} from '../../controllers/superadmin/subjectController.js';
 
 const router = express.Router();
 
@@ -16,9 +21,17 @@ router.route('/')
   .post(createDepartment);
 
 router.route('/:id')
-  .put(updateDepartment);
+  .put(updateDepartment)
+  .delete(deleteDepartment);
 
 router.route('/:id/status')
   .patch(updateDepartmentStatus);
+
+router.route('/:id/subjects')
+  .get(getDepartmentSubjects)
+  .post((req, res, next) => {
+    req.body.departmentId = req.params.id;
+    next();
+  }, createSubject);
 
 export default router;
