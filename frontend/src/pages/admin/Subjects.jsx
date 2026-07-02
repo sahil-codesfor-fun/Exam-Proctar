@@ -24,8 +24,10 @@ const AdminSubjects = () => {
   };
 
   const filteredSubjects = subjects.filter(sub => 
-    sub.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    sub.code.toLowerCase().includes(searchTerm.toLowerCase())
+    sub.status !== 'ARCHIVED' && (
+      sub.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      sub.code.toLowerCase().includes(searchTerm.toLowerCase())
+    )
   );
 
   return (

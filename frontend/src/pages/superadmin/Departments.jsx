@@ -9,6 +9,7 @@ const Departments = () => {
   const [formData, setFormData] = useState({ name: '', code: '' });
   const [editId, setEditId] = useState(null);
   const [activeDropdown, setActiveDropdown] = useState(null);
+  const [showArchived, setShowArchived] = useState(false);
 
   const fetchDepartments = async () => {
     try {
@@ -96,6 +97,16 @@ const Departments = () => {
               className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
             />
           </div>
+          <div className="flex items-center gap-2">
+            <input 
+              type="checkbox" 
+              id="showArchived" 
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <label htmlFor="showArchived" className="text-sm text-gray-600 cursor-pointer">Show Archived</label>
+          </div>
         </div>
         <table className="w-full text-left">
           <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold tracking-wider">
@@ -108,7 +119,7 @@ const Departments = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {departments.map(dept => (
+            {departments.filter(d => showArchived || d.status !== 'ARCHIVED').map(dept => (
               <tr key={dept.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
@@ -146,7 +157,7 @@ const Departments = () => {
                 </td>
               </tr>
             ))}
-            {departments.length === 0 && !loading && (
+            {departments.filter(d => showArchived || d.status !== 'ARCHIVED').length === 0 && !loading && (
               <tr>
                 <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
                   No departments found.

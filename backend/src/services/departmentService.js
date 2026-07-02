@@ -95,22 +95,47 @@ class DepartmentService {
     const existing = await departmentRepository.findById(id);
     if (!existing) throw new Error('Department not found');
 
-    // We only support soft delete (ARCHIVED) to preserve relations, or hard delete if it has no users.
-    // Let's use soft delete.
-    const updated = await departmentRepository.update(id, { status: 'ARCHIVED' });
+    try {
+      await departmentRepository.delete(id);
+      
+      await AuditService.log({
+        userId,
+        action: 'DELETED_DEPARTMENT',
+        entity: 'Department',
+        entityId: id,
+        details: 'Hard deleted department'
+      });
 
-    await AuditService.log({
-      userId,
-      action: 'DELETED_DEPARTMENT',
-      entity: 'Department',
-      entityId: id,
-      newValues: { status: 'ARCHIVED' }
-    });
+      return {
+        success: true,
+        message: 'Department deleted successfully'
+      };
+    } catch (err) {
+      // If there are foreign key constraints (e.g. users attached), fallback to soft delete
+      if (err.code === 'P2003') {
+        const timestamp = Date.now();
+        await departmentRepository.update(id, { 
+          status: 'ARCHIVED',
+          name: `${existing.name}_archived_${timestamp}`,
+          code: `${existing.code}_archived_${timestamp}`
+        });
+        
+        await AuditService.log({
+          userId,
+          action: 'ARCHIVED_DEPARTMENT',
+          entity: 'Department',
+          entityId: id,
+          newValues: { status: 'ARCHIVED' },
+          details: 'Soft deleted department due to existing relations'
+        });
 
-    return {
-      success: true,
-      message: 'Department deleted successfully'
-    };
+        return {
+          success: true,
+          message: 'Department archived because it contains existing faculty/subjects'
+        };
+      }
+      throw err;
+    }
   }
 
   async updateDepartmentStatus(id, newStatus, userId) {

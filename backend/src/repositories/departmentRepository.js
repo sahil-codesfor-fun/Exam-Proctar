@@ -64,6 +64,12 @@ class DepartmentRepository {
       data
     });
   }
+
+  async delete(id) {
+    return prisma.department.delete({
+      where: { id }
+    });
+  }
 }
 
 export default new DepartmentRepository();

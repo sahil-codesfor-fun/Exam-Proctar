@@ -17,8 +17,8 @@ const DepartmentHeads = () => {
         api.get('/superadmin/departments')
       ]);
       setHeads(headsRes.data.data);
-      // Only show departments that don't have a head assigned
-      setDepartments(deptsRes.data.data.filter(d => !d.head));
+      // Only show active departments that don't have a head assigned
+      setDepartments(deptsRes.data.data.filter(d => !d.head && d.status !== 'ARCHIVED'));
     } catch (err) {
       console.error(err);
     } finally {

@@ -45,7 +45,7 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
   const fetchDepartments = async () => {
     try {
       const res = await api.get('/superadmin/departments');
-      setDepartments([{id: 'All', name: 'All'}, ...res.data.data]);
+      setDepartments([{id: 'All', name: 'All'}, ...res.data.data.filter(d => d.status !== 'ARCHIVED')]);
     } catch (err) {
       console.error(err);
     }

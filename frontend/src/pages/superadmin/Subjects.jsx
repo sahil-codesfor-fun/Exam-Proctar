@@ -8,6 +8,7 @@ const SuperAdminSubjects = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [deptFilter, setDeptFilter] = useState('All');
+  const [showArchived, setShowArchived] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -28,7 +29,7 @@ const SuperAdminSubjects = () => {
   const fetchDepartments = async () => {
     try {
       const res = await api.get('/superadmin/departments');
-      setDepartments(res.data.data);
+      setDepartments(res.data.data.filter(d => d.status !== 'ARCHIVED'));
     } catch (err) {
       console.error('Failed to fetch departments:', err);
     }
@@ -91,7 +92,8 @@ const SuperAdminSubjects = () => {
     const matchesSearch = sub.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           sub.code.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDept = deptFilter === 'All' || sub.departmentId === deptFilter;
-    return matchesSearch && matchesDept;
+    const matchesArchived = showArchived || sub.status !== 'ARCHIVED';
+    return matchesSearch && matchesDept && matchesArchived;
   });
 
   return (
@@ -136,6 +138,16 @@ const SuperAdminSubjects = () => {
               <option key={d.id} value={d.id}>{d.name}</option>
             ))}
           </select>
+          <div className="flex items-center gap-2 mt-2 sm:mt-0 sm:ml-auto">
+            <input 
+              type="checkbox" 
+              id="showArchivedSub" 
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <label htmlFor="showArchivedSub" className="text-sm text-gray-600 cursor-pointer">Show Archived</label>
+          </div>
         </div>
 
         <div className="p-0 overflow-x-auto">

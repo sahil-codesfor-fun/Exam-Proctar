@@ -98,18 +98,39 @@ class SubjectService {
     const existing = await subjectRepository.findById(id);
     if (!existing) throw new Error('Subject not found');
 
-    // Soft delete if possible, but actually let's update status to archived
-    const updated = await subjectRepository.update(id, { status: 'ARCHIVED' });
+    try {
+      await subjectRepository.delete(id);
+      
+      await AuditService.log({
+        userId,
+        action: 'DELETED_SUBJECT',
+        entity: 'Subject',
+        entityId: id,
+        details: 'Hard deleted subject'
+      });
 
-    await AuditService.log({
-      userId,
-      action: 'DELETED_SUBJECT',
-      entity: 'Subject',
-      entityId: id,
-      newValues: { status: 'ARCHIVED' }
-    });
+      return { success: true, message: 'Subject deleted successfully' };
+    } catch (err) {
+      if (err.code === 'P2003') {
+        const timestamp = Date.now();
+        const updated = await subjectRepository.update(id, { 
+          status: 'ARCHIVED',
+          code: `${existing.code}_archived_${timestamp}` 
+        });
 
-    return { success: true, message: 'Subject archived successfully' };
+        await AuditService.log({
+          userId,
+          action: 'ARCHIVED_SUBJECT',
+          entity: 'Subject',
+          entityId: id,
+          newValues: { status: 'ARCHIVED' },
+          details: 'Soft deleted subject due to existing relations'
+        });
+
+        return { success: true, message: 'Subject archived because it has existing associations (exams or teachers)' };
+      }
+      throw err;
+    }
   }
 
   // Admin assigning subjects to teacher
