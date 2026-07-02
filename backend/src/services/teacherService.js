@@ -30,7 +30,7 @@ class TeacherService {
     }
     if (subjectId) {
       where.subjectsTeaching = {
-        some: { id: subjectId }
+        some: { subjectId }
       };
     }
 
@@ -131,15 +131,15 @@ class TeacherService {
       throw new Error('One or more subjects do not belong to this department');
     }
 
-    // Connect them
-    await prisma.user.update({
-      where: { id: teacherId },
-      data: {
-        subjectsTeaching: {
-          set: subjects.map(s => ({ id: s.id }))
-        }
-      }
-    });
+    // Connect them via the explicit junction table
+    await prisma.$transaction([
+      prisma.teacherSubject.deleteMany({ where: { teacherId } }),
+      ...(subjects.length > 0 ? [
+        prisma.teacherSubject.createMany({
+          data: subjects.map(s => ({ teacherId, subjectId: s.id }))
+        })
+      ] : [])
+    ]);
 
     await AuditService.log({
       userId: headId,

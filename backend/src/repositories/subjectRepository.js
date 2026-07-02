@@ -36,13 +36,18 @@ class SubjectRepository {
   }
 
   async findById(id) {
-    return prisma.subject.findUnique({
+    const subject = await prisma.subject.findUnique({
       where: { id },
       include: {
         department: { select: { id: true, name: true } },
-        teachers: { select: { id: true, name: true, email: true } }
+        teachers: { include: { teacher: { select: { id: true, name: true, email: true } } } }
       }
     });
+
+    if (subject) {
+      subject.teachers = subject.teachers?.map(ts => ts.teacher) || [];
+    }
+    return subject;
   }
 
   async findByCode(code) {
@@ -69,19 +74,27 @@ class SubjectRepository {
   }
 
   async assignToTeacher(subjectIds, teacherId) {
-    // Unassign all existing subjects for this teacher first, or we can just connect/disconnect.
-    // The easiest way is to set the subjects list for the teacher.
-    return prisma.user.update({
+    await prisma.$transaction([
+      prisma.teacherSubject.deleteMany({ where: { teacherId } }),
+      ...(subjectIds.length > 0 ? [
+        prisma.teacherSubject.createMany({
+          data: subjectIds.map(subjectId => ({ teacherId, subjectId }))
+        })
+      ] : [])
+    ]);
+
+    const user = await prisma.user.findUnique({
       where: { id: teacherId },
-      data: {
-        subjectsTeaching: {
-          set: subjectIds.map(id => ({ id }))
-        }
-      },
       include: {
-        subjectsTeaching: true
+        subjectsTeaching: { include: { subject: true } }
       }
     });
+
+    if (user) {
+      user.subjectsTeaching = user.subjectsTeaching?.map(ts => ts.subject) || [];
+    }
+    
+    return user;
   }
 
   async getTeacherSubjects(teacherId) {
@@ -90,12 +103,14 @@ class SubjectRepository {
       include: {
         subjectsTeaching: {
           include: {
-            department: { select: { id: true, name: true } }
+            subject: {
+              include: { department: { select: { id: true, name: true } } }
+            }
           }
         }
       }
     });
-    return user?.subjectsTeaching || [];
+    return user?.subjectsTeaching?.map(ts => ts.subject) || [];
   }
 }
 

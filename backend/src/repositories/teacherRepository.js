@@ -2,7 +2,7 @@ import prisma from '../config/prisma.js';
 
 class TeacherRepository {
   async findByDepartmentId(departmentId, skip, take, where = {}) {
-    return prisma.user.findMany({
+    const teachers = await prisma.user.findMany({
       where: {
         role: { in: ['teacher', 'faculty'] },
         departmentId,
@@ -12,13 +12,22 @@ class TeacherRepository {
       take,
       include: {
         departmentRel: { select: { name: true, code: true } },
-        subjectsTeaching: { select: { id: true, name: true, code: true } },
+        subjectsTeaching: { 
+          include: { 
+            subject: { select: { id: true, name: true, code: true } } 
+          } 
+        },
         _count: {
           select: { submissions: true, examsCreated: true }
         }
       },
       orderBy: { createdAt: 'desc' }
     });
+    
+    return teachers.map(t => ({
+      ...t,
+      subjectsTeaching: t.subjectsTeaching?.map(ts => ts.subject) || []
+    }));
   }
 
   async countByDepartmentId(departmentId, where = {}) {
@@ -32,7 +41,7 @@ class TeacherRepository {
   }
 
   async findByIdAndDepartment(id, departmentId) {
-    return prisma.user.findFirst({
+    const teacher = await prisma.user.findFirst({
       where: {
         id,
         role: { in: ['teacher', 'faculty'] },
@@ -40,7 +49,7 @@ class TeacherRepository {
       },
       include: {
         departmentRel: { select: { name: true, code: true } },
-        subjectsTeaching: true,
+        subjectsTeaching: { include: { subject: true } },
         loginHistory: {
           orderBy: { loginTime: 'desc' },
           take: 1
@@ -50,6 +59,11 @@ class TeacherRepository {
         }
       }
     });
+
+    if (teacher) {
+      teacher.subjectsTeaching = teacher.subjectsTeaching?.map(ts => ts.subject) || [];
+    }
+    return teacher;
   }
 
   async updateTeacher(id, departmentId, data) {

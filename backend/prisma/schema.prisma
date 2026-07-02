@@ -8,15 +8,15 @@ datasource db {
 }
 
 model User {
-  id                    String       @id @default(uuid())
-  email                 String       @unique
+  id                    String                 @id @default(uuid())
+  email                 String                 @unique
   password              String
   name                  String
-  role                  String       @default("student")
-  status                String       @default("ACTIVE")
-  mustChangePassword    Boolean      @default(false)
+  role                  String                 @default("student")
+  status                String                 @default("ACTIVE")
+  mustChangePassword    Boolean                @default(false)
   studentId             String?
-  facultyId             String?      @unique
+  facultyId             String?                @unique
   department            String?
   departmentId          String?
   course                String?
@@ -25,23 +25,23 @@ model User {
   qualification         String?
   experience            Int?
   phone                 String?
-  leetcodeUsername      String?      
-  isActive              Boolean      @default(true)
-  passwordResetRequired Boolean      @default(false)
+  leetcodeUsername      String?
+  isActive              Boolean                @default(true)
+  passwordResetRequired Boolean                @default(false)
   lastLogin             DateTime?
-  createdAt             DateTime     @default(now())
-  updatedAt             DateTime     @updatedAt
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
   submissions           Submission[]
   violations            Violation[]
   examsCreated          Exam[]
-  codingMetrics         StudentCodingMetrics[] 
-  
-  departmentRel         Department?  @relation("DepartmentUsers", fields: [departmentId], references: [id])
-  departmentHeadOf      Department?  @relation("DepartmentHead")
-  subjectsTeaching      Subject[]    @relation("TeacherSubjects")
-  activityLogs          ActivityLog[]
-  loginHistory          LoginHistory[]
-  notifications         Notification[]
+  codingMetrics         StudentCodingMetrics[]
+
+  departmentRel    Department?      @relation("DepartmentUsers", fields: [departmentId], references: [id])
+  departmentHeadOf Department?      @relation("DepartmentHead")
+  subjectsTeaching TeacherSubject[] @relation("TeacherSubjects")
+  activityLogs     ActivityLog[]
+  loginHistory     LoginHistory[]
+  notifications    Notification[]
 }
 
 model Exam {
@@ -49,15 +49,15 @@ model Exam {
   title              String
   description        String?      @db.Text
   course             String?
-  targetBatch        String?      
-  targetSection      String?      
+  targetBatch        String?
+  targetSection      String?
   startTime          DateTime?
-  endTime            DateTime?    
+  endTime            DateTime?
   durationMinutes    Int
   status             String       @default("draft")
-  randomizeQuestions Boolean      @default(false) 
-  questionsToServe   Int?                         
-  proctoringRules    Json?        
+  randomizeQuestions Boolean      @default(false)
+  questionsToServe   Int?
+  proctoringRules    Json?
   createdAt          DateTime     @default(now())
   creatorId          String
   creator            User         @relation(fields: [creatorId], references: [id])
@@ -107,19 +107,19 @@ model MatchingPair {
 }
 
 model Submission {
-  id             String   @id @default(uuid())
+  id             String    @id @default(uuid())
   examId         String
   studentId      String
   answers        Json
-  totalScore     Int      @default(0)
-  maxScore       Int      @default(0)
-  percentage     Float    @default(0)
-  violationCount Int      @default(0)
-  status         String   @default("in_progress")
+  totalScore     Int       @default(0)
+  maxScore       Int       @default(0)
+  percentage     Float     @default(0)
+  violationCount Int       @default(0)
+  status         String    @default("in_progress")
   submittedAt    DateTime?
-  createdAt      DateTime @default(now())
-  exam           Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
-  student        User     @relation(fields: [studentId], references: [id])
+  createdAt      DateTime  @default(now())
+  exam           Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student        User      @relation(fields: [studentId], references: [id])
 }
 
 model Violation {
@@ -136,21 +136,21 @@ model Violation {
 
 // Highly Optimized Metrics Table
 model StudentCodingMetrics {
-  id              String   @id @default(uuid())
-  studentId       String
-  platform        String   
-  totalSolved     Int      @default(0)
-  easySolved      Int      @default(0)
-  mediumSolved    Int      @default(0)
-  hardSolved      Int      @default(0)
-  ranking         Int      @default(0)
-  
+  id           String @id @default(uuid())
+  studentId    String
+  platform     String
+  totalSolved  Int    @default(0)
+  easySolved   Int    @default(0)
+  mediumSolved Int    @default(0)
+  hardSolved   Int    @default(0)
+  ranking      Int    @default(0)
+
   // 🚀 NEW TRACKER FIELDS: Stores snapshot counts to calculate delta differences
-  weekStartCount  Int      @default(0)
-  monthStartCount Int      @default(0)
-  
-  lastUpdated     DateTime @default(now())
-  user            User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  weekStartCount  Int @default(0)
+  monthStartCount Int @default(0)
+
+  lastUpdated DateTime @default(now())
+  user        User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, platform])
   @@index([studentId])
@@ -172,32 +172,41 @@ model Department {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  users       User[]   @relation("DepartmentUsers")
-  subjects    Subject[]
+  users    User[]    @relation("DepartmentUsers")
+  subjects Subject[]
 }
 
 model Subject {
-  id           String   @id @default(uuid())
-  name         String
-  code         String   @unique
-  semester     Int?
-  credits      Int?
-  status       String   @default("active")
-  
+  id       String @id @default(uuid())
+  name     String
+  code     String @unique
+  semester Int?
+  credits  Int?
+  status   String @default("active")
+
   departmentId String?
   department   Department? @relation(fields: [departmentId], references: [id])
-  
-  teachers     User[]      @relation("TeacherSubjects")
-  
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+
+  teachers TeacherSubject[] @relation("TeacherSubjects")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TeacherSubject {
+  teacherId String
+  subjectId String
+  teacher   User    @relation("TeacherSubjects", fields: [teacherId], references: [id], onDelete: Cascade)
+  subject   Subject @relation("TeacherSubjects", fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@id([teacherId, subjectId])
 }
 
 model ActivityLog {
-  id        String   @id @default(uuid())
-  action    String
-  entity    String
-  entityId  String?
+  id             String   @id @default(uuid())
+  action         String
+  entity         String
+  entityId       String?
   details        String?  @db.Text
   ipAddress      String?
   userAgent      String?
@@ -213,7 +222,7 @@ model Notification {
   id        String   @id @default(uuid())
   title     String
   message   String   @db.Text
-  type      String   
+  type      String
   isRead    Boolean  @default(false)
   userId    String?
   user      User?    @relation(fields: [userId], references: [id])
@@ -233,10 +242,10 @@ model UniversitySettings {
 }
 
 model LoginHistory {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  loginTime  DateTime @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loginTime  DateTime  @default(now())
   logoutTime DateTime?
   ipAddress  String?
   browser    String?
