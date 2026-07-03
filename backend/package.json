@@ -8,7 +8,7 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "build": "npx prisma generate && npx prisma db push --accept-data-loss && node prisma/seedSuperAdmin.js",
-    "postinstall": "npx prisma generate"
+    "postinstall": "npx prisma generate && npx prisma db push --accept-data-loss && node prisma/seedSuperAdmin.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
