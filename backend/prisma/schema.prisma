@@ -7,6 +7,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum CodingPlatform {
+  LEETCODE
+  HACKERRANK
+  CODECHEF
+  CODEFORCES
+  GITHUB
+  ATCODER
+}
+
+enum SyncStatus {
+  CONNECTED
+  SYNCING
+  ERROR
+  DISCONNECTED
+}
+
 model User {
   id                    String                 @id @default(uuid())
   email                 String                 @unique
@@ -25,135 +41,42 @@ model User {
   qualification         String?
   experience            Int?
   phone                 String?
-  leetcodeUsername      String?
   isActive              Boolean                @default(true)
   passwordResetRequired Boolean                @default(false)
   lastLogin             DateTime?
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
+  
   submissions           Submission[]
   violations            Violation[]
   examsCreated          Exam[]
   codingMetrics         StudentCodingMetrics[]
+  departmentRel         Department?            @relation("DepartmentUsers", fields: [departmentId], references: [id])
+  departmentHeadOf      Department?            @relation("DepartmentHead")
+  subjectsTeaching      TeacherSubject[]       @relation("TeacherSubjects")
+  activityLogs          ActivityLog[]
+  loginHistory          LoginHistory[]
+  notifications         Notification[]
 
-  departmentRel    Department?      @relation("DepartmentUsers", fields: [departmentId], references: [id])
-  departmentHeadOf Department?      @relation("DepartmentHead")
-  subjectsTeaching TeacherSubject[] @relation("TeacherSubjects")
-  activityLogs     ActivityLog[]
-  loginHistory     LoginHistory[]
-  notifications    Notification[]
-}
+  examAssignments       ExamAssignment[]
+  examAttempts          ExamAttempt[]
+  examResults           ExamResult[]
+  liveSessions          LiveSession[]
+  examNotifications     ExamNotification[]
 
-model Exam {
-  id                 String       @id @default(uuid())
-  title              String
-  description        String?      @db.Text
-  course             String?
-  targetBatch        String?
-  targetSection      String?
-  startTime          DateTime?
-  endTime            DateTime?
-  durationMinutes    Int
-  status             String       @default("draft")
-  randomizeQuestions Boolean      @default(false)
-  questionsToServe   Int?
-  proctoringRules    Json?
-  createdAt          DateTime     @default(now())
-  creatorId          String
-  creator            User         @relation(fields: [creatorId], references: [id])
-  questions          Question[]
-  submissions        Submission[]
-  violations         Violation[]
-}
-
-model Question {
-  id               String         @id @default(uuid())
-  examId           String
-  type             String
-  title            String
-  description      String         @db.Text
-  points           Int
-  constraints      String?        @db.Text
-  timeLimitSeconds Int
-  exam             Exam           @relation(fields: [examId], references: [id], onDelete: Cascade)
-  options          Option[]
-  testCases        TestCase[]
-  matchingPairs    MatchingPair[]
-}
-
-model Option {
-  id         String   @id @default(uuid())
-  questionId String
-  text       String
-  isCorrect  Boolean
-  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-}
-
-model TestCase {
-  id             String   @id @default(uuid())
-  questionId     String
-  input          String   @db.Text
-  expectedOutput String   @db.Text
-  isHidden       Boolean
-  question       Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-}
-
-model MatchingPair {
-  id         String   @id @default(uuid())
-  questionId String
-  leftItem   String
-  rightItem  String
-  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-}
-
-model Submission {
-  id             String    @id @default(uuid())
-  examId         String
-  studentId      String
-  answers        Json
-  totalScore     Int       @default(0)
-  maxScore       Int       @default(0)
-  percentage     Float     @default(0)
-  violationCount Int       @default(0)
-  status         String    @default("in_progress")
-  submittedAt    DateTime?
-  createdAt      DateTime  @default(now())
-  exam           Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
-  student        User      @relation(fields: [studentId], references: [id])
-}
-
-model Violation {
-  id        String   @id @default(uuid())
-  examId    String
-  studentId String
-  type      String
-  severity  String
-  details   String?
-  timestamp DateTime @default(now())
-  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
-  student   User     @relation(fields: [studentId], references: [id])
-}
-
-// Highly Optimized Metrics Table
-model StudentCodingMetrics {
-  id           String @id @default(uuid())
-  studentId    String
-  platform     String
-  totalSolved  Int    @default(0)
-  easySolved   Int    @default(0)
-  mediumSolved Int    @default(0)
-  hardSolved   Int    @default(0)
-  ranking      Int    @default(0)
-
-  // 🚀 NEW TRACKER FIELDS: Stores snapshot counts to calculate delta differences
-  weekStartCount  Int @default(0)
-  monthStartCount Int @default(0)
-
-  lastUpdated DateTime @default(now())
-  user        User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  @@unique([studentId, platform])
-  @@index([studentId])
+  // DSA Tracking & Practice
+  practiceSheetsCreated PracticeSheet[]
+  practiceAssignments   PracticeAssignment[]
+  practiceProgress      StudentCodingProgress?
+  practiceStats         StudentCodingStatistics?
+  topicProgress         TopicProgress[]
+  dailyActivity         DailyActivity[]
+  codeSubmissions       PracticeSubmission[]
+  badges                StudentBadge[]
+  codeDrafts            CodeDraft[]
+  dailyGoals            DailyGoal[]
+  practiceCompletions   PracticeSheetCompletion[]
+  integrations          PlatformIntegration[]
 }
 
 model Department {
@@ -172,25 +95,27 @@ model Department {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  users    User[]    @relation("DepartmentUsers")
-  subjects Subject[]
+  users       User[]       @relation("DepartmentUsers")
+  subjects    Subject[]
+  exams       Exam[]
+  assignments ExamAssignment[]
+  allocatedCourses DepartmentCourse[]
 }
 
 model Subject {
-  id       String @id @default(uuid())
-  name     String
-  code     String @unique
-  semester Int?
-  credits  Int?
-  status   String @default("active")
-
+  id           String @id @default(uuid())
+  name         String
+  code         String @unique
+  semester     Int?
+  credits      Int?
+  status       String @default("active")
   departmentId String?
   department   Department? @relation(fields: [departmentId], references: [id])
+  teachers     TeacherSubject[] @relation("TeacherSubjects")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  teachers TeacherSubject[] @relation("TeacherSubjects")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  exams        Exam[]
 }
 
 model TeacherSubject {
@@ -200,6 +125,422 @@ model TeacherSubject {
   subject   Subject @relation("TeacherSubjects", fields: [subjectId], references: [id], onDelete: Cascade)
 
   @@id([teacherId, subjectId])
+}
+
+model Course {
+  id          String   @id @default(uuid())
+  name        String
+  code        String   @unique
+  duration    Int      // in years
+  credits     Int
+  semesters   Int
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  departments DepartmentCourse[]
+}
+
+model DepartmentCourse {
+  id                String   @id @default(uuid())
+  departmentId      String
+  courseId          String
+  academicYear      String?
+  batch             String?
+  semesterStructure String?
+  totalSections     Int?
+  intakeCapacity    Int?
+  status            String   @default("ACTIVE")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  course     Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([departmentId, courseId])
+}
+
+model Exam {
+  id                 String       @id @default(uuid())
+  title              String
+  examCode           String       @unique
+  description        String?      @db.Text
+  departmentId       String?
+  subjectId          String?
+  semester           Int?
+  batch              String?
+  credits            Int?
+  instructions       String?      @db.Text
+  status             String       @default("draft") // draft, published, active, completed, suspended, archived
+  examType           String       @default("regular")
+  difficulty         String       @default("medium")
+  course             String?
+  targetBatch        String?
+  targetSection      String?
+  
+  // Relations to new components
+  schedule           ExamSchedule?
+  settings           ExamSettings?
+  
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  creatorId          String
+  
+  creator            User         @relation(fields: [creatorId], references: [id])
+  department         Department?  @relation(fields: [departmentId], references: [id])
+  subject            Subject?     @relation(fields: [subjectId], references: [id])
+
+  questions          Question[]
+  submissions        Submission[]
+  violations         Violation[]
+  
+  assignments        ExamAssignment[]
+  attempts           ExamAttempt[]
+  results            ExamResult[]
+  liveSessions       LiveSession[]
+  examNotifications  ExamNotification[]
+  analytics          ExamAnalytics?
+  reports            ExamReport[]
+}
+
+model ExamSchedule {
+  id                    String    @id @default(uuid())
+  examId                String    @unique
+  startDate             DateTime
+  endDate               DateTime
+  durationMinutes       Int
+  timeZone              String    @default("UTC")
+  bufferTimeMinutes     Int       @default(0)
+  lateJoinWindowMinutes Int       @default(0)
+
+  exam                  Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
+}
+
+model ExamSettings {
+  id                        String    @id @default(uuid())
+  examId                    String    @unique
+  
+  // General Rules
+  randomizeQuestions        Boolean   @default(false)
+  randomizeOptions          Boolean   @default(false)
+  shuffleSections           Boolean   @default(false)
+  questionPoolSize          Int?
+  
+  // Grading
+  totalMarks                Int       @default(0)
+  passingMarks              Int       @default(0)
+  negativeMarking           Boolean   @default(false)
+  partialMarking            Boolean   @default(false)
+  
+  // Submission & Attempts
+  autoSubmit                Boolean   @default(true)
+  multipleAttempts          Boolean   @default(false)
+  attemptLimit              Int       @default(1)
+  
+  // Allowed Tools
+  calculator                Boolean   @default(false)
+  formulaSheet              Boolean   @default(false)
+  openBook                  Boolean   @default(false)
+  
+  // Security
+  examPassword              String?
+  accessToken               String?
+  ipRestriction             String?
+  deviceRestriction         Boolean   @default(false)
+  browserRestriction        Boolean   @default(false)
+  locationRestriction       Boolean   @default(false)
+  oneDeviceLogin            Boolean   @default(true)
+  sessionTimeoutMinutes     Int       @default(120)
+  autoLogout                Boolean   @default(true)
+  autoSaveIntervalSeconds   Int       @default(30)
+  encryptionEnabled         Boolean   @default(true)
+  
+  // Basic Proctoring
+  browserLock               Boolean   @default(true)
+  fullscreenRequired        Boolean   @default(true)
+  
+  // Advanced AI Proctoring
+  aiFaceDetection           Boolean   @default(true)
+  faceRegistration          Boolean   @default(true)
+  identityVerification      Boolean   @default(true)
+  tabSwitchingDetection     Boolean   @default(true)
+  multipleMonitorDetection  Boolean   @default(true)
+  windowBlurDetection       Boolean   @default(true)
+  mobileDetection           Boolean   @default(true)
+  voiceDetection            Boolean   @default(true)
+  multiplePersonDetection   Boolean   @default(true)
+  eyeTracking               Boolean   @default(false)
+  headPoseTracking          Boolean   @default(false)
+  objectDetection           Boolean   @default(false)
+  backgroundNoiseDetection  Boolean   @default(true)
+  webcamRecording           Boolean   @default(false)
+  screenRecording           Boolean   @default(false)
+  screenSharingDetection    Boolean   @default(true)
+  microphoneMonitoring      Boolean   @default(true)
+  clipboardDetection        Boolean   @default(true)
+  keyboardShortcutBlocking  Boolean   @default(true)
+  
+  // Violation Settings
+  violationSeverityLow      Int       @default(3) // Warnings before it becomes medium
+  violationSeverityMedium   Int       @default(3) // Warnings before high
+  violationSeverityHigh     Int       @default(1) // Warnings before auto-terminate
+  autoTerminateViolations   Int       @default(5)
+
+  exam                      Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
+}
+
+model QuestionBank {
+  id          String     @id @default(uuid())
+  name        String
+  description String?    @db.Text
+  department  String?
+  subject     String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  
+  questions   Question[]
+}
+
+model Question {
+  id               String         @id @default(uuid())
+  examId           String?
+  questionBankId   String?
+  type             String         // MCQ, Programming, Coding, Essay, Subjective, TrueFalse, FillInTheBlanks, Matching, Numerical, FileUpload, DragDrop, CaseStudy
+  title            String
+  description      String         @db.Text
+  points           Int
+  difficulty       String         @default("medium")
+  topic            String?
+  topics           String?        // Comma separated topics (e.g. Arrays, Trees)
+  
+  // Generic fields used by older models
+  constraints      String?        @db.Text
+  timeLimitSeconds Int            @default(0)
+  
+  exam             Exam?          @relation(fields: [examId], references: [id], onDelete: Cascade)
+  questionBank     QuestionBank?  @relation(fields: [questionBankId], references: [id], onDelete: SetNull)
+  
+  options          QuestionOption[]
+  testCases        TestCase[]
+  matchingPairs    MatchingPair[]
+  programmingDetails ProgrammingQuestion?
+
+  practiceSheetQuestions PracticeSheetQuestion[]
+  versions         QuestionVersion[]
+  drafts           CodeDraft[]
+}
+
+// Renamed Option to QuestionOption as per requirements
+model QuestionOption {
+  id         String   @id @default(uuid())
+  questionId String
+  text       String   @db.Text
+  isCorrect  Boolean
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model TestCase {
+  id             String   @id @default(uuid())
+  questionId     String
+  input          String   @db.Text
+  expectedOutput String   @db.Text
+  isHidden       Boolean  @default(false)
+  points         Int      @default(0)
+  question       Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model MatchingPair {
+  id         String   @id @default(uuid())
+  questionId String
+  leftItem   String
+  rightItem  String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model ProgrammingQuestion {
+  id               String   @id @default(uuid())
+  questionId       String   @unique
+  allowedLanguages String   // JSON string array e.g. '["python", "c", "cpp", "java", "javascript"]'
+  starterCode      String?  @db.Text
+  timeLimit        Int      // In milliseconds
+  memoryLimit      Int      // In KB
+  compilationLimit Int      // In milliseconds
+  customInput      Boolean  @default(true)
+  
+  question         Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model ExamAssignment {
+  id           String      @id @default(uuid())
+  examId       String
+  
+  // Assignment target (polymorphic-ish logic handled in app)
+  assignType   String      // "department", "semester", "batch", "section", "student", "teacher", "university"
+  
+  departmentId String?
+  studentId    String?
+  semester     Int?
+  batch        String?
+  section      String?
+  
+  status       String      @default("pending") // pending, accepted, rejected
+  assignedAt   DateTime    @default(now())
+
+  exam         Exam        @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student      User?       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+}
+
+model ExamAttempt {
+  id          String   @id @default(uuid())
+  examId      String
+  studentId   String
+  attemptNum  Int      @default(1)
+  startTime   DateTime @default(now())
+  endTime     DateTime?
+  status      String   @default("in_progress") // in_progress, submitted, auto_submitted, terminated
+  
+  exam        Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student     User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  results     ExamResult?
+}
+
+// Old Submission kept for backwards compatibility / existing code, or could be replaced by ExamAttempt+ExamResult.
+// Leaving it to avoid breaking older UI completely.
+model Submission {
+  id             String    @id @default(uuid())
+  examId         String
+  studentId      String
+  answers        Json
+  totalScore     Int       @default(0)
+  maxScore       Int       @default(0)
+  percentage     Float     @default(0)
+  violationCount Int       @default(0)
+  status         String    @default("in_progress")
+  submittedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  exam           Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student        User      @relation(fields: [studentId], references: [id])
+}
+
+model ExamResult {
+  id             String      @id @default(uuid())
+  examId         String
+  studentId      String
+  attemptId      String      @unique
+  marks          Float       @default(0)
+  percentage     Float       @default(0)
+  rank           Int?
+  passFail       String      @default("FAIL")
+  grade          String?
+  
+  // Analysis JSON fields
+  questionAnalysis Json?
+  topicAnalysis    Json?
+  timeAnalysis     Json?
+  aiSuggestions    String?   @db.Text
+  
+  createdAt      DateTime    @default(now())
+
+  exam           Exam        @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student        User        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  attempt        ExamAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+}
+
+model Violation {
+  id        String   @id @default(uuid())
+  examId    String
+  studentId String
+  type      String
+  severity  String
+  details   String?  @db.Text
+  timestamp DateTime @default(now())
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student   User     @relation(fields: [studentId], references: [id])
+}
+
+model LiveSession {
+  id               String   @id @default(uuid())
+  examId           String
+  studentId        String
+  aiSuspicionScore Float    @default(0)
+  connectivity     String   @default("online")
+  fullscreenStatus Boolean  @default(true)
+  micStatus        Boolean  @default(true)
+  cameraStatus     Boolean  @default(true)
+  currentQuestion  String?
+  remainingTime    Int?     // seconds
+  lastPing         DateTime @default(now())
+  
+  exam             Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student          User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  @@unique([examId, studentId])
+}
+
+model ExamNotification {
+  id          String   @id @default(uuid())
+  examId      String
+  userId      String
+  type        String   // email, sms, in-app
+  message     String   @db.Text
+  scheduleType String? // 1_day_before, 1_hour_before, 15_mins_before, immediate
+  status      String   @default("pending") // pending, sent, failed
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  
+  exam        Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ExamAnalytics {
+  id                     String   @id @default(uuid())
+  examId                 String   @unique
+  totalRegistered        Int      @default(0)
+  totalAttendees         Int      @default(0)
+  averageScore           Float    @default(0)
+  highestScore           Float    @default(0)
+  lowestScore            Float    @default(0)
+  passRate               Float    @default(0)
+  averageCompletionTime  Int      @default(0)
+  cheatingIncidents      Int      @default(0)
+  updatedAt              DateTime @updatedAt
+  
+  exam                   Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+}
+
+model ExamReport {
+  id          String   @id @default(uuid())
+  examId      String
+  reportType  String   // pdf, excel, csv
+  fileUrl     String?  @db.Text
+  generatedBy String
+  generatedAt DateTime @default(now())
+  
+  exam        Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+}
+
+// ---------------- Existing Models Kept ----------------
+
+model StudentCodingMetrics {
+  id           String @id @default(uuid())
+  studentId    String
+  platform     String
+  totalSolved  Int    @default(0)
+  easySolved   Int    @default(0)
+  mediumSolved Int    @default(0)
+  hardSolved   Int    @default(0)
+  ranking      Int    @default(0)
+
+  weekStartCount  Int @default(0)
+  monthStartCount Int @default(0)
+
+  lastUpdated DateTime @default(now())
+  user        User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, platform])
+  @@index([studentId])
 }
 
 model ActivityLog {
@@ -251,4 +592,330 @@ model LoginHistory {
   browser    String?
   os         String?
   deviceType String?
+}
+
+// ---------------- DSA Tracking Models ----------------
+
+model PracticeSheet {
+  id          String   @id @default(uuid())
+  title       String
+  description String?  @db.Text
+  publishAt   DateTime? // For scheduling
+  dueDate     DateTime?
+  status      String   @default("draft") // draft, scheduled, published, active, expired, archived
+  
+  creatorId   String
+  creator     User     @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  version     Int      @default(1)
+
+  questions   PracticeSheetQuestion[]
+  assignments PracticeAssignment[]
+  versions    PracticeSheetVersion[]
+  completions PracticeSheetCompletion[]
+}
+
+model PracticeSheetQuestion {
+  id              String          @id @default(uuid())
+  practiceSheetId String
+  questionId      String
+  order           Int             @default(0)
+  
+  practiceSheet   PracticeSheet   @relation(fields: [practiceSheetId], references: [id], onDelete: Cascade)
+  question        Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([practiceSheetId, questionId])
+}
+
+model PracticeAssignment {
+  id              String          @id @default(uuid())
+  practiceSheetId String
+  assignType      String          // "department", "semester", "batch", "section", "student"
+  departmentId    String?
+  studentId       String?
+  semester        Int?
+  batch           String?
+  section         String?
+  
+  practiceSheet   PracticeSheet   @relation(fields: [practiceSheetId], references: [id], onDelete: Cascade)
+  student         User?           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model StudentCodingProgress {
+  id             String   @id @default(uuid())
+  studentId      String   @unique
+  totalAssigned  Int      @default(0)
+  totalSolved    Int      @default(0)
+  easySolved     Int      @default(0)
+  mediumSolved   Int      @default(0)
+  hardSolved     Int      @default(0)
+  
+  student        User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model StudentCodingStatistics {
+  id                    String   @id @default(uuid())
+  studentId             String   @unique
+  currentStreak         Int      @default(0)
+  longestStreak         Int      @default(0)
+  acceptanceRate        Float    @default(0)
+  averageRuntime        Float    @default(0)
+  averageMemory         Float    @default(0)
+  totalAttempts         Int      @default(0)
+  wrongAttempts         Int      @default(0)
+  solvedOnFirstAttempt  Int      @default(0)
+  
+  student               User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model TopicProgress {
+  id           String   @id @default(uuid())
+  studentId    String
+  topic        String
+  solvedCount  Int      @default(0)
+  totalAvailable Int    @default(0)
+  
+  student      User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, topic])
+}
+
+model CodingLeaderboard {
+  id             String   @id @default(uuid())
+  studentId      String   @unique
+  score          Float    @default(0)
+  universityRank Int      @default(0)
+  departmentRank Int      @default(0)
+  courseRank     Int      @default(0)
+  weeklyRank     Int      @default(0)
+}
+
+model CodingStreak {
+  id           String   @id @default(uuid())
+  studentId    String   @unique
+  current      Int      @default(0)
+  longest      Int      @default(0)
+}
+
+model DailyActivity {
+  id           String   @id @default(uuid())
+  studentId    String
+  date         String   // YYYY-MM-DD format for easy querying
+  submitCount  Int      @default(0)
+  solvedCount  Int      @default(0)
+  
+  student      User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, date])
+}
+
+model PracticeSubmission {
+  id              String   @id @default(uuid())
+  studentId       String
+  questionId      String
+  practiceSheetId String?
+  language        String
+  code            String   @db.Text
+  verdict         String   // accepted, wrong_answer, time_limit_exceeded, runtime_error, compilation_error
+  runtime         Float    @default(0) // in milliseconds
+  memory          Float    @default(0) // in KB
+  teacherFeedback String?  @db.Text
+  isFirstAttempt  Boolean  @default(false)
+  attemptNumber   Int      @default(1)
+  status          String   @default("Accepted") // Draft, Running, Judging, Accepted, Rejected, Archived
+  createdAt       DateTime @default(now())
+  
+  student         User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model Badge {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  icon        String?  // URL or icon class
+  criteria    String?  // JSON string defining how to earn it
+  
+  students    StudentBadge[]
+}
+
+model StudentBadge {
+  id          String   @id @default(uuid())
+  studentId   String
+  badgeId     String
+  earnedAt    DateTime @default(now())
+  
+  student     User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  badge       Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, badgeId])
+}
+
+model DSARoadmap {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  order       Int      @default(0)
+  
+  topics      RoadmapTopic[]
+}
+
+model RoadmapTopic {
+  id          String   @id @default(uuid())
+  roadmapId   String
+  topicName   String   // e.g. "Arrays"
+  order       Int      @default(0)
+  requiredSolved Int   @default(10) // e.g. need to solve 10 array questions to unlock next
+  
+  roadmap     DSARoadmap @relation(fields: [roadmapId], references: [id], onDelete: Cascade)
+}
+
+// ---------------- Advanced Practice Environment Models ----------------
+
+model CodeDraft {
+  id              String   @id @default(uuid())
+  studentId       String
+  questionId      String
+  practiceSheetId String?
+  language        String
+  code            String   @db.Text
+  lastSavedAt     DateTime @default(now())
+
+  student         User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  question        Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, questionId, language])
+}
+
+model QuestionVersion {
+  id              String   @id @default(uuid())
+  questionId      String
+  versionNumber   Int
+  previousContent Json
+  updatedContent  Json
+  changeSummary   String?
+  editedBy        String
+  editedAt        DateTime @default(now())
+
+  question        Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model PracticeSheetVersion {
+  id              String   @id @default(uuid())
+  practiceSheetId String
+  versionNumber   Int
+  previousContent Json
+  updatedContent  Json
+  changeSummary   String?
+  editedBy        String
+  editedAt        DateTime @default(now())
+
+  practiceSheet   PracticeSheet @relation(fields: [practiceSheetId], references: [id], onDelete: Cascade)
+}
+
+model PracticeSheetCompletion {
+  id              String   @id @default(uuid())
+  studentId       String
+  practiceSheetId String
+  totalTimeSpent  Int      // in seconds
+  finalScore      Float    @default(0)
+  completedAt     DateTime @default(now())
+
+  student         User          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  practiceSheet   PracticeSheet @relation(fields: [practiceSheetId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, practiceSheetId])
+}
+
+model PlatformIntegration {
+  id                 String         @id @default(uuid())
+  userId             String
+  platform           CodingPlatform
+  username           String
+  profileUrl         String?
+  avatarUrl          String?
+  displayName        String?
+  country            String?
+  globalRank         Int?
+  reputation         Int?
+  connectedAt        DateTime       @default(now())
+  lastSuccessfulSync DateTime?
+  lastFailedSync     DateTime?
+  syncErrorMessage   String?        @db.Text
+  syncStatus         SyncStatus     @default(CONNECTED)
+  
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  user               User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  statistics         PlatformStatistics?
+  syncLogs           PlatformSyncLog[]
+
+  @@unique([userId, platform])
+}
+
+model PlatformStatistics {
+  id                 String              @id @default(uuid())
+  integrationId      String              @unique
+  
+  // Generic JSON fields for future-proofing across various platforms
+  problemStats       Json?
+  contestStats       Json?
+  languageStats      Json?
+  activityStats      Json?
+  
+  lastUpdated        DateTime            @default(now())
+
+  integration        PlatformIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+}
+
+model PlatformSyncLog {
+  id                 String              @id @default(uuid())
+  integrationId      String
+  startedAt          DateTime            @default(now())
+  completedAt        DateTime?
+  status             String              // "SUCCESS", "FAILED"
+  durationMs         Int?
+  recordsUpdated     Int                 @default(0)
+  errorMessage       String?             @db.Text
+
+  integration        PlatformIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+}
+
+model DailyGoal {
+  id              String   @id @default(uuid())
+  studentId       String
+  goalType        String   // "solve_questions", "complete_easy", etc.
+  targetValue     Int
+  currentValue    Int      @default(0)
+  deadline        DateTime
+  isCompleted     Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  student         User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+// AI-Ready Placeholders
+model AISuggestion {
+  id              String   @id @default(uuid())
+  contextType     String
+  contextId       String
+  suggestionText  String   @db.Text
+  createdAt       DateTime @default(now())
+}
+
+model CodeAnalysis {
+  id              String   @id @default(uuid())
+  submissionId    String
+  complexityTime  String?
+  complexitySpace String?
+  cleanCodeScore  Float?
+  createdAt       DateTime @default(now())
+}
+
+model LearningRecommendation {
+  id              String   @id @default(uuid())
+  studentId       String
+  recommendation  String   @db.Text
+  createdAt       DateTime @default(now())
 }

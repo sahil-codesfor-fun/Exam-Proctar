@@ -3,7 +3,7 @@ import { useNavigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 // 🚀 ADDED 'Code' icon here
-import { Plus, X, Trash2, CheckCircle2, LayoutGrid, FileText, ShieldAlert, Upload, Edit, Users, Code } from 'lucide-react';
+import { Plus, X, Trash2, CheckCircle2, LayoutGrid, FileText, ShieldAlert, Upload, Edit, Users, Code, BookOpen, Activity } from 'lucide-react';
 import * as XLSX from 'xlsx'; 
 
 const EMPTY_Q = { 
@@ -42,8 +42,15 @@ export const TeacherDashboard = () => {
   const tcFileInputRef = useRef(null);
   const [activeTcIndex, setActiveTcIndex] = useState(null);
 
+  const [departments, setDepartments] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [batches, setBatches] = useState([]);
+  const [sections, setSections] = useState([]);
+  const [isDepartmentsLoading, setIsDepartmentsLoading] = useState(false);
+  const [isDependentLoading, setIsDependentLoading] = useState(false);
+
   const defaultForm = { 
-    title: '', description: '', course: '', targetBatch: '', targetSection: '', startTime: '', durationMinutes: 60, 
+    title: '', description: '', departmentId: '', course: '', targetBatch: '', targetSection: '', startTime: '', durationMinutes: 60, 
     randomizeQuestions: false, questionsToServe: '', 
     proctoring: { maxViolations: 3, restrictionMinutes: 30, requireFullscreen: true, disableCopyPaste: true, autoSubmitOnMax: true, enableWebcam: false, enableTypeDistribution: false, typeDistribution: { mcq: '', coding: '', matching: '', subjective: '' } }, 
     questions: [{ ...EMPTY_Q }] 
@@ -54,7 +61,55 @@ export const TeacherDashboard = () => {
   const showConfirm = (message, onConfirm) => { setConfirmModal({ message, onConfirm }); };
   
   const load = () => { setLoading(true); api.get('/exams').then(r => setExams(r.data.data || [])).catch(() => {}).finally(() => setLoading(false)); };
-  useEffect(load, []);
+  
+  const loadDepartments = async () => {
+    setIsDepartmentsLoading(true);
+    try {
+      const res = await api.get('/metadata/departments');
+      setDepartments(res.data.data || []);
+      // If user is not superadmin and only has one department, auto-select it
+      if (user?.role !== 'superadmin' && res.data.data?.length === 1) {
+        setForm(p => ({ ...p, departmentId: res.data.data[0].id }));
+      }
+    } catch (error) {
+      console.error("Failed to fetch departments", error);
+    } finally {
+      setIsDepartmentsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+    loadDepartments();
+  }, [user]);
+
+  useEffect(() => {
+    const fetchDependentData = async () => {
+      if (!form.departmentId) {
+        setCourses([]);
+        setBatches([]);
+        setSections([]);
+        return;
+      }
+      setIsDependentLoading(true);
+      try {
+        const [cRes, bRes, sRes] = await Promise.all([
+          api.get(`/metadata/departments/${form.departmentId}/courses`),
+          api.get(`/metadata/departments/${form.departmentId}/batches`),
+          api.get(`/metadata/departments/${form.departmentId}/sections`)
+        ]);
+        setCourses(cRes.data.data || []);
+        setBatches(bRes.data.data || []);
+        setSections(sRes.data.data || []);
+      } catch (error) {
+        console.error("Failed to fetch dependent data", error);
+      } finally {
+        setIsDependentLoading(false);
+      }
+    };
+    
+    if (modal) fetchDependentData();
+  }, [form.departmentId, modal]);
 
   const loadSubs = useCallback(async (examId) => {
     const s = await api.get(`/submissions/exam/${examId}`).then(r => r.data.data).catch(() => []);
@@ -206,6 +261,7 @@ export const TeacherDashboard = () => {
 
   const deploy = async (status = 'published') => {
     if (!form.title.trim()) return showToast('Exam title is required.', 'error');
+    if (!form.departmentId) return showToast('Department is required.', 'error');
     for (let i = 0; i < form.questions.length; i++) { if (!form.questions[i].title.trim()) return showToast(`Question ${i + 1} title is required.`, 'error'); }
     let computedEndTime = undefined; let isoStartTime = undefined;
     if (form.startTime) {
@@ -235,7 +291,16 @@ export const TeacherDashboard = () => {
         import('../services/socket').then(({ getSocket }) => { const socket = getSocket(); if (socket) socket.emit('exam_status_changed', { examId: editingId, status }); });
       } else { await api.post('/exams', payload); }
       setModal(false); setEditingId(null); setForm(defaultForm); load();
-    } catch (e) { showToast('Deployment failed.', 'error'); } finally { setSaving(false); }
+      showToast(status === 'published' ? '✅ Exam deployed successfully' : '✅ Draft saved successfully', 'success');
+    } catch (e) { 
+      const errorMsg = e.response?.data?.message || e.message || 'Deployment failed';
+      showToast(`❌ ${errorMsg}`, 'error'); 
+      console.error("Deployment Error Details:", e.response?.data || e);
+      if (status === 'published') {
+        showToast('Saving as draft instead...', 'info');
+        setTimeout(() => deploy('draft'), 1000);
+      }
+    } finally { setSaving(false); }
   };
 
   const renderModal = () => {
@@ -251,33 +316,57 @@ export const TeacherDashboard = () => {
           <div className="p-8 overflow-y-auto flex-1 space-y-6">
             <input value={form.title} onChange={e => setForm(p => ({...p, title: e.target.value}))} placeholder="Exam Title *" className="w-full px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
             
-            <div className="bg-gray-50 border border-gray-200 p-4 rounded-xl space-y-4">
-              <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">🎯 Audience Targeting</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <select value={form.course} onChange={e => setForm(p => ({...p, course: e.target.value}))} className="px-4 py-3 bg-white rounded-xl font-bold text-gray-600 outline-none border border-gray-200 focus:border-emerald-400 transition-all cursor-pointer">
-                  <option value="B.Tech CSE">B.Tech CSE</option>
-                  <option value="B.Tech CSE (AI/ML)">B.Tech CSE (AI/ML)</option>
-                  <option value="B.Tech CSE (Data Science)">B.Tech CSE (Data Science)</option>
-                  <option value="B.Tech CSE (Cyber Security)">B.Tech CSE (Cyber Security)</option>
-                  <option value="Pharmacy">Pharmacy</option>
-                  <option value="Management">Management</option>
-                </select>
-                
-                <select value={form.targetBatch} onChange={e => setForm(p => ({...p, targetBatch: e.target.value}))} className="px-4 py-3 bg-white rounded-xl font-bold text-gray-600 outline-none border border-gray-200 focus:border-emerald-400 transition-all cursor-pointer">
-                  <option value={currentYear.toString()}>1st Year (Batch {currentYear})</option>
-                  <option value={(currentYear - 1).toString()}>2nd Year (Batch {currentYear - 1})</option>
-                  <option value={(currentYear - 2).toString()}>3rd Year (Batch {currentYear - 2})</option>
-                  <option value={(currentYear - 3).toString()}>4th Year (Batch {currentYear - 3})</option>
-                </select>
+            {departments.length === 0 && user?.role === 'superadmin' && !isDepartmentsLoading && (
+              <div className="bg-red-50 p-4 rounded-xl border border-red-200 flex flex-col items-start gap-3">
+                <div className="flex items-center gap-2 text-red-700 font-bold text-sm">
+                  <ShieldAlert size={18} /> No departments found. Please create a department first.
+                </div>
+                <button onClick={() => navigate('/superadmin/departments')} className="px-4 py-2 bg-red-600 text-white font-bold text-xs uppercase tracking-widest rounded-lg hover:bg-red-700 transition-all shadow-sm">
+                  Go to Departments
+                </button>
+              </div>
+            )}
 
-                <select value={form.targetSection} onChange={e => setForm(p => ({...p, targetSection: e.target.value}))} className="px-4 py-3 bg-white rounded-xl font-bold text-gray-600 outline-none border border-gray-200 focus:border-emerald-400 transition-all cursor-pointer">
-                  <option value="">All Sections</option>
-                  <option value="A">Section A</option>
-                  <option value="B">Section B</option>
-                  <option value="C">Section C</option>
+            <div className="bg-gray-50 border border-gray-200 p-4 rounded-xl space-y-4 relative">
+              {(isDepartmentsLoading || isDependentLoading) && (
+                <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-xl">
+                  <span className="font-bold text-xs text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                    <svg className="animate-spin h-4 w-4 text-emerald-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    Loading Organization...
+                  </span>
+                </div>
+              )}
+              
+              <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">🏢 Department & Targeting</h3>
+              
+              <div className="grid grid-cols-1 gap-4 mb-4">
+                <select 
+                  value={form.departmentId} 
+                  onChange={e => setForm(p => ({...p, departmentId: e.target.value, course: '', targetBatch: '', targetSection: ''}))} 
+                  className={`w-full px-4 py-3 bg-white rounded-xl font-bold text-gray-600 outline-none border transition-all cursor-pointer ${!form.departmentId ? 'border-red-300 focus:border-red-500' : 'border-gray-200 focus:border-emerald-400'}`}
+                >
+                  <option value="" disabled>Select Department *</option>
+                  {departments.map(d => <option key={d.id} value={d.id}>{d.name} ({d.code})</option>)}
                 </select>
               </div>
-              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest px-2">Leave blank to make the exam available to everyone. Parent courses automatically include their specializations.</p>
+
+              <div className="grid grid-cols-3 gap-4">
+                <select disabled={!form.departmentId} value={form.course} onChange={e => setForm(p => ({...p, course: e.target.value}))} className="px-4 py-3 bg-white rounded-xl font-bold text-gray-600 outline-none border border-gray-200 focus:border-emerald-400 transition-all cursor-pointer disabled:opacity-50 disabled:bg-gray-100">
+                  <option value="">All Courses</option>
+                  {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                
+                <select disabled={!form.departmentId} value={form.targetBatch} onChange={e => setForm(p => ({...p, targetBatch: e.target.value}))} className="px-4 py-3 bg-white rounded-xl font-bold text-gray-600 outline-none border border-gray-200 focus:border-emerald-400 transition-all cursor-pointer disabled:opacity-50 disabled:bg-gray-100">
+                  <option value="">All Batches/Years</option>
+                  {batches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+
+                <select disabled={!form.departmentId} value={form.targetSection} onChange={e => setForm(p => ({...p, targetSection: e.target.value}))} className="px-4 py-3 bg-white rounded-xl font-bold text-gray-600 outline-none border border-gray-200 focus:border-emerald-400 transition-all cursor-pointer disabled:opacity-50 disabled:bg-gray-100">
+                  <option value="">All Sections</option>
+                  {sections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest px-2">Leave targeted fields blank to make the exam available to the entire department. Department is required.</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -490,6 +579,8 @@ export const TeacherDashboard = () => {
           {[
             { icon: <LayoutGrid size={18}/>, label: 'OVERVIEW', to: 'overview' }, 
             { icon: <ShieldAlert size={18}/>, label: 'MONITORING', to: 'monitoring' },
+            { icon: <BookOpen size={18}/>, label: 'PRACTICE MANAGER', to: 'practice-manager' },
+            { icon: <Activity size={18}/>, label: 'LIVE MONITOR', to: 'live-monitor' },
             { icon: <Code size={18}/>, label: 'CODING PROGRESS', to: 'coding-progress' }
           ].map(item => {
             const isActive = location.pathname.includes(item.to);
@@ -503,7 +594,7 @@ export const TeacherDashboard = () => {
         
         <div className="mt-auto pt-6 border-t border-gray-100 relative group mb-4">
           <div className="absolute -top-14 left-0 right-0 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 translate-y-4 group-hover:translate-y-0 z-50">
-            <button onClick={() => { logout(); navigate('/'); }} className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-red-100 rounded-xl text-[10px] uppercase tracking-widest font-black text-red-500 shadow-xl hover:bg-red-50 hover:scale-[1.02] active:scale-[0.98] transition-all"><span>🚪</span> Log Out</button>
+            <button onClick={() => { logout(); navigate('/fac'); }} className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-red-100 rounded-xl text-[10px] uppercase tracking-widest font-black text-red-500 shadow-xl hover:bg-red-50 hover:scale-[1.02] active:scale-[0.98] transition-all"><span>🚪</span> Log Out</button>
           </div>
           <div className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 border border-transparent hover:border-gray-100 cursor-pointer transition-all">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 flex items-center justify-center text-emerald-600 font-black text-sm border border-emerald-100/50 shadow-sm shrink-0">{user?.name?.[0] || 'A'}</div>

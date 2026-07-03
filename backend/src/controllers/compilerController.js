@@ -1,6 +1,8 @@
 import axios from 'axios';
+import { getPracticeIO } from '../sockets/practiceSocket.js';
 import dotenv from 'dotenv';
 import { runLocalCode } from '../services/compiler/localCompiler.service.js';
+import prisma from '../config/prisma.js';
 dotenv.config();
 
 // ── Language Configuration ───────────────────────────────────────────────────
@@ -159,20 +161,41 @@ export const executeCode = async (req, res) => {
 
 /** POST /api/compiler/judge — run against multiple test cases */
 export const judgeCode = async (req, res) => {
-  const { language, code, testCases = [], timeLimitSec = 5 } = req.body;
+  const { language, code, questionId, practiceSheetId, timeLimitSec = 5 } = req.body;
+  let testCases = req.body.testCases || []; // Fallback to provided tests if not a formal submission
+  const studentId = req.user?.id; // Assuming protect middleware is used
+
   console.log("========================================");
   console.log("INCOMING JUDGE REQUEST");
   console.log("LANGUAGE:", language);
-  console.log("TEST CASES COUNT:", testCases.length);
+  console.log("QUESTION ID:", questionId);
   console.log("========================================");
 
   try {
     if (!language || !code) return res.status(400).json({ success: false, message: 'language and code required' });
     if (!LANGUAGE_CONFIG[language]) return res.status(400).json({ success: false, message: `Unsupported: ${language}` });
 
+    let question = null;
+
+    // Secure mode: Fetch test cases from DB if questionId is provided
+    if (questionId) {
+      question = await prisma.question.findUnique({
+        where: { id: questionId },
+        include: { testCases: true }
+      });
+      if (!question) return res.status(404).json({ success: false, message: 'Question not found' });
+      testCases = question.testCases;
+    }
+
+    if (testCases.length === 0) {
+      return res.status(400).json({ success: false, message: 'No test cases provided or found for question.' });
+    }
+
     const results = [];
     let passed = 0;
     let finalVerdict = 'accepted';
+    let maxRuntime = 0;
+    let maxMemory = 0;
 
     for (let i = 0; i < testCases.length; i++) {
       const tc = testCases[i];
@@ -198,6 +221,9 @@ export const judgeCode = async (req, res) => {
       if (ok) passed++;
       else if (finalVerdict === 'accepted') finalVerdict = v;
 
+      if (r.runtime > maxRuntime) maxRuntime = r.runtime;
+      if (r.memory > maxMemory) maxMemory = r.memory;
+
       results.push({
         index:    i + 1,
         passed:   ok,
@@ -212,6 +238,106 @@ export const judgeCode = async (req, res) => {
     }
 
     console.log("JUDGE COMPLETE:", finalVerdict, `(${passed}/${testCases.length} passed)`);
+
+    // --- Record Submission in DB ---
+    if (studentId && questionId) {
+      // Check if first attempt
+      const previousSubmissions = await prisma.practiceSubmission.count({
+        where: { studentId, questionId }
+      });
+      const isFirstAttempt = previousSubmissions === 0;
+      const attemptNumber = previousSubmissions + 1;
+
+      const submission = await prisma.practiceSubmission.create({
+        data: {
+          studentId,
+          questionId,
+          practiceSheetId,
+          language,
+          code,
+          verdict: finalVerdict,
+          runtime: maxRuntime,
+          memory: maxMemory,
+          isFirstAttempt,
+          attemptNumber,
+          status: 'Accepted' // or maybe dynamic based on verdict
+        },
+        include: { student: { select: { name: true, rollNo: true } } }
+      });
+
+      // Emit Live Submission Event for Teacher Monitoring
+      const io = getPracticeIO();
+      if (io && practiceSheetId) {
+        io.to(`sheet_${practiceSheetId}`).emit('new_submission', {
+          submissionId: submission.id,
+          studentId,
+          studentName: submission.student.name,
+          rollNo: submission.student.rollNo,
+          questionId,
+          verdict: finalVerdict,
+          attemptNumber,
+          createdAt: submission.createdAt
+        });
+      }
+
+      // Update Statistics
+      const stats = await prisma.studentCodingStatistics.upsert({
+        where: { studentId },
+        create: {
+          studentId,
+          totalAttempts: 1,
+          wrongAttempts: finalVerdict !== 'accepted' ? 1 : 0,
+          solvedOnFirstAttempt: finalVerdict === 'accepted' ? 1 : 0,
+        },
+        update: {
+          totalAttempts: { increment: 1 },
+          wrongAttempts: finalVerdict !== 'accepted' ? { increment: 1 } : { increment: 0 },
+          solvedOnFirstAttempt: (isFirstAttempt && finalVerdict === 'accepted') ? { increment: 1 } : { increment: 0 }
+        }
+      });
+
+      // If accepted, update Progress & Topics
+      if (finalVerdict === 'accepted') {
+        const hasSolvedBefore = await prisma.practiceSubmission.findFirst({
+          where: { studentId, questionId, verdict: 'accepted', isFirstAttempt: false }
+        });
+
+        // Only increment solved count if this is the first time they got it Accepted
+        if (!hasSolvedBefore || isFirstAttempt) {
+          // Determine difficulty
+          const diff = question.difficulty?.toLowerCase() || 'medium';
+          await prisma.studentCodingProgress.upsert({
+            where: { studentId },
+            create: {
+              studentId,
+              totalSolved: 1,
+              easySolved: diff === 'easy' ? 1 : 0,
+              mediumSolved: diff === 'medium' ? 1 : 0,
+              hardSolved: diff === 'hard' ? 1 : 0
+            },
+            update: {
+              totalSolved: { increment: 1 },
+              easySolved: diff === 'easy' ? { increment: 1 } : { increment: 0 },
+              mediumSolved: diff === 'medium' ? { increment: 1 } : { increment: 0 },
+              hardSolved: diff === 'hard' ? { increment: 1 } : { increment: 0 }
+            }
+          });
+
+          // Topic Progress Update
+          if (question.topics) {
+            const topicList = question.topics.split(',').map(t => t.trim()).filter(Boolean);
+            for (const t of topicList) {
+              await prisma.topicProgress.upsert({
+                where: { studentId_topic: { studentId, topic: t } },
+                create: { studentId, topic: t, solvedCount: 1 },
+                update: { solvedCount: { increment: 1 } }
+              });
+            }
+          }
+        }
+      }
+    }
+
     res.json({ 
       success: true, 
       data: { 

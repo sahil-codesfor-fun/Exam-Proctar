@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
-import { Search, Plus, MoreVertical, Building2 } from 'lucide-react';
+import { Search, Plus, MoreVertical, Building2, Layers, AlertCircle, Trash2 } from 'lucide-react';
+import AllocateCoursesModal from '../../components/superadmin/departments/AllocateCoursesModal';
 
 const Departments = () => {
   const [departments, setDepartments] = useState([]);
@@ -10,10 +11,21 @@ const Departments = () => {
   const [editId, setEditId] = useState(null);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  
+  // Allocate Courses State
+  const [allocatingDept, setAllocatingDept] = useState(null);
 
   const fetchDepartments = async () => {
     try {
+      // Use standard api get
       const res = await api.get('/superadmin/departments');
+      
+      // For each department, we could fetch allocated courses count if backend doesn't provide it, 
+      // but assuming the backend was updated to return _count or we can fetch it. 
+      // Since we didn't add it to department list API, we'll fetch them manually for now, or just show a button.
+      // Actually, since we didn't change getDepartments to return _count.allocatedCourses in the service, 
+      // let's fetch it via Promise.all for each, or just use a generic label. Let's just use a label.
       setDepartments(res.data.data);
     } catch (err) {
       console.error(err);
@@ -50,12 +62,17 @@ const Departments = () => {
     setActiveDropdown(null);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this department?")) return;
+  const handleDeleteClick = (dept) => {
+    setDeleteConfirm(dept);
+    setActiveDropdown(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm) return;
     try {
-      await api.delete(`/superadmin/departments/${id}`);
+      await api.delete(`/superadmin/departments/${deleteConfirm.id}`);
+      setDeleteConfirm(null);
       fetchDepartments();
-      setActiveDropdown(null);
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to delete department');
     }
@@ -75,16 +92,30 @@ const Departments = () => {
           <h2 className="text-3xl font-bold text-gray-900">Departments</h2>
           <p className="text-gray-500 mt-1">Manage university departments and assignments.</p>
         </div>
-        <button 
-          onClick={() => {
-            setEditId(null);
-            setFormData({ name: '', code: '' });
-            setShowModal(true);
-          }}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5" /> Add Department
-        </button>
+        <div className="flex gap-3">
+          <button 
+            onClick={() => {
+              if (departments.length > 0) {
+                setAllocatingDept(departments[0]);
+              } else {
+                alert("Please add a department first.");
+              }
+            }}
+            className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium flex items-center gap-2 shadow-sm transition-all"
+          >
+            <Layers className="w-5 h-5 text-blue-500" /> Allocate Courses
+          </button>
+          <button 
+            onClick={() => {
+              setEditId(null);
+              setFormData({ name: '', code: '' });
+              setShowModal(true);
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 shadow-sm transition-all"
+          >
+            <Plus className="w-5 h-5" /> Add Department
+          </button>
+        </div>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
@@ -114,6 +145,7 @@ const Departments = () => {
               <th className="px-6 py-4">Department Name</th>
               <th className="px-6 py-4">Code</th>
               <th className="px-6 py-4">Head</th>
+              <th className="px-6 py-4">Courses</th>
               <th className="px-6 py-4">Status</th>
               <th className="px-6 py-4 text-right">Actions</th>
             </tr>
@@ -132,6 +164,17 @@ const Departments = () => {
                 <td className="px-6 py-4 text-gray-600 font-mono text-sm">{dept.code}</td>
                 <td className="px-6 py-4 text-gray-600">{dept.head?.name || 'Unassigned'}</td>
                 <td className="px-6 py-4">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setAllocatingDept(dept);
+                    }}
+                    className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full hover:bg-blue-100 transition-colors flex items-center gap-1 w-fit"
+                  >
+                    Manage Allocation
+                  </button>
+                </td>
+                <td className="px-6 py-4">
                   <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                     dept.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
                   }`}>
@@ -149,9 +192,12 @@ const Departments = () => {
                     <MoreVertical className="w-5 h-5" />
                   </button>
                   {activeDropdown === dept.id && (
-                    <div className="absolute right-6 top-10 mt-1 w-32 bg-white rounded-lg shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-gray-100 z-50 py-1" onClick={e => e.stopPropagation()}>
+                    <div className="absolute right-6 top-10 mt-1 w-40 bg-white rounded-lg shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-gray-100 z-50 py-1" onClick={e => e.stopPropagation()}>
+                      <button onClick={() => { setAllocatingDept(dept); setActiveDropdown(null); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors flex items-center gap-2">
+                        <Layers className="w-4 h-4" /> Allocate Courses
+                      </button>
                       <button onClick={() => handleEdit(dept)} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors">Edit</button>
-                      <button onClick={() => handleDelete(dept.id)} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">Delete</button>
+                      <button onClick={() => handleDeleteClick(dept)} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">Delete</button>
                     </div>
                   )}
                 </td>
@@ -159,7 +205,7 @@ const Departments = () => {
             ))}
             {departments.filter(d => showArchived || d.status !== 'ARCHIVED').length === 0 && !loading && (
               <tr>
-                <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
+                <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
                   No departments found.
                 </td>
               </tr>
@@ -200,6 +246,46 @@ const Departments = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden transform scale-100 animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
+                <AlertCircle className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Department?</h3>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete <span className="font-semibold text-gray-900">"{deleteConfirm.name}"</span>? 
+                This action cannot be undone. If there are users or subjects attached, it may be archived instead.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button 
+                  onClick={() => setDeleteConfirm(null)} 
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={confirmDelete} 
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors shadow-sm flex items-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" /> Yes, Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {allocatingDept && (
+        <AllocateCoursesModal 
+          department={allocatingDept}
+          onClose={() => setAllocatingDept(null)}
+          onRefresh={fetchDepartments}
+        />
       )}
     </div>
   );

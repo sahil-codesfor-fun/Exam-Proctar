@@ -11,6 +11,9 @@ class TeacherService {
     const status = query.status || '';
     const designation = query.designation || '';
     const subjectId = query.subjectId || '';
+    const reqDepartmentId = query.department || '';
+
+    const effectiveDepartmentId = departmentId || reqDepartmentId || undefined;
 
     const skip = (page - 1) * limit;
 
@@ -35,8 +38,8 @@ class TeacherService {
     }
 
     const [teachers, total] = await Promise.all([
-      teacherRepository.findByDepartmentId(departmentId, skip, limit, where),
-      teacherRepository.countByDepartmentId(departmentId, where)
+      teacherRepository.findByDepartmentId(effectiveDepartmentId, skip, limit, where),
+      teacherRepository.countByDepartmentId(effectiveDepartmentId, where)
     ]);
 
     // Remove passwords
@@ -50,23 +53,33 @@ class TeacherService {
   }
 
   async provisionTeacher(data, departmentId, headId) {
-    const { name, email, phone, employeeId, username, designation, qualification, experience, status } = data;
+    const { name, email, phone, employeeId, username, designation, qualification, experience, status, passwordMode = 'auto', manualPassword } = data;
 
     const existing = await prisma.user.findFirst({
       where: { OR: [{ email }, { facultyId: employeeId }] }
     });
     if (existing) throw new Error('Email or Employee ID already in use');
 
-    const tempPassword = `Nexus@${Math.floor(1000 + Math.random() * 9000)}`;
+    let tempPassword = null;
+    let plainPasswordToHash = '';
+
+    if (passwordMode === 'manual') {
+      if (!manualPassword) throw new Error('Manual password is required when in manual mode');
+      plainPasswordToHash = manualPassword;
+    } else {
+      tempPassword = `Nexus@${Math.floor(1000 + Math.random() * 9000)}`;
+      plainPasswordToHash = tempPassword;
+    }
+
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(tempPassword, salt);
+    const hashedPassword = await bcrypt.hash(plainPasswordToHash, salt);
 
     const teacher = await prisma.user.create({
       data: {
         name,
         email,
         phone,
-        facultyId: employeeId,
+        facultyId: employeeId && employeeId.trim() !== '' ? employeeId : `FAC-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         password: hashedPassword,
         role: 'teacher',
         designation,
@@ -84,14 +97,14 @@ class TeacherService {
       entity: 'User',
       entityId: teacher.id,
       newValues: { email, employeeId, designation },
-      details: `Provisioned teacher ${name}`
+      details: `Provisioned teacher ${name} | Password Mode: ${passwordMode === 'manual' ? 'Manual' : 'Auto Generated'}`
     });
 
     delete teacher.password;
 
     return {
       success: true,
-      data: { teacher, tempPassword }
+      data: { teacher, ...(tempPassword ? { tempPassword } : {}) }
     };
   }
 

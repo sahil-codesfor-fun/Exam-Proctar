@@ -45,7 +45,7 @@ class UserService {
   }
 
   async provisionDepartmentHead(data, superAdminId) {
-    const { name, email, employeeId, phone, departmentId } = data;
+    const { name, email, employeeId, phone, departmentId, passwordMode = 'auto', manualPassword } = data;
 
     // Validate unique email and employeeId
     const existing = await prisma.user.findFirst({
@@ -63,10 +63,20 @@ class UserService {
     if (!department) throw new Error('Department not found');
     if (department.headId) throw new Error('Department already has a Head assigned');
 
-    // Auto-generate secure temporary password
-    const tempPassword = `Nexus@${Math.floor(1000 + Math.random() * 9000)}`;
+    // Handle Password Mode
+    let tempPassword = null;
+    let plainPasswordToHash = '';
+
+    if (passwordMode === 'manual') {
+      if (!manualPassword) throw new Error('Manual password is required when in manual mode');
+      plainPasswordToHash = manualPassword;
+    } else {
+      tempPassword = `Nexus@${Math.floor(1000 + Math.random() * 9000)}`;
+      plainPasswordToHash = tempPassword;
+    }
+
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(tempPassword, salt);
+    const hashedPassword = await bcrypt.hash(plainPasswordToHash, salt);
 
     // Transaction
     const user = await prisma.$transaction(async (tx) => {
@@ -74,7 +84,7 @@ class UserService {
         data: {
           name,
           email,
-          facultyId: employeeId,
+          facultyId: employeeId && employeeId.trim() !== '' ? employeeId : `ADM-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
           password: hashedPassword,
           role: 'admin',
           mustChangePassword: true,
@@ -97,7 +107,7 @@ class UserService {
       entity: 'User',
       entityId: user.id,
       newValues: { email: user.email, departmentId },
-      details: `Assigned as head of ${department.name}`
+      details: `Assigned as head of ${department.name} | Password Mode: ${passwordMode === 'manual' ? 'Manual' : 'Auto Generated'}`
     });
 
     delete user.password;
@@ -105,7 +115,7 @@ class UserService {
     return {
       success: true,
       message: 'Department Head provisioned successfully',
-      data: { user, tempPassword } // return temp password once
+      data: { user, ...(tempPassword ? { tempPassword } : {}) }
     };
   }
 

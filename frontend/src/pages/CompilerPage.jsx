@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
+import { io } from 'socket.io-client';
 import api from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const LANGUAGES = [
   { id: 'javascript', name: 'JavaScript',  icon: '🟨', monacoLang: 'javascript' },
@@ -78,11 +80,13 @@ function VerdictBadge({ verdict }) {
 }
 
 export function CompilerPage() {
+  const { user } = useAuth();
   const [lang, setLang]         = useState('python');
   const [code, setCode]         = useState('');
   const [stdin, setStdin]       = useState('');
   const [fontSize, setFontSize] = useState(14);
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const tab = searchParams.get('tab') || 'output';
   const setTab = (newTab) => {
     setSearchParams(prev => {
@@ -101,6 +105,21 @@ export function CompilerPage() {
   const [backendLangs, setBackendLangs] = useState([]);
   const [backendTemplates, setBackendTemplates] = useState({});
   const langRef = useRef(null);
+
+  const questionId = searchParams.get('questionId');
+  const practiceSheetId = searchParams.get('practiceSheetId');
+  const [question, setQuestion] = useState(null);
+  const [loadingQuestion, setLoadingQuestion] = useState(false);
+  const [questionStatuses, setQuestionStatuses] = useState([]);
+  const [socket, setSocket] = useState(null);
+  const [submissions, setSubmissions] = useState([]);
+  
+  // Initialize WebSocket
+  useEffect(() => {
+    const newSocket = io('http://localhost:5002/practice');
+    setSocket(newSocket);
+    return () => newSocket.close();
+  }, []);
 
   const currentLang = backendLangs.find(l => l.id === lang) || LANGUAGES.find(l => l.id === lang) || LANGUAGES[2];
 
@@ -124,6 +143,127 @@ export function CompilerPage() {
     };
     fetchConfigs();
   }, []);
+
+  useEffect(() => {
+    if (questionId) {
+      const fetchQuestion = async () => {
+        setLoadingQuestion(true);
+        try {
+          const res = await api.get(`/practice/question/${questionId}`);
+          if (res.data.success) {
+            setQuestion(res.data.question);
+            if (res.data.question.testCases && res.data.question.testCases.length > 0) {
+              setTestCases(res.data.question.testCases);
+            }
+          }
+        } catch (err) {
+          console.error("Failed to fetch question:", err);
+        } finally {
+          setLoadingQuestion(false);
+        }
+      };
+      fetchQuestion();
+    }
+  }, [questionId]);
+
+  const [practiceSheet, setPracticeSheet] = useState(null);
+  
+  useEffect(() => {
+    const fetchSheet = async () => {
+      try {
+        let res;
+        if (practiceSheetId) {
+          res = await api.get(`/practice/${practiceSheetId}`);
+        } else {
+          // Auto-fetch current active sheet
+          res = await api.get(`/practice/current`);
+        }
+        
+        if (res.data.success) {
+          const sheet = res.data.sheet;
+          setPracticeSheet(sheet);
+          
+          if (res.data.questionStatuses) {
+            setQuestionStatuses(res.data.questionStatuses);
+          }
+
+          if (!practiceSheetId) {
+            setSearchParams(prev => {
+              prev.set('practiceSheetId', sheet.id);
+              return prev;
+            });
+          }
+
+          if (!questionId && sheet.questions && sheet.questions.length > 0) {
+            setSearchParams(prev => {
+              prev.set('questionId', sheet.questions[0].questionId);
+              return prev;
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch practice sheet:", err);
+      }
+    };
+    fetchSheet();
+  }, [practiceSheetId]);
+
+  // Join Socket Room when sheet loads
+  useEffect(() => {
+    if (socket && practiceSheet?.id) {
+      socket.emit('join_sheet', { sheetId: practiceSheet.id, role: 'student' });
+    }
+  }, [socket, practiceSheet]);
+
+  // Auto-Save Draft
+  useEffect(() => {
+    if (!questionId || !code) return;
+    const saveDraft = setTimeout(async () => {
+      try {
+        await api.post('/practice/draft', {
+          questionId,
+          practiceSheetId: practiceSheet?.id,
+          language: lang,
+          code
+        });
+        // Fetch fresh submissions
+      if (questionId) {
+        const fetchHistory = async () => {
+          try {
+            const res = await api.get(`/practice/submissions/${questionId}`);
+            if (res.data.success) setSubmissions(res.data.submissions);
+          } catch (err) {}
+        };
+        fetchHistory();
+      }
+    } catch (err) {
+        console.error("Auto-save failed:", err);
+      }
+    }, 10000); // 10 seconds
+
+    return () => clearTimeout(saveDraft);
+  }, [code, lang, questionId, practiceSheet]);
+
+  // Fetch submissions and drafts on question load
+  useEffect(() => {
+    if (questionId) {
+      const fetchHistory = async () => {
+        try {
+          const res = await api.get(`/practice/submissions/${questionId}`);
+          if (res.data.success) setSubmissions(res.data.submissions);
+        } catch (err) {
+          console.error("Failed to fetch submissions:", err);
+        }
+      };
+      fetchHistory();
+
+      // Check if we have a draft in questionStatuses
+      const qs = questionStatuses.find(q => q.questionId === questionId);
+      if (qs && qs.draft && qs.draft.language === lang) {
+        setCode(qs.draft.code);
+      }
+    }
+  }, [questionId, questionStatuses, lang]);
 
   useEffect(() => {
     const template = backendTemplates[lang] || TEMPLATES[lang] || '// Start coding here';
@@ -186,7 +326,12 @@ export function CompilerPage() {
   const handleRunTests = async () => {
     setRunning(true); setTcResults([]); setTab('testcases');
     try {
-      const r = await api.post('/compiler/judge', { language: lang, code, testCases });
+      const payload = { language: lang, code, testCases };
+      if (questionId) {
+        payload.questionId = questionId;
+        payload.practiceSheetId = practiceSheetId;
+      }
+      const r = await api.post('/compiler/judge', payload);
       // Judge API returns { success: true, data: { verdict, passed, total, results } }
       setTcResults(r.data.data.results || []);
     } catch (e) {
@@ -198,8 +343,29 @@ export function CompilerPage() {
   const handleJudge = async () => {
     setJudging(true); setJudgeResult(null); setTab('judge');
     try {
-      const r = await api.post('/compiler/judge', { language: lang, code, testCases });
+      const payload = { language: lang, code, testCases };
+      if (questionId) {
+        payload.questionId = questionId;
+        payload.practiceSheetId = practiceSheetId;
+      }
+      const r = await api.post('/compiler/judge', payload);
       setJudgeResult(r.data.data);
+      
+      // Update local question status and fetch submissions
+      if (questionId) {
+        setQuestionStatuses(prev => {
+          const newStatuses = [...prev];
+          const idx = newStatuses.findIndex(q => q.questionId === questionId);
+          if (idx !== -1) {
+            newStatuses[idx].status = r.data.data.verdict === 'accepted' ? 'Accepted' : 'Attempted';
+          }
+          return newStatuses;
+        });
+
+        api.get(`/practice/submissions/${questionId}`).then(res => {
+          if (res.data.success) setSubmissions(res.data.submissions);
+        });
+      }
     } catch (e) {
       console.error("Judge failed:", e);
       setJudgeResult({ verdict: 'runtime_error', passed: 0, total: testCases.length, results: [] });
@@ -211,11 +377,55 @@ export function CompilerPage() {
   const updateTc = (i, field, val) => setTestCases(prev => prev.map((tc, idx) => idx === i ? { ...tc, [field]: val } : tc));
   const removeTc = (i) => setTestCases(prev => prev.filter((_, idx) => idx !== i));
 
+  const handleAction = async (action) => {
+    if (!questionId) return;
+    try {
+      const res = await api.post('/practice/action', { questionId, action });
+      if (res.data.success) {
+        setQuestionStatuses(prev => {
+          const newStatuses = [...prev];
+          const idx = newStatuses.findIndex(q => q.questionId === questionId);
+          if (idx !== -1) {
+            newStatuses[idx].status = res.data.status;
+          } else {
+            newStatuses.push({ questionId, status: res.data.status, draft: null });
+          }
+          return newStatuses;
+        });
+      }
+    } catch (err) {
+      console.error("Action failed:", err);
+    }
+  };
+
+  const currentQuestionIdx = practiceSheet?.questions?.findIndex(q => q.questionId === questionId) ?? -1;
+  const handleNavigate = (direction) => {
+    if (currentQuestionIdx === -1 || !practiceSheet?.questions) return;
+    let nextIdx = currentQuestionIdx + direction;
+    if (nextIdx >= 0 && nextIdx < practiceSheet.questions.length) {
+      setSearchParams(prev => {
+        prev.set('questionId', practiceSheet.questions[nextIdx].questionId);
+        return prev;
+      });
+    }
+  };
+
   return (
     <div style={{ height: 'calc(100vh - 64px)', background: '#0d1117', color: '#e6edf3', display: 'flex', flexDirection: 'column', fontFamily: "'Inter', sans-serif" }}>
 
       {/* ── Top Bar ── */}
       <div className="flex flex-wrap items-center gap-3 px-4 py-2 bg-[#161b22] border-b border-[#30363d] shrink-0">
+        {/* Exit Button */}
+        <button onClick={() => {
+            if (user?.role === 'student') navigate('/student-dashboard/coding-progress');
+            else navigate('/teacher-dashboard/practice-manager');
+          }}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'transparent', border: '1px solid #30363d', borderRadius: 8, color: '#8b949e', fontSize: 13, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s' }}
+          onMouseOver={e => { e.currentTarget.style.color = '#c9d1d9'; e.currentTarget.style.borderColor = '#8b949e'; }}
+          onMouseOut={e => { e.currentTarget.style.color = '#8b949e'; e.currentTarget.style.borderColor = '#30363d'; }}>
+          <span>← Exit</span>
+        </button>
+
         {/* Language picker */}
         <div ref={langRef} className="relative">
           <button onClick={() => setLangOpen(p => !p)}
@@ -267,7 +477,132 @@ export function CompilerPage() {
       {/* ── Main Layout ── */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
 
-        {/* Left — Editor */}
+        {/* Left Panel: Questions List & Description */}
+        {(questionId || practiceSheetId) && (
+          <div className="w-full md:w-[380px] lg:w-[450px] flex flex-col bg-[#0d1117] border-b md:border-b-0 md:border-r border-[#30363d] overflow-y-auto min-h-[30vh] md:min-h-0">
+            {/* If Practice Sheet, show question list at top */}
+            {practiceSheet && (
+                <div className="flex flex-col border-b border-[#30363d] max-h-[40%] overflow-y-auto overflow-x-hidden shrink-0 bg-[#161b22] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#30363d] [&::-webkit-scrollbar-thumb]:rounded-full">
+                  <div className="px-4 py-2 bg-[#21262d] text-xs font-bold text-[#c9d1d9] uppercase tracking-widest sticky top-0 border-b border-[#30363d] z-10 flex flex-col gap-2">
+                    <div className="flex justify-between items-center">
+                      <span>{practiceSheet.title}</span>
+                      <span className="text-[#8b949e]">{practiceSheet.questions?.length || 0} Qs</span>
+                    </div>
+                    {/* Progress Bar */}
+                    <div className="w-full bg-[#0d1117] rounded-full h-1.5 border border-[#30363d] overflow-hidden">
+                      <div className="bg-[#238636] h-1.5" style={{ width: `${(questionStatuses.filter(q => q.status === 'Accepted').length / (practiceSheet.questions?.length || 1)) * 100}%` }}></div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col">
+                    {practiceSheet.questions?.map((q, idx) => {
+                      const qs = questionStatuses.find(status => status.questionId === q.questionId);
+                      const isSolved = qs?.status === 'Accepted';
+                      const isAttempted = qs && qs.status !== 'Not Started' && !isSolved;
+                      const isBookmarked = qs?.status === 'Bookmarked';
+                      const isReviewed = qs?.status === 'Reviewed';
+
+                      return (
+                        <button 
+                          key={q.questionId}
+                          onClick={() => setSearchParams(prev => { prev.set('questionId', q.questionId); return prev; })}
+                          className={`flex items-center justify-between px-4 py-3 text-left border-b border-[#30363d] hover:bg-[#21262d] transition-colors ${questionId === q.questionId ? 'bg-[#21262d] border-l-4 border-l-[#58a6ff]' : 'border-l-4 border-l-transparent'}`}
+                        >
+                          <div>
+                            <div className={`text-sm font-bold flex items-center gap-2 ${questionId === q.questionId ? 'text-[#58a6ff]' : 'text-[#e6edf3]'}`}>
+                              {isSolved && <span className="text-[#3fb950]" title="Solved">✓</span>}
+                              {isAttempted && <span className="text-[#d29922]" title="Attempted">◐</span>}
+                              {(!isSolved && !isAttempted) && <span className="text-[#8b949e]" title="Not Started">○</span>}
+                              {idx + 1}. {q.question?.title || 'Untitled'}
+                            </div>
+                            <div className="flex gap-2 mt-1 pl-5">
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider ${q.question?.difficulty?.toLowerCase() === 'easy' ? 'bg-[#2ea04315] text-[#3fb950]' : q.question?.difficulty?.toLowerCase() === 'medium' ? 'bg-[#d2992215] text-[#d29922]' : 'bg-[#f8514915] text-[#f85149]'}`}>{q.question?.difficulty || 'Medium'}</span>
+                              {q.question?.topic && <span className="text-[9px] px-1.5 py-0.5 bg-[#30363d] text-[#8b949e] rounded font-bold uppercase tracking-wider">{q.question.topic}</span>}
+                              {isBookmarked && <span className="text-[9px] px-1.5 py-0.5 bg-[#58a6ff15] text-[#58a6ff] rounded font-bold uppercase tracking-wider">Bookmarked</span>}
+                              {isReviewed && <span className="text-[9px] px-1.5 py-0.5 bg-[#d2992215] text-[#d29922] rounded font-bold uppercase tracking-wider">Reviewed</span>}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+            )}
+
+            <div className="flex shrink-0 border-b border-[#30363d] justify-between items-center pr-2 py-1 flex-wrap gap-2">
+               <button className="px-4 py-2 text-sm font-bold text-[#58a6ff] border-b-2 border-[#58a6ff]">Description</button>
+               <div className="flex gap-2">
+                 {(() => {
+                   const qs = questionStatuses.find(status => status.questionId === questionId);
+                   const isBookmarked = qs?.status === 'Bookmarked';
+                   const isReviewed = qs?.status === 'Reviewed';
+                   return (
+                     <>
+                       <button onClick={() => handleAction('Bookmarked')} className={`text-xs px-2 py-1 border rounded transition-all ${isBookmarked ? 'bg-[#58a6ff15] border-[#58a6ff] text-[#58a6ff]' : 'bg-[#161b22] border-[#30363d] text-[#8b949e] hover:bg-[#21262d]'}`}>
+                         🔖 {isBookmarked ? 'Bookmarked' : 'Bookmark'}
+                       </button>
+                       <button onClick={() => handleAction('Reviewed')} className={`text-xs px-2 py-1 border rounded transition-all ${isReviewed ? 'bg-[#d2992215] border-[#d29922] text-[#d29922]' : 'bg-[#161b22] border-[#30363d] text-[#8b949e] hover:bg-[#21262d]'}`}>
+                         ⭐ {isReviewed ? 'Reviewed' : 'Review'}
+                       </button>
+                     </>
+                   );
+                 })()}
+               </div>
+            </div>
+            
+            {loadingQuestion ? (
+              <div className="flex-1 flex items-center justify-center text-[#8b949e]">Loading Problem...</div>
+            ) : question ? (
+              <div className="p-5 space-y-6 flex-1 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#30363d] [&::-webkit-scrollbar-thumb]:rounded-full">
+                <div>
+                  <h1 className="text-xl font-bold text-[#e6edf3] mb-2">{question.title}</h1>
+                  <div className="flex gap-2">
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${question.difficulty?.toLowerCase() === 'easy' ? 'bg-[#2ea04315] text-[#3fb950]' : question.difficulty?.toLowerCase() === 'medium' ? 'bg-[#d2992215] text-[#d29922]' : 'bg-[#f8514915] text-[#f85149]'}`}>{question.difficulty || 'Medium'}</span>
+                    {question.topic && <span className="text-[10px] px-2 py-0.5 bg-[#30363d] text-[#c9d1d9] rounded-full font-bold uppercase tracking-wider">{question.topic}</span>}
+                  </div>
+                </div>
+                
+                <div className="prose prose-invert max-w-none text-sm text-[#c9d1d9] leading-relaxed">
+                  <p className="whitespace-pre-wrap">{question.description}</p>
+                </div>
+
+                {question.constraints && (
+                  <div className="mt-8">
+                    <h3 className="text-xs font-bold text-[#8b949e] uppercase tracking-widest mb-3">Constraints</h3>
+                    <pre className="bg-[#161b22] p-3 rounded-lg border border-[#30363d] text-[#e6edf3] text-xs whitespace-pre-wrap font-mono">
+                      {question.constraints}
+                    </pre>
+                  </div>
+                )}
+                
+                {/* Navigation Buttons */}
+                {practiceSheet && (
+                  <div className="flex justify-between items-center pt-8 mt-8 border-t border-[#30363d]">
+                    <button 
+                      onClick={() => handleNavigate(-1)}
+                      disabled={currentQuestionIdx <= 0}
+                      className="px-4 py-2 bg-[#21262d] border border-[#30363d] rounded text-[#c9d1d9] text-sm disabled:opacity-50 hover:bg-[#30363d]"
+                    >
+                      ← Previous
+                    </button>
+                    <button 
+                      onClick={() => handleNavigate(1)}
+                      disabled={currentQuestionIdx === -1 || currentQuestionIdx >= (practiceSheet.questions?.length - 1)}
+                      className="px-4 py-2 bg-[#21262d] border border-[#30363d] rounded text-[#c9d1d9] text-sm disabled:opacity-50 hover:bg-[#30363d]"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-[#8b949e]">
+                {practiceSheetId ? "Select a question from the list above." : "No problem selected."}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Middle/Left — Editor */}
         <div className="flex-1 flex flex-col border-b md:border-b-0 md:border-r border-[#30363d] min-h-[50vh] md:min-h-0">
           <div style={{ flex: 1 }}>
             <Editor
@@ -286,7 +621,7 @@ export function CompilerPage() {
 
           {/* Tabs */}
           <div style={{ display: 'flex', borderBottom: '1px solid #21262d', flexShrink: 0 }}>
-            {[['output','📤 Output'],['testcases','🧪 Test Cases'],['judge','⚖️ Judge']].map(([id, label]) => (
+            {[['output','📤 Output'],['testcases','🧪 Test Cases'],['judge','⚖️ Judge'],['submissions','🕒 Submissions']].map(([id, label]) => (
               <button key={id} onClick={() => setTab(id)}
                 style={{ flex: 1, padding: '10px 8px', background: tab === id ? '#161b22' : 'transparent', borderBottom: tab === id ? '2px solid #58a6ff' : '2px solid transparent', border: 'none', color: tab === id ? '#58a6ff' : '#8b949e', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                 {label}

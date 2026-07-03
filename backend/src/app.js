@@ -8,8 +8,12 @@ import violationRoutes from './routes/violation.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import trainerResultsRoutes from './routes/trainerResults.routes.js';
 import superadminRoutes from './routes/superadmin/index.js';
+import settingsRoutes from './routes/settingsRoutes.js';
+import metadataRoutes from './routes/metadataRoutes.js';
+import practiceRoutes from './routes/practice.routes.js';
+import internalProgressRoutes from './routes/internalProgress.routes.js';
+import integrationRoutes from './routes/integration.routes.js';
 import { sendTestEmail } from './services/emailService.js';
-
 const app = express();
 
 // 🚨 THE REAL VIP LIST 🚨
@@ -42,6 +46,11 @@ app.use('/api/violations',  violationRoutes);
 app.use('/api/admin',       adminRoutes);
 app.use('/api/trainer',     trainerResultsRoutes);
 app.use('/api/superadmin',  superadminRoutes);
+app.use('/api/settings',    settingsRoutes);
+app.use('/api/metadata',    metadataRoutes);
+app.use('/api/practice',    practiceRoutes);
+app.use('/api/progress',    internalProgressRoutes);
+app.use('/api/integrations', integrationRoutes);
 
 // ── Health check ──────────────────────────────────────────────
 app.get('/api/test', (_req, res) => {

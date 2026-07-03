@@ -6,6 +6,7 @@ import { Server } from 'socket.io';
 import app from './src/app.js';
 import { seedSuperAdmin } from './prisma/seedSuperAdmin.js';
 import { setupProctorSockets } from './src/sockets/proctorSocket.js';
+import { setupPracticeSockets, setPracticeIO } from './src/sockets/practiceSocket.js';
 import { sendEmail } from './src/services/emailService.js';
 import leetcodeRoutes from './src/routes/leetcodeRoutes.js';
 import codingMetricsRoutes from './src/routes/codingMetricsRoutes.js';
@@ -47,6 +48,8 @@ const startServer = async () => {
   });
 
   setupProctorSockets(io);
+  setupPracticeSockets(io);
+  setPracticeIO(io);
 
   httpServer.listen(PORT, () => {
     console.log(`🚀 NEXUS PROCTOR backend running on port ${PORT}`);

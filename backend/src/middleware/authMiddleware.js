@@ -47,10 +47,20 @@ export const adminOnly = (req, res, next) => {
 };
 
 export const superAdminOnly = (req, res, next) => {
+  console.log('superAdminOnly check - User:', req.user?.email, 'Role:', req.user?.role);
   if (req.user?.role !== 'superadmin') {
-    return res.status(403).json({ message: 'Super Admin access only' });
+    return res.status(403).json({ message: `Super Admin access only. Detected role: ${req.user?.role || 'None'}` });
   }
   next();
 };
 
 export const facultyOnly = teacherOnly;
+
+export const authorize = (...roles) => {
+  return (req, res, next) => {
+    if (!roles.includes(req.user?.role)) {
+      return res.status(403).json({ message: `Access denied. Requires one of roles: ${roles.join(', ')}` });
+    }
+    next();
+  };
+};

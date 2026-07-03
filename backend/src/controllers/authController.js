@@ -7,7 +7,7 @@ const generateToken = (id) => {
 };
 
 export const registerUser = async (req, res) => {
-  const { name, studentId, email, password, role, course, section, leetcodeUsername } = req.body;
+  const { name, studentId, email, password, role, course, section, departmentId } = req.body;
 
   try {
     const userExists = await prisma.user.findFirst({
@@ -33,7 +33,7 @@ export const registerUser = async (req, res) => {
       passwordResetRequired: false,
       course: role === 'student' ? course : null,
       section: role === 'student' ? section : null,
-      leetcodeUsername: role === 'student' ? leetcodeUsername : null
+      departmentId: departmentId || null
     };
 
     if (newUserData.role === 'teacher' || newUserData.role === 'faculty') {
@@ -154,5 +154,17 @@ export const changePassword = async (req, res) => {
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const getPublicDepartments = async (req, res) => {
+  try {
+    const departments = await prisma.department.findMany({
+      where: { status: 'ACTIVE' },
+      select: { id: true, name: true, code: true }
+    });
+    res.json({ success: true, data: departments });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };

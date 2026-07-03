@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { Search, Filter, BookOpen, Key, Trash2, Power, Edit3, X, User as UserIcon, Book, Activity, Clock, ShieldCheck, Mail, Phone, Calendar, Monitor, Globe, HardDrive, Archive } from 'lucide-react';
+import { Search, Filter, BookOpen, Key, Trash2, Power, Edit3, X, User as UserIcon, Book, Activity, Clock, ShieldCheck, Mail, Phone, Calendar, Monitor, Globe, HardDrive, Archive, Eye, EyeOff } from 'lucide-react';
 
 const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
   const { logout, user } = useAuth();
@@ -13,11 +13,19 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
   const [deptFilter, setDeptFilter] = useState('All');
   
   const [showProvisionModal, setShowProvisionModal] = useState(false);
-  const [newFaculty, setNewFaculty] = useState({ name: '', email: '', phone: '', employeeId: '', designation: '', experience: '', qualification: '', status: 'ACTIVE' });
+  const [newFaculty, setNewFaculty] = useState({ name: '', email: '', phone: '', employeeId: '', designation: '', qualification: '', status: 'ACTIVE' });
   const [generatedCreds, setGeneratedCreds] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const [toast, setToast] = useState(null);
+  // Password Setup States
+  const [passwordMode, setPasswordMode] = useState('auto');
+  const [manualPassword, setManualPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const toast = null; // replaced below
+  const [toastState, setToast] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
   
   const [resetModal, setResetModal] = useState({ isOpen: false, id: null, newPassword: '' });
@@ -105,6 +113,41 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
     }
   }, [isSuperAdmin]);
 
+  const generateEmployeeId = (deptName) => {
+    if (!deptName) return '';
+    const acronym = deptName.split(' ')
+      .filter(w => w && !['of', 'and', 'the', 'for', 'in'].includes(w.toLowerCase()))
+      .map(w => w[0])
+      .join('')
+      .toUpperCase();
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    return `${acronym}${randomNum}`;
+  };
+
+  useEffect(() => {
+    if (showProvisionModal) {
+      if (!isSuperAdmin && user?.departmentRel?.name) {
+        setNewFaculty(prev => ({ ...prev, employeeId: generateEmployeeId(user.departmentRel.name) }));
+      } else if (isSuperAdmin && newFaculty.departmentId) {
+        const dept = departments.find(d => d.id === newFaculty.departmentId);
+        if (dept) {
+          setNewFaculty(prev => ({ ...prev, employeeId: generateEmployeeId(dept.name) }));
+        }
+      }
+    }
+  }, [showProvisionModal, newFaculty.departmentId, isSuperAdmin, user, departments]);
+
+  const getPasswordStrength = (pass) => {
+    let score = 0;
+    if (pass.length >= 8 && pass.length <= 32) score++;
+    if (/[A-Z]/.test(pass)) score++;
+    if (/[a-z]/.test(pass)) score++;
+    if (/[0-9]/.test(pass)) score++;
+    if (/[^A-Za-z0-9]/.test(pass)) score++;
+    return score;
+  };
+  const strengthScore = getPasswordStrength(manualPassword);
+
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
@@ -116,17 +159,41 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
 
   const handleCreateFaculty = async (e) => {
     e.preventDefault();
+    if (passwordMode === 'manual') {
+      if (strengthScore < 5) {
+        showToast('Please ensure the manual password meets all requirements.', 'error');
+        return;
+      }
+      if (manualPassword !== confirmPassword) {
+        showToast('Passwords do not match.', 'error');
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
-      const payload = isSuperAdmin ? { ...newFaculty, departmentId: newFaculty.departmentId } : newFaculty;
+      const payload = {
+        ...(isSuperAdmin ? { ...newFaculty, departmentId: newFaculty.departmentId } : newFaculty),
+        passwordMode,
+        manualPassword: passwordMode === 'manual' ? manualPassword : undefined
+      };
+      
       const res = await api.post(apiEndpoint, payload);
       if (res.data.success) {
-        setGeneratedCreds({
-          username: res.data.data.teacher.email,
-          password: res.data.data.tempPassword
-        });
+        if (passwordMode === 'auto') {
+          setGeneratedCreds({
+            username: res.data.data.teacher.email,
+            password: res.data.data.tempPassword
+          });
+        } else {
+          showToast('Faculty provisioned successfully!', 'success');
+          setShowProvisionModal(false);
+          setPasswordMode('auto');
+          setManualPassword('');
+          setConfirmPassword('');
+        }
         fetchFaculty();
-        setNewFaculty({ name: '', email: '', phone: '', employeeId: '', designation: '', experience: '', qualification: '', status: 'ACTIVE' });
+        setNewFaculty({ name: '', email: '', phone: '', employeeId: '', designation: '', qualification: '', status: 'ACTIVE' });
       }
     } catch (err) {
       showToast(err.response?.data?.message || 'Error provisioning faculty', 'error');
@@ -225,14 +292,14 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
 
   return (
     <div className="font-sans relative">
-      {toast && (
+      {toastState && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[600] animate-in slide-in-from-bottom-10 fade-in duration-300">
           <div className={`px-6 py-3.5 rounded-full shadow-2xl border flex items-center gap-3 text-sm font-bold ${
-            toast.type === 'error' ? 'bg-red-600 text-white border-red-500 shadow-red-600/20' : 
+            toastState.type === 'error' ? 'bg-red-600 text-white border-red-500 shadow-red-600/20' : 
             'bg-gray-900 text-white border-gray-700 shadow-xl'
           }`}>
-            <span className="text-lg">{toast.type === 'error' ? '⚠️' : '✨'}</span>
-            <span className="tracking-wide pr-2">{toast.message}</span>
+            <span className="text-lg">{toastState.type === 'error' ? '⚠️' : '✨'}</span>
+            <span className="tracking-wide pr-2">{toastState.message}</span>
             <button onClick={() => setToast(null)} className="ml-2 opacity-50 hover:opacity-100 transition-opacity">✕</button>
           </div>
         </div>
@@ -405,9 +472,9 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
                   </div>
                   <div>
                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Employee ID *</label>
-                    <input type="text" value={newFaculty.employeeId} onChange={e => setNewFaculty({...newFaculty, employeeId: e.target.value})} required
-                      className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:bg-white focus:border-emerald-400 transition-all text-sm font-medium font-mono" 
-                      placeholder="FAC-1001" />
+                    <input type="text" value={newFaculty.employeeId} readOnly
+                      className="w-full px-5 py-4 bg-gray-100 border border-gray-200 text-gray-500 rounded-2xl outline-none focus:bg-gray-100 transition-all text-sm font-medium font-mono" 
+                      placeholder="Auto-Generated" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Phone Number</label>
@@ -427,12 +494,6 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
                         <option value="Teaching Assistant">Teaching Assistant</option>
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Experience (Years)</label>
-                    <input type="number" value={newFaculty.experience} onChange={e => setNewFaculty({...newFaculty, experience: e.target.value})}
-                      className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:bg-white focus:border-emerald-400 transition-all text-sm font-medium" 
-                      placeholder="e.g. 5" />
-                  </div>
                   {isSuperAdmin && (
                     <div>
                       <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Department *</label>
@@ -447,12 +508,114 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
                   )}
                 </div>
 
+                {/* Password Setup Section */}
+                <div className="pt-4 border-t border-gray-100">
+                  <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-widest mb-4">Password Setup</h4>
+                  
+                  <div className="flex gap-6 mb-6">
+                    <label className="flex items-center gap-3 text-sm text-gray-700 cursor-pointer font-medium">
+                      <input 
+                        type="radio" 
+                        name="passwordMode" 
+                        value="auto"
+                        checked={passwordMode === 'auto'}
+                        onChange={() => setPasswordMode('auto')}
+                        className="text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+                      />
+                      <span>Auto Generate Password</span>
+                    </label>
+                    <label className="flex items-center gap-3 text-sm text-gray-700 cursor-pointer font-medium">
+                      <input 
+                        type="radio" 
+                        name="passwordMode" 
+                        value="manual"
+                        checked={passwordMode === 'manual'}
+                        onChange={() => setPasswordMode('manual')}
+                        className="text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+                      />
+                      <span>Create Password Manually</span>
+                    </label>
+                  </div>
+
+                  {passwordMode === 'manual' && (
+                    <div className="space-y-5 bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
+                      <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Password</label>
+                        <div className="relative">
+                          <input 
+                            type={showPassword ? "text" : "password"} 
+                            className="w-full border border-gray-200 rounded-xl pl-5 pr-12 py-3 focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium bg-white"
+                            value={manualPassword} onChange={e => setManualPassword(e.target.value)}
+                            placeholder="Enter secure password"
+                          />
+                          <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-3 text-gray-400 hover:text-gray-600 transition-colors">
+                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Confirm Password</label>
+                        <div className="relative">
+                          <input 
+                            type={showConfirmPassword ? "text" : "password"} 
+                            className="w-full border border-gray-200 rounded-xl pl-5 pr-12 py-3 focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium bg-white"
+                            value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                            placeholder="Confirm secure password"
+                          />
+                          <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-4 top-3 text-gray-400 hover:text-gray-600 transition-colors">
+                            {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                          </button>
+                        </div>
+                        {confirmPassword && manualPassword !== confirmPassword && (
+                          <p className="text-xs text-red-600 mt-2 font-medium flex items-center gap-1">⚠️ Passwords do not match.</p>
+                        )}
+                      </div>
+                      
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Strength</span>
+                          <span className={`text-[10px] font-black uppercase tracking-widest ${strengthScore < 3 ? 'text-red-500' : strengthScore < 5 ? 'text-amber-500' : 'text-emerald-500'}`}>
+                            {strengthScore < 3 ? 'Weak' : strengthScore < 5 ? 'Medium' : 'Strong'}
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5 flex overflow-hidden">
+                          {[1, 2, 3, 4, 5].map(level => (
+                            <div 
+                              key={level} 
+                              className={`flex-1 h-full ${level <= strengthScore ? (strengthScore < 3 ? 'bg-red-500' : strengthScore < 5 ? 'bg-amber-500' : 'bg-emerald-500') : 'bg-transparent border-r border-white border-opacity-50 last:border-0'}`} 
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-medium pt-2">
+                        <span className={`flex items-center gap-1.5 ${manualPassword.length >= 8 && manualPassword.length <= 32 ? 'text-emerald-600' : 'text-gray-400'}`}>
+                          {manualPassword.length >= 8 && manualPassword.length <= 32 ? '✓' : '✗'} 8-32 characters
+                        </span>
+                        <span className={`flex items-center gap-1.5 ${/[A-Z]/.test(manualPassword) ? 'text-emerald-600' : 'text-gray-400'}`}>
+                          {/[A-Z]/.test(manualPassword) ? '✓' : '✗'} Uppercase letter
+                        </span>
+                        <span className={`flex items-center gap-1.5 ${/[a-z]/.test(manualPassword) ? 'text-emerald-600' : 'text-gray-400'}`}>
+                          {/[a-z]/.test(manualPassword) ? '✓' : '✗'} Lowercase letter
+                        </span>
+                        <span className={`flex items-center gap-1.5 ${/[0-9]/.test(manualPassword) ? 'text-emerald-600' : 'text-gray-400'}`}>
+                          {/[0-9]/.test(manualPassword) ? '✓' : '✗'} Number
+                        </span>
+                        <span className={`flex items-center gap-1.5 ${/[^A-Za-z0-9]/.test(manualPassword) ? 'text-emerald-600' : 'text-gray-400'}`}>
+                          {/[^A-Za-z0-9]/.test(manualPassword) ? '✓' : '✗'} Special character
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex gap-4 pt-4">
                   <button type="button" onClick={() => setShowProvisionModal(false)} disabled={submitting}
                     className="flex-1 py-4 bg-gray-50 text-gray-400 font-black text-[10px] uppercase tracking-widest rounded-2xl hover:bg-gray-100 transition-all">
                     Cancel
                   </button>
-                  <button type="submit" disabled={submitting}
+                  <button type="submit" disabled={submitting || (passwordMode === 'manual' && (strengthScore < 5 || manualPassword !== confirmPassword || !confirmPassword))}
                     className="flex-1 py-4 bg-emerald-600 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-lg hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-50">
                     {submitting ? '⏳ Processing...' : 'Create Account'}
                   </button>

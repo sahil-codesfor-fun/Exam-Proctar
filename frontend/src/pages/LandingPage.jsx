@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext'; 
@@ -11,47 +11,38 @@ export const LandingPage = () => {
   const [status, setStatus] = useState({ message: '', type: 'info' });
   const [loading, setLoading] = useState(false);
   
-  const [credentials, setCredentials] = useState({ name: '', studentId: '', email: '', password: '', course: '', section: '', leetcodeUsername: '' });
-  
-  // Real-Time Verification State
-  const [leetStatus, setLeetStatus] = useState('idle'); 
-  const debounceTimer = useRef(null);
+  const [credentials, setCredentials] = useState({ name: '', studentId: '', email: '', password: '', course: '', section: '', departmentId: '' });
+  const [departments, setDepartments] = useState([]);
+  const [courses, setCourses] = useState([]);
 
+  useEffect(() => {
+    if (isSignUp) {
+      axios.get(`${import.meta.env.VITE_API_BASE_URL}/auth/departments`)
+        .then(res => setDepartments(res.data.data || []))
+        .catch(err => console.error("Failed to fetch departments", err));
+    }
+  }, [isSignUp]);
+
+  useEffect(() => {
+    if (credentials.departmentId) {
+      axios.get(`${import.meta.env.VITE_API_BASE_URL}/auth/departments/${credentials.departmentId}/courses`)
+        .then(res => {
+           setCourses(res.data.data || []);
+           setCredentials(prev => ({ ...prev, course: '' }));
+        })
+        .catch(err => console.error("Failed to fetch courses", err));
+    } else {
+      setCourses([]);
+    }
+  }, [credentials.departmentId]);
+  
   const handleChange = (e) => {
     const { name, value } = e.target;
     setCredentials(prev => ({ ...prev, [name]: value }));
-
-    if (name === 'leetcodeUsername') {
-      if (value.trim() === '') {
-        setLeetStatus('idle');
-        return;
-      }
-      
-      setLeetStatus('checking');
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
-      
-      debounceTimer.current = setTimeout(async () => {
-        try {
-          const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/leetcode/verify/${value}`);
-          if (res.data.success) {
-            setLeetStatus('valid');
-          } else {
-            setLeetStatus('invalid');
-          }
-        } catch (error) {
-          setLeetStatus('invalid');
-        }
-      }, 800);
-    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isSignUp && credentials.leetcodeUsername && leetStatus === 'invalid') {
-      setStatus({ message: '❌ Please provide a valid LeetCode username.', type: 'error' });
-      return;
-    }
-
     setLoading(true);
     setStatus({ message: isSignUp ? 'Creating account…' : 'Authenticating…', type: 'info' });
     const endpoint = isSignUp ? '/auth/signup' : '/auth/login';
@@ -125,17 +116,24 @@ export const LandingPage = () => {
                   <input type="text" name="studentId" value={credentials.studentId} onChange={handleChange} required className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white outline-none transition-all focus:border-emerald-400" placeholder="e.g. 2401301059" />
                 </div>
                 
+                <div>
+                  <label className="block text-xs font-bold text-gray-800 mb-1 uppercase tracking-wider">Department</label>
+                  <select name="departmentId" value={credentials.departmentId} onChange={handleChange} required className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white outline-none transition-all focus:border-emerald-400 cursor-pointer">
+                    <option value="" disabled>Select Department</option>
+                    {departments.map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-800 mb-1 uppercase tracking-wider">Course</label>
-                    <select name="course" value={credentials.course} onChange={handleChange} required className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white outline-none transition-all focus:border-emerald-400 cursor-pointer">
+                    <select name="course" value={credentials.course} onChange={handleChange} required disabled={!credentials.departmentId} className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white outline-none transition-all focus:border-emerald-400 cursor-pointer disabled:opacity-50">
                       <option value="" disabled>Select</option>
-                      <option value="B.Tech CSE">B.Tech CSE (Core)</option>
-                      <option value="B.Tech CSE (AI/ML)">B.Tech CSE (AI/ML)</option>
-                      <option value="B.Tech CSE (Data Science)">B.Tech CSE (Data Science)</option>
-                      <option value="B.Tech CSE (Cyber Security)">B.Tech CSE (Cyber Security)</option>
-                      <option value="Pharmacy">Pharmacy</option>
-                      <option value="Management">Management</option>
+                      {courses.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -148,27 +146,6 @@ export const LandingPage = () => {
                       <option value="D">Section D</option>
                     </select>
                   </div>
-                </div>
-
-                <div className="relative">
-                  <label className="block text-xs font-bold text-gray-800 mb-1 uppercase tracking-wider">LeetCode Username</label>
-                  <div className="relative">
-                    <input 
-                      type="text" 
-                      name="leetcodeUsername" 
-                      value={credentials.leetcodeUsername} 
-                      onChange={handleChange} 
-                      required 
-                      className={`w-full px-4 py-3 rounded-lg border bg-gray-50 focus:bg-white outline-none transition-all pr-12 ${leetStatus === 'valid' ? 'border-emerald-400' : leetStatus === 'invalid' ? 'border-red-400' : 'border-gray-200 focus:border-emerald-400'}`} 
-                      placeholder="e.g. neetcode" 
-                    />
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                      {leetStatus === 'checking' && <Loader2 size={18} className="animate-spin text-blue-500" />}
-                      {leetStatus === 'valid' && <CheckCircle2 size={18} className="text-emerald-500" />}
-                      {leetStatus === 'invalid' && <XCircle size={18} className="text-red-500" />}
-                    </div>
-                  </div>
-                  {leetStatus === 'invalid' && <p className="text-[10px] font-bold text-red-500 mt-1 uppercase">User not found</p>}
                 </div>
               </>
             )}

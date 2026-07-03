@@ -5,7 +5,11 @@ import {
   createDepartment,
   updateDepartment,
   updateDepartmentStatus,
-  deleteDepartment
+  deleteDepartment,
+  getAllocatedCourses,
+  allocateCourses,
+  updateAllocatedCourse,
+  removeAllocatedCourse
 } from '../../controllers/superadmin/departmentController.js';
 import {
   getDepartmentSubjects,
@@ -33,5 +37,13 @@ router.route('/:id/subjects')
     req.body.departmentId = req.params.id;
     next();
   }, createSubject);
+
+router.route('/:id/courses')
+  .get(getAllocatedCourses)
+  .post(allocateCourses);
+
+router.route('/:id/courses/:courseId')
+  .put(updateAllocatedCourse)
+  .delete(removeAllocatedCourse);
 
 export default router;

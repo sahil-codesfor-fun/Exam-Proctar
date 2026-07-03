@@ -12,6 +12,8 @@ import { TeacherDashboard } from './pages/TeacherDashboard';
 import TeacherOverview from './pages/teacher/TeacherOverview';
 import TeacherMonitoring from './pages/teacher/TeacherMonitoring';
 import { TeacherCodingProgress } from './pages/teacher/TeacherCodingProgress';
+import PracticeManager from './pages/teacher/PracticeManager';
+import { LiveMonitor } from './pages/teacher/LiveMonitor';
 import ExamDetail from './pages/teacher/ExamDetail';
 import { CompilerPage } from './pages/CompilerPage';
 import { LiveExamPage } from './pages/LiveExamPage';
@@ -24,7 +26,9 @@ import Departments from './pages/superadmin/Departments';
 import DepartmentHeads from './pages/superadmin/DepartmentHeads';
 import SuperAdminTeachers from './pages/superadmin/Teachers';
 import SuperAdminSubjects from './pages/superadmin/Subjects';
+import Settings from './pages/superadmin/Settings';
 import SuperAdminLogin from './pages/superadmin/Login';
+import Exams from './pages/superadmin/Exams';
 import AdminSubjects from './pages/admin/Subjects';
 
 // ── Protected Route wrapper ──────────────────────────────────────
@@ -110,12 +114,14 @@ function App() {
 
             {/* ── Teacher Dashboard ─────────────────────────────── */}
             <Route path="/teacher-dashboard" element={
-              <ProtectedRoute roles={['faculty','teacher']}><TeacherDashboard /></ProtectedRoute>
+              <ProtectedRoute roles={['faculty','teacher']} redirectTo="/fac"><TeacherDashboard /></ProtectedRoute>
             }>
               <Route index element={<Navigate to="overview" replace />} />
               <Route path="overview" element={<TeacherOverview />} />
               <Route path="monitoring" element={<TeacherMonitoring />} />
               <Route path="coding-progress" element={<TeacherCodingProgress />} />
+              <Route path="practice-manager/*" element={<PracticeManager />} />
+              <Route path="live-monitor" element={<LiveMonitor />} />
               <Route path="exams/:examId" element={<ExamDetail />} />
               <Route path="exams/:examId/submissions/:submissionId" element={<ExamDetail />} />
             </Route>
@@ -150,10 +156,10 @@ function App() {
               <Route path="teachers" element={<SuperAdminTeachers />} />
               <Route path="students" element={<ComingSoon title="Students" />} />
               <Route path="subjects" element={<SuperAdminSubjects />} />
-              <Route path="exams" element={<ComingSoon title="Exams" />} />
+              <Route path="exams" element={<Exams />} />
               <Route path="reports" element={<ComingSoon title="Reports" />} />
               <Route path="activity-logs" element={<ComingSoon title="Activity Logs" />} />
-              <Route path="settings" element={<ComingSoon title="Settings" />} />
+              <Route path="settings" element={<Settings />} />
               <Route path="profile" element={<ComingSoon title="Profile" />} />
             </Route>
 

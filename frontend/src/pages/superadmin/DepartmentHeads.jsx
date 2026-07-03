@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
-import { Search, Plus, MoreVertical, ShieldCheck, Key, Trash2 } from 'lucide-react';
+import { Search, Plus, MoreVertical, ShieldCheck, Key, Trash2, Eye, EyeOff } from 'lucide-react';
 
 const DepartmentHeads = () => {
   const [heads, setHeads] = useState([]);
@@ -8,7 +8,15 @@ const DepartmentHeads = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [generatedCreds, setGeneratedCreds] = useState(null);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [formData, setFormData] = useState({ name: '', email: '', employeeId: '', departmentId: '' });
+  
+  const [passwordMode, setPasswordMode] = useState('auto');
+  const [manualPassword, setManualPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -17,7 +25,6 @@ const DepartmentHeads = () => {
         api.get('/superadmin/departments')
       ]);
       setHeads(headsRes.data.data);
-      // Only show active departments that don't have a head assigned
       setDepartments(deptsRes.data.data.filter(d => !d.head && d.status !== 'ARCHIVED'));
     } catch (err) {
       console.error(err);
@@ -30,17 +37,48 @@ const DepartmentHeads = () => {
     fetchData();
   }, []);
 
+  const getPasswordStrength = (pass) => {
+    let score = 0;
+    if (pass.length >= 8 && pass.length <= 32) score++;
+    if (/[A-Z]/.test(pass)) score++;
+    if (/[a-z]/.test(pass)) score++;
+    if (/[0-9]/.test(pass)) score++;
+    if (/[^A-Za-z0-9]/.test(pass)) score++;
+    return score;
+  };
+  
+  const strengthScore = getPasswordStrength(manualPassword);
+
   const handleCreate = async (e) => {
     e.preventDefault();
+    if (passwordMode === 'manual') {
+      if (strengthScore < 5) {
+        alert("Please ensure the manual password meets all requirements.");
+        return;
+      }
+      if (manualPassword !== confirmPassword) {
+        alert("Passwords do not match.");
+        return;
+      }
+    }
+
     try {
       const res = await api.post('/superadmin/users', {
         ...formData,
-        role: 'admin'
+        role: 'admin',
+        passwordMode,
+        manualPassword: passwordMode === 'manual' ? manualPassword : undefined
       });
-      setGeneratedCreds({
-        email: res.data.data.user.email,
-        password: res.data.data.tempPassword
-      });
+
+      if (passwordMode === 'auto') {
+        setGeneratedCreds({
+          email: res.data.data.user.email,
+          password: res.data.data.tempPassword
+        });
+      } else {
+        setSuccessMessage('Department Head provisioned successfully!');
+        // We do not close modals immediately so the user can see the success message
+      }
       fetchData();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to provision department head');
@@ -51,17 +89,31 @@ const DepartmentHeads = () => {
     setShowModal(false);
     setGeneratedCreds(null);
     setFormData({ name: '', email: '', employeeId: '', departmentId: '' });
+    setPasswordMode('auto');
+    setManualPassword('');
+    setConfirmPassword('');
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+    setSuccessMessage('');
   };
 
-  const handleDelete = async (id, name) => {
-    if (!window.confirm(`Are you sure you want to delete ${name}? This action cannot be undone.`)) return;
+  const handleDeleteClick = (head) => {
+    setDeleteConfirm(head);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm) return;
     try {
-      await api.delete(`/superadmin/users/${id}`);
+      await api.delete(`/superadmin/users/${deleteConfirm.id}`);
+      setDeleteConfirm(null);
       fetchData();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to delete department head');
     }
   };
+
+  const isSubmitDisabled = !formData.departmentId || 
+    (passwordMode === 'manual' && (strengthScore < 5 || manualPassword !== confirmPassword || !confirmPassword));
 
   return (
     <div className="space-y-6">
@@ -123,7 +175,7 @@ const DepartmentHeads = () => {
                 </td>
                 <td className="px-6 py-4 text-right">
                   <button 
-                    onClick={() => handleDelete(head.id, head.name)}
+                    onClick={() => handleDeleteClick(head)}
                     className="text-red-400 hover:text-red-600 transition-colors"
                     title="Delete Department Head"
                   >
@@ -145,10 +197,10 @@ const DepartmentHeads = () => {
 
       {showModal && !generatedCreds && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="p-6 border-b border-gray-100">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-100 sticky top-0 bg-white z-10">
               <h3 className="text-xl font-bold text-gray-900">Provision Dept Head</h3>
-              <p className="text-sm text-gray-500 mt-1">A secure password will be auto-generated.</p>
+              <p className="text-sm text-gray-500 mt-1">Set up a new department head account.</p>
             </div>
             <form onSubmit={handleCreate} className="p-6 space-y-4">
               <div>
@@ -191,16 +243,123 @@ const DepartmentHeads = () => {
                   <p className="text-xs text-amber-600 mt-1">No unassigned departments available. Create a department first.</p>
                 )}
               </div>
-              <div className="flex justify-end gap-3 pt-4">
+
+              {/* Password Setup Section */}
+              <div className="pt-2 border-t border-gray-100">
+                <h4 className="text-sm font-semibold text-gray-900 mb-3">Password Setup</h4>
+                
+                <div className="flex gap-4 mb-4">
+                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="passwordMode" 
+                      value="auto"
+                      checked={passwordMode === 'auto'}
+                      onChange={() => setPasswordMode('auto')}
+                      className="text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>Auto Generate</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="passwordMode" 
+                      value="manual"
+                      checked={passwordMode === 'manual'}
+                      onChange={() => setPasswordMode('manual')}
+                      className="text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>Create Manually</span>
+                  </label>
+                </div>
+
+                {passwordMode === 'manual' && (
+                  <div className="space-y-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                      <div className="relative">
+                        <input 
+                          type={showPassword ? "text" : "password"} 
+                          className="w-full border border-gray-300 rounded-lg pl-4 pr-10 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                          value={manualPassword} onChange={e => setManualPassword(e.target.value)}
+                        />
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600">
+                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                      <div className="relative">
+                        <input 
+                          type={showConfirmPassword ? "text" : "password"} 
+                          className="w-full border border-gray-300 rounded-lg pl-4 pr-10 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                          value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                        />
+                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600">
+                          {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                      {confirmPassword && manualPassword !== confirmPassword && (
+                        <p className="text-xs text-red-600 mt-1">Passwords do not match.</p>
+                      )}
+                    </div>
+                    
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-medium text-gray-600">Strength</span>
+                        <span className={`text-xs font-bold ${strengthScore < 3 ? 'text-red-500' : strengthScore < 5 ? 'text-yellow-500' : 'text-green-500'}`}>
+                          {strengthScore < 3 ? 'Weak' : strengthScore < 5 ? 'Medium' : 'Strong'}
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5 flex overflow-hidden">
+                        {[1, 2, 3, 4, 5].map(level => (
+                          <div 
+                            key={level} 
+                            className={`flex-1 h-full ${level <= strengthScore ? (strengthScore < 3 ? 'bg-red-500' : strengthScore < 5 ? 'bg-yellow-500' : 'bg-green-500') : 'bg-transparent border-r border-white border-opacity-50 last:border-0'}`} 
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-1.5 text-xs mt-2">
+                      <div className="flex gap-4">
+                        <span className={`flex-1 ${manualPassword.length >= 8 && manualPassword.length <= 32 ? 'text-green-600' : 'text-gray-500'}`}>
+                          {manualPassword.length >= 8 && manualPassword.length <= 32 ? '✓' : '✗'} 8-32 characters
+                        </span>
+                        <span className={`flex-1 ${/[A-Z]/.test(manualPassword) ? 'text-green-600' : 'text-gray-500'}`}>
+                          {/[A-Z]/.test(manualPassword) ? '✓' : '✗'} Uppercase letter
+                        </span>
+                      </div>
+                      <div className="flex gap-4">
+                        <span className={`flex-1 ${/[a-z]/.test(manualPassword) ? 'text-green-600' : 'text-gray-500'}`}>
+                          {/[a-z]/.test(manualPassword) ? '✓' : '✗'} Lowercase letter
+                        </span>
+                        <span className={`flex-1 ${/[0-9]/.test(manualPassword) ? 'text-green-600' : 'text-gray-500'}`}>
+                          {/[0-9]/.test(manualPassword) ? '✓' : '✗'} Number
+                        </span>
+                      </div>
+                      <div className="flex gap-4">
+                        <span className={`flex-1 ${/[^A-Za-z0-9]/.test(manualPassword) ? 'text-green-600' : 'text-gray-500'}`}>
+                          {/[^A-Za-z0-9]/.test(manualPassword) ? '✓' : '✗'} Special character
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                 <button type="button" onClick={closeModals} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
-                <button type="submit" disabled={!formData.departmentId} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50">Generate Account</button>
+                <button type="submit" disabled={isSubmitDisabled} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50">Generate Account</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* Success Modal showing credentials */}
+      {/* Success Modal showing credentials (Auto Generate Only) */}
       {generatedCreds && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden text-center">
@@ -230,6 +389,61 @@ const DepartmentHeads = () => {
               >
                 I have copied the credentials
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Success Modal */}
+      {successMessage && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden text-center transform scale-100 animate-in zoom-in-95 duration-200">
+            <div className="p-8">
+              <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <ShieldCheck className="w-8 h-8" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Success!</h3>
+              <p className="text-gray-600 mb-6">
+                {successMessage}
+              </p>
+              <button 
+                onClick={closeModals} 
+                className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden transform scale-100 animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
+                <Trash2 className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Department Head?</h3>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete <span className="font-semibold text-gray-900">"{deleteConfirm.name}"</span>? 
+                This action cannot be undone and they will lose access to the system.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button 
+                  onClick={() => setDeleteConfirm(null)} 
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={confirmDelete} 
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors shadow-sm flex items-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" /> Yes, Delete
+                </button>
+              </div>
             </div>
           </div>
         </div>
