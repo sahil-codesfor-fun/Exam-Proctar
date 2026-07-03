@@ -160,7 +160,7 @@ export const LandingPage = () => {
               <input type="password" name="password" value={credentials.password} onChange={handleChange} required className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white outline-none transition-all focus:border-emerald-400" placeholder="••••••••" />
             </div>
 
-            <button type="submit" disabled={loading || (isSignUp && leetStatus === 'invalid')} className="w-full bg-[#1A5F53] hover:bg-[#134d42] disabled:opacity-60 text-white font-bold py-4 rounded-lg shadow-lg transition-all transform active:scale-[0.98]">
+            <button type="submit" disabled={loading} className="w-full bg-[#1A5F53] hover:bg-[#134d42] disabled:opacity-60 text-white font-bold py-4 rounded-lg shadow-lg transition-all transform active:scale-[0.98]">
               {loading ? '⏳ Please wait…' : isSignUp ? 'CREATE ACCOUNT' : 'SIGN IN'}
             </button>
           </form>
