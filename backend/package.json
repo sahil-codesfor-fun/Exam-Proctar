@@ -5,10 +5,10 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
+    "start": "npx prisma db push --accept-data-loss && node server.js",
     "dev": "nodemon server.js",
-    "build": "npx prisma generate && npx prisma db push --accept-data-loss && node prisma/seedSuperAdmin.js",
-    "postinstall": "npx prisma generate && npx prisma db push --accept-data-loss && node prisma/seedSuperAdmin.js"
+    "build": "npx prisma generate && node prisma/seedSuperAdmin.js",
+    "postinstall": "npx prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
