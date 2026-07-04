@@ -10,7 +10,8 @@ import {
   getCurrentPracticeSheet,
   saveCodeDraft,
   getSubmissionHistory,
-  performQuestionAction
+  performQuestionAction,
+  deletePracticeSheet
 } from '../controllers/practiceController.js';
 import { protect, authorize } from '../middleware/authMiddleware.js';
 
@@ -24,6 +25,7 @@ router.post('/action', protect, performQuestionAction);
 router.get('/submissions/:questionId', protect, getSubmissionHistory);
 router.get('/:id', protect, getPracticeSheetById);
 router.put('/:id', protect, authorize('teacher', 'admin', 'superadmin', 'faculty'), updatePracticeSheet);
+router.delete('/:id', protect, authorize('teacher', 'admin', 'superadmin', 'faculty'), deletePracticeSheet);
 router.post('/add-question', protect, authorize('teacher', 'admin', 'superadmin', 'faculty'), addQuestionToSheet);
 router.post('/assign', protect, authorize('teacher', 'admin', 'superadmin', 'faculty'), assignPracticeSheet);
 router.get('/question/:id', protect, getQuestion);

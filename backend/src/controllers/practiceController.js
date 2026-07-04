@@ -87,6 +87,21 @@ export const getPracticeSheets = async (req, res) => {
 };
 
 // ----------------------------------------------------
+// DELETE PRACTICE SHEET
+// ----------------------------------------------------
+export const deletePracticeSheet = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.practiceSheet.delete({
+      where: { id }
+    });
+    res.status(200).json({ success: true, message: 'Practice sheet deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ----------------------------------------------------
 // ADD QUESTION TO SHEET (From Question Bank)
 // ----------------------------------------------------
 export const addQuestionToSheet = async (req, res) => {

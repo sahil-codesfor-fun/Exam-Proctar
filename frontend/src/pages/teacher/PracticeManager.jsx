@@ -21,6 +21,18 @@ const PracticeManagerList = () => {
     }
   };
 
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this practice sheet? This action cannot be undone.")) {
+      try {
+        await api.delete(`/practice/${id}`);
+        fetchSheets();
+      } catch (err) {
+        console.error("Failed to delete sheet", err);
+        alert(err.response?.data?.message || "Failed to delete practice sheet");
+      }
+    }
+  };
+
   useEffect(() => {
     fetchSheets();
   }, []);
@@ -70,7 +82,7 @@ const PracticeManagerList = () => {
                   </span>
                   <div className="flex gap-2">
                     <button onClick={() => navigate(`edit/${sheet.id}`)} className="text-gray-400 hover:text-emerald-500"><Edit size={16} /></button>
-                    <button className="text-gray-400 hover:text-red-500"><Trash2 size={16} /></button>
+                    <button onClick={() => handleDelete(sheet.id)} className="text-gray-400 hover:text-red-500"><Trash2 size={16} /></button>
                   </div>
                 </div>
                 <h3 className="text-lg font-black text-gray-900 mb-1 line-clamp-1" title={sheet.title}>{sheet.title}</h3>
