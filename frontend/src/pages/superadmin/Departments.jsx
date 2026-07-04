@@ -12,8 +12,6 @@ const Departments = () => {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [error, setError] = useState('');
-  const [deleteError, setDeleteError] = useState('');
   
   // Allocate Courses State
   const [allocatingDept, setAllocatingDept] = useState(null);
@@ -42,7 +40,6 @@ const Departments = () => {
 
   const handleCreateOrUpdate = async (e) => {
     e.preventDefault();
-    setError('');
     try {
       if (editId) {
         await api.put(`/superadmin/departments/${editId}`, formData);
@@ -54,33 +51,30 @@ const Departments = () => {
       setEditId(null);
       fetchDepartments();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to save department');
+      alert(err.response?.data?.message || 'Failed to save department');
     }
   };
 
   const handleEdit = (dept) => {
     setFormData({ name: dept.name, code: dept.code });
     setEditId(dept.id);
-    setError('');
     setShowModal(true);
     setActiveDropdown(null);
   };
 
   const handleDeleteClick = (dept) => {
     setDeleteConfirm(dept);
-    setDeleteError('');
     setActiveDropdown(null);
   };
 
   const confirmDelete = async () => {
     if (!deleteConfirm) return;
-    setDeleteError('');
     try {
       await api.delete(`/superadmin/departments/${deleteConfirm.id}`);
       setDeleteConfirm(null);
       fetchDepartments();
     } catch (err) {
-      setDeleteError(err.response?.data?.message || 'Failed to delete department');
+      alert(err.response?.data?.message || 'Failed to delete department');
     }
   };
 
@@ -115,7 +109,6 @@ const Departments = () => {
             onClick={() => {
               setEditId(null);
               setFormData({ name: '', code: '' });
-              setError('');
               setShowModal(true);
             }}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 shadow-sm transition-all"
@@ -227,11 +220,6 @@ const Departments = () => {
             <div className="p-6 border-b border-gray-100">
               <h3 className="text-xl font-bold text-gray-900">{editId ? 'Edit Department' : 'Add New Department'}</h3>
             </div>
-            {error && (
-              <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center gap-2 text-sm">
-                <AlertCircle className="w-5 h-5 shrink-0" /> {error}
-              </div>
-            )}
             <form onSubmit={handleCreateOrUpdate} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Department Name</label>
@@ -273,11 +261,6 @@ const Departments = () => {
                 Are you sure you want to delete <span className="font-semibold text-gray-900">"{deleteConfirm.name}"</span>? 
                 This action cannot be undone. If there are users or subjects attached, it may be archived instead.
               </p>
-              {deleteError && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center gap-2 text-sm text-left">
-                  <AlertCircle className="w-5 h-5 shrink-0" /> {deleteError}
-                </div>
-              )}
               <div className="flex justify-end gap-3">
                 <button 
                   onClick={() => setDeleteConfirm(null)} 
