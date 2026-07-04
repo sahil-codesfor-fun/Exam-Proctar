@@ -163,7 +163,7 @@ model DepartmentCourse {
 model Exam {
   id                 String       @id @default(uuid())
   title              String
-  examCode           String       @unique
+  examCode           String       @unique @default(uuid())
   description        String?      @db.Text
   departmentId       String?
   subjectId          String?
@@ -183,7 +183,7 @@ model Exam {
   settings           ExamSettings?
   
   createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  updatedAt          DateTime     @default(now()) @updatedAt
   creatorId          String
   
   creator            User         @relation(fields: [creatorId], references: [id])
