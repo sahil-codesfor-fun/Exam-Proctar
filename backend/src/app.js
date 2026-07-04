@@ -57,19 +57,6 @@ app.get('/api/test', (_req, res) => {
   res.json({ message: 'NEXUS PROCTOR backend is live 🚀', timestamp: new Date().toISOString() });
 });
 
-// ── SMTP Diagnostic ───────────────────────────────────────────
-app.get('/test-email', async (_req, res) => {
-  try {
-    const user = process.env.EMAIL_USER;
-    if (!user) throw new Error("EMAIL_USER not configured in .env");
-    
-    await sendTestEmail(user);
-    res.send("MAIL SENT");
-  } catch (err) {
-    console.error(err);
-    res.send(err.message);
-  }
-});
 
 // ── Global error handler ──────────────────────────────────────
 app.use((err, _req, res, _next) => {

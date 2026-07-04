@@ -895,27 +895,4 @@ model DailyGoal {
   student         User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
 }
 
-// AI-Ready Placeholders
-model AISuggestion {
-  id              String   @id @default(uuid())
-  contextType     String
-  contextId       String
-  suggestionText  String   @db.Text
-  createdAt       DateTime @default(now())
-}
 
-model CodeAnalysis {
-  id              String   @id @default(uuid())
-  submissionId    String
-  complexityTime  String?
-  complexitySpace String?
-  cleanCodeScore  Float?
-  createdAt       DateTime @default(now())
-}
-
-model LearningRecommendation {
-  id              String   @id @default(uuid())
-  studentId       String
-  recommendation  String   @db.Text
-  createdAt       DateTime @default(now())
-}

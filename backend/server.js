@@ -18,15 +18,6 @@ console.log("EMAIL_PASS:", process.env.EMAIL_PASS);
 app.use('/api/leetcode', leetcodeRoutes);
 app.use('/api/metrics', codingMetricsRoutes);
 
-// ── SMTP Test Route ───────────────────────────────────
-app.get("/test-email", async (req, res) => {
-  try {
-    await sendEmail();
-    res.send("Email function executed - Check console for ✅ MAIL SENT");
-  } catch (err) {
-    res.status(500).send("Email failed: " + err.message);
-  }
-});
 
 const startServer = async () => {
   // 1. Validate ENV 
