@@ -163,7 +163,7 @@ model DepartmentCourse {
 model Exam {
   id                 String       @id @default(uuid())
   title              String
-  examCode           String       @unique @default(uuid())
+  examCode           String?      @unique @default(uuid())
   description        String?      @db.Text
   departmentId       String?
   subjectId          String?
