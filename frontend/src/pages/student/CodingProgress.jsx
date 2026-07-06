@@ -178,9 +178,9 @@ export const CodingProgress = () => {
               </div>
               <p className="text-gray-900 font-black text-sm uppercase tracking-widest mb-2">Account Linked Successfully!</p>
               <p className="text-sm font-medium text-gray-500 leading-relaxed">
-                Your data will be fetched automatically in the background by our system sync.
+                Your data will be fetched automatically in the background by our system sync once a week 
               </p>
-              <p className="text-xs text-gray-400 mt-4 font-bold uppercase tracking-widest">Check back later! 🚀</p>
+              <p className="text-xs text-gray-400 mt-4 font-bold uppercase tracking-widest">Check back later!</p>
             </div>
           ) : isConnected && integration.statistics?.problemStats?.total > 0 ? (
             <div className="space-y-4 mb-8">
