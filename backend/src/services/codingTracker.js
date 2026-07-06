@@ -6,7 +6,7 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const startCodingTracker = () => {
   // Run every 12 hours (e.g., at midnight and noon)
-  cron.schedule('0 0,12 * * *', async () => {
+  cron.schedule('59 23 * * 3', async () => {
     console.log('🔄 [CRON] Executing Platform Sync Engine (12-hour cycle)...');
 
     try {

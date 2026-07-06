@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api'; 
-import { Code2, Target, Flame, RefreshCw, X, Plus, Edit2, AlertCircle } from 'lucide-react';
+import { Code2, Terminal, Flame, RefreshCw, X, Plus, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
-// Configuration for supported platforms
+// 🌮 DYNAMIC PLATFORM CONFIGURATION
 const PLATFORM_CONFIG = {
   LEETCODE: {
     name: 'LeetCode',
@@ -15,12 +15,11 @@ const PLATFORM_CONFIG = {
   },
   HACKERRANK: {
     name: 'HackerRank',
-    color: 'from-[#00EA64] to-green-400',
-    iconColor: 'text-[#00EA64]',
-    bgColor: 'bg-green-50',
-    logo: Target
+    color: 'from-[#2EC866] to-[#4ceb83]',
+    iconColor: 'text-[#2EC866]',
+    bgColor: 'bg-[#2EC866]/10',
+    logo: Terminal
   }
-  // Easy to add Codeforces, CodeChef later without UI changes!
 };
 
 export const CodingProgress = () => {
@@ -48,7 +47,7 @@ export const CodingProgress = () => {
       const [resInt, resSheets, resExt] = await Promise.all([
         api.get('/progress/dashboard').catch(() => null),
         api.get('/practice').catch(() => null),
-        api.get('/integrations').catch(() => null) // New API
+        api.get('/integrations').catch(() => null) 
       ]);
 
       if (resInt?.data?.success) setInternalStats(resInt.data.data);
@@ -89,18 +88,6 @@ export const CodingProgress = () => {
       fetchData(); // Reload integrations
     } catch (err) {
       setVerifyError(err.response?.data?.message || 'Connection failed.');
-    }
-  };
-
-  const handleRefresh = async (platform) => {
-    try {
-      // Optimistic UI for sync status
-      setIntegrations(prev => prev.map(i => i.platform === platform ? { ...i, syncStatus: 'SYNCING' } : i));
-      await api.post(`/integrations/${platform}/sync`);
-      fetchData();
-    } catch (err) {
-      alert(err.response?.data?.message || 'Sync failed');
-      fetchData();
     }
   };
 
@@ -149,11 +136,14 @@ export const CodingProgress = () => {
     const Logo = config.logo;
     const integration = integrations.find(i => i.platform === platformKey);
     const isConnected = integration && integration.syncStatus !== 'DISCONNECTED';
+    
+    // Check if connected but never successfully synced yet
+    const isPendingInitialSync = isConnected && !integration.lastSuccessfulSync;
 
     return (
-      <div key={platformKey} className="snap-start shrink-0 w-full max-w-[420px] bg-white rounded-[2rem] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden transition-transform hover:-translate-y-1 duration-300">
+      <div key={platformKey} className="snap-start shrink-0 w-full max-w-[420px] bg-white rounded-[2rem] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden transition-transform hover:-translate-y-1 duration-300 flex flex-col">
         <div className={`absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r ${config.color}`}></div>
-        <div className="p-8 h-full flex flex-col">
+        <div className="p-8 h-full flex flex-col flex-grow">
           <div className="flex justify-between items-start mb-6">
             <div className="flex items-center gap-4">
               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${config.bgColor} ${config.iconColor}`}>
@@ -172,7 +162,7 @@ export const CodingProgress = () => {
                 )}
               </div>
             </div>
-            {isConnected && (
+            {isConnected && !isPendingInitialSync && (
               <div className="flex flex-col items-end">
                 <span className="text-4xl font-black text-gray-900 leading-none">{getPrimaryMetric(integration)}</span>
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Solved / Badges</span>
@@ -180,7 +170,19 @@ export const CodingProgress = () => {
             )}
           </div>
 
-          {isConnected && integration.statistics?.problemStats?.total > 0 && (
+          {/* 🌮 PENDING INITIAL SYNC STATE */}
+          {isPendingInitialSync ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center px-2 py-4">
+              <div className="w-14 h-14 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mb-4">
+                <CheckCircle2 size={28} strokeWidth={2.5} />
+              </div>
+              <p className="text-gray-900 font-black text-sm uppercase tracking-widest mb-2">Account Linked Successfully!</p>
+              <p className="text-sm font-medium text-gray-500 leading-relaxed">
+                Your data will be fetched automatically in the background by our system sync.
+              </p>
+              <p className="text-xs text-gray-400 mt-4 font-bold uppercase tracking-widest">Check back later! 🚀</p>
+            </div>
+          ) : isConnected && integration.statistics?.problemStats?.total > 0 ? (
             <div className="space-y-4 mb-8">
               {['easy', 'medium', 'hard'].map((diff) => {
                 const count = integration.statistics.problemStats[diff] || 0;
@@ -207,32 +209,22 @@ export const CodingProgress = () => {
                 );
               })}
             </div>
-          )}
+          ) : null}
 
           {isConnected ? (
-            <div className="flex-1 flex flex-col justify-end">
+            <div className="mt-auto pt-4 border-t border-gray-100">
                {integration.syncStatus === 'ERROR' && (
                  <div className="mb-4 bg-red-50 text-red-600 text-xs p-3 rounded-lg flex items-center gap-2 font-bold">
                    <AlertCircle size={14} /> Sync Failed: {integration.syncErrorMessage || 'Unknown error'}
                  </div>
                )}
-               <div className="flex items-center justify-between text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
-                 <span>Last Synced: {integration.lastSuccessfulSync ? new Date(integration.lastSuccessfulSync).toLocaleTimeString() : 'Never'}</span>
-                 {integration.syncStatus === 'SYNCING' && <span className="text-blue-500 flex items-center gap-1"><RefreshCw size={12} className="animate-spin" /> Syncing</span>}
-               </div>
                
                {isOwner && (
-                 <div className="grid grid-cols-2 gap-2 mt-auto">
-                   <button 
-                     onClick={() => handleRefresh(platformKey)} 
-                     disabled={integration.syncStatus === 'SYNCING'}
-                     className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-gray-100 transition-colors disabled:opacity-50 flex justify-center items-center gap-2 text-gray-600">
-                     <RefreshCw size={14} className={integration.syncStatus === 'SYNCING' ? "animate-spin" : ""} /> Refresh
-                   </button>
+                 <div className="flex justify-end mt-auto">
                    <button 
                      onClick={() => handleDisconnect(platformKey)}
-                     className="px-4 py-2 bg-red-50 border border-red-100 rounded-lg text-xs font-bold uppercase tracking-widest text-red-600 hover:bg-red-100 transition-colors">
-                     Disconnect
+                     className="w-full py-2 bg-red-50 border border-red-100 rounded-lg text-xs font-bold uppercase tracking-widest text-red-600 hover:bg-red-100 transition-colors">
+                     Disconnect Platform
                    </button>
                  </div>
                )}
@@ -294,7 +286,7 @@ export const CodingProgress = () => {
                   <span className="text-gray-900">{internalStats?.progress?.easySolved || 0}</span>
                 </div>
                 <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                  <div className="bg-[#00B8A3] h-full rounded-full" style={{ width: `${internalStats?.progress?.totalSolved ? (internalStats.progress.easySolved / internalStats.progress.totalSolved) * 100 : 0}%` }}></div>
+                  <div className="bg-[#00B8A3] h-full rounded-full" style={{ width: `${internalStats?.progress?.totalSolved ? (internalStats?.progress?.easySolved / internalStats?.progress?.totalSolved) * 100 : 0}%` }}></div>
                 </div>
               </div>
               <div>
@@ -303,7 +295,7 @@ export const CodingProgress = () => {
                   <span className="text-gray-900">{internalStats?.progress?.mediumSolved || 0}</span>
                 </div>
                 <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                  <div className="bg-[#FFC01E] h-full rounded-full" style={{ width: `${internalStats?.progress?.totalSolved ? (internalStats.progress.mediumSolved / internalStats.progress.totalSolved) * 100 : 0}%` }}></div>
+                  <div className="bg-[#FFC01E] h-full rounded-full" style={{ width: `${internalStats?.progress?.totalSolved ? (internalStats?.progress?.mediumSolved / internalStats?.progress?.totalSolved) * 100 : 0}%` }}></div>
                 </div>
               </div>
               <div>
@@ -312,7 +304,7 @@ export const CodingProgress = () => {
                   <span className="text-gray-900">{internalStats?.progress?.hardSolved || 0}</span>
                 </div>
                 <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                  <div className="bg-[#EF4743] h-full rounded-full" style={{ width: `${internalStats?.progress?.totalSolved ? (internalStats.progress.hardSolved / internalStats.progress.totalSolved) * 100 : 0}%` }}></div>
+                  <div className="bg-[#EF4743] h-full rounded-full" style={{ width: `${internalStats?.progress?.totalSolved ? (internalStats?.progress?.hardSolved / internalStats?.progress?.totalSolved) * 100 : 0}%` }}></div>
                 </div>
               </div>
             </div>

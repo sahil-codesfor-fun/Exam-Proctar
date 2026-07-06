@@ -1,15 +1,29 @@
 import axios from 'axios';
 
 class HackerRankProvider {
+  // 🌮 THE VIP PASS: We need a full, realistic set of headers to bypass HackerRank's bot protection!
+  getAxiosConfig() {
+    return {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://www.hackerrank.com/',
+      },
+      timeout: 10000
+    };
+  }
+
   /**
    * Validates the username and fetches profile preview metadata.
    */
   async validate(username) {
     try {
-      const response = await axios.get(`https://www.hackerrank.com/rest/hackers/${username}/profile`, {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-        timeout: 10000
-      });
+      // Using the more reliable 'contests/master' endpoint for public profiles
+      const response = await axios.get(
+        `https://www.hackerrank.com/rest/contests/master/hackers/${username}/profile`, 
+        this.getAxiosConfig()
+      );
 
       const profile = response.data?.model;
       if (!profile) {
@@ -24,8 +38,8 @@ class HackerRankProvider {
         profileUrl: `https://www.hackerrank.com/profile/${profile.username}`
       };
     } catch (err) {
-      if (err.response?.status === 404) {
-        throw new Error('HackerRank username not found.');
+      if (err.response?.status === 404 || err.response?.status === 403) {
+        throw new Error('HackerRank username not found or access blocked by firewall.');
       }
       throw new Error(`HackerRank API error: ${err.message}`);
     }
@@ -36,9 +50,13 @@ class HackerRankProvider {
    */
   async sync(username) {
     try {
+      const config = this.getAxiosConfig();
+      
+      // Fetch both profile and badges concurrently
       const [profileRes, badgesRes] = await Promise.all([
-        axios.get(`https://www.hackerrank.com/rest/hackers/${username}/profile`, { headers: { 'User-Agent': 'Mozilla/5.0' } }),
-        axios.get(`https://www.hackerrank.com/rest/hackers/${username}/badges`, { headers: { 'User-Agent': 'Mozilla/5.0' } })
+        axios.get(`https://www.hackerrank.com/rest/contests/master/hackers/${username}/profile`, config),
+        // Badges endpoint fallback to prevent the whole sync from crashing if it fails
+        axios.get(`https://www.hackerrank.com/rest/hackers/${username}/badges`, config).catch(() => ({ data: { models: [] } }))
       ]);
 
       const profile = profileRes.data?.model;
@@ -48,20 +66,17 @@ class HackerRankProvider {
         throw new Error('HackerRank profile not found during sync.');
       }
 
-      // Aggregate stars or badge info as a proxy for stats if exact problem counts aren't available publicly.
-      // E.g. we can store total badges or stars as 'activityStats'
+      // Aggregate stars or badge info as a proxy for stats
       let totalStars = 0;
       let totalBadges = badges.length;
       badges.forEach(b => {
         totalStars += (b.stars || 0);
       });
 
-      // HackerRank doesn't expose easy/medium/hard solved publicly on REST without auth easily.
-      // So we store what we can in generic fields.
       return {
         globalRank: profile.level || 0, // Fallback to level
         statistics: {
-          totalSolved: totalStars, // proxy for now
+          totalSolved: totalStars, // Proxy metric for HackerRank
           easySolved: 0,
           mediumSolved: 0,
           hardSolved: 0,

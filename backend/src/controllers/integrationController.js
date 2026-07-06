@@ -110,3 +110,35 @@ export const syncIntegration = async (req, res) => {
     res.status(400).json({ success: false, message: error.message });
   }
 };
+
+// 🚀 NUEVO: The Universal Sync Engine!
+export const syncAllIntegrations = async (req, res) => {
+  try {
+    // 1. Find all active integrations
+    const integrations = await prisma.platformIntegration.findMany({
+      where: { syncStatus: { not: 'DISCONNECTED' } }
+    });
+
+    // 2. Respond immediately so the frontend button stops spinning
+    // We run the heavy scraping in the background!
+    res.json({ success: true, message: `Mass sync initiated for ${integrations.length} profiles.` });
+
+    // 3. Run the scraping engine for every student
+    for (const integration of integrations) {
+      try {
+        await PlatformSyncService.syncIntegration(integration.id);
+        // Add a polite 2-second delay so LeetCode/HackerRank doesn't block your IP!
+        await new Promise(resolve => setTimeout(resolve, 2000)); 
+      } catch (err) {
+        console.error(`Mass Sync failed for ID ${integration.id}:`, err.message);
+      }
+    }
+    console.log('✅ Universal Mass Sync Complete!');
+  } catch (error) {
+    console.error('❌ Universal Sync Error:', error);
+    // Only send error if headers aren't already sent
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: 'Server error during mass sync' });
+    }
+  }
+};
