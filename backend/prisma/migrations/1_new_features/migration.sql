@@ -1,4 +1,4 @@
-﻿-- DropForeignKey
+-- DropForeignKey
 ALTER TABLE `Option` DROP FOREIGN KEY `Option_questionId_fkey`;
 
 -- AlterTable

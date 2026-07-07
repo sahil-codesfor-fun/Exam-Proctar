@@ -209,7 +209,52 @@ export const submitExam = async (req, res) => {
     });
 
     res.json({ success: true, data: { ...updatedSub, _id: updatedSub.id } });
+
+    // Asynchronous performance aggregation
+    aggregatePerformance(sub.examId).catch(err => console.error("Error in aggregatePerformance:", err));
+
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+};
+
+const aggregatePerformance = async (examId) => {
+  try {
+    const submissions = await prisma.submission.findMany({
+      where: { examId, status: { in: ['submitted', 'auto_submitted', 'force_submitted'] } }
+    });
+    
+    if (submissions.length === 0) return;
+    
+    const totalAttendees = submissions.length;
+    const scores = submissions.map(s => s.percentage || 0);
+    const averageScore = scores.reduce((a, b) => a + b, 0) / totalAttendees;
+    const highestScore = Math.max(...scores);
+    const lowestScore = Math.min(...scores);
+    
+    // Pass rate logic - assuming pass is >= 40% for now if not defined
+    const passCount = scores.filter(s => s >= 40).length;
+    const passRate = (passCount / totalAttendees) * 100;
+    
+    await prisma.examAnalytics.upsert({
+      where: { examId },
+      create: {
+        examId,
+        totalAttendees,
+        averageScore,
+        highestScore,
+        lowestScore,
+        passRate
+      },
+      update: {
+        totalAttendees,
+        averageScore,
+        highestScore,
+        lowestScore,
+        passRate
+      }
+    });
+  } catch (error) {
+    console.error(`Failed to aggregate performance for exam ${examId}:`, error);
+  }
 };
 
 export const getMySubmissions = async (req, res) => {

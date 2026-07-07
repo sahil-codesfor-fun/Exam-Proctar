@@ -1,6 +1,7 @@
 import prisma from '../config/prisma.js';
 import bcrypt from 'bcryptjs';
 import AuditService from './auditService.js';
+import cacheService from './cache.service.js';
 
 class UserService {
   async getDepartmentHeads(query) {
@@ -110,6 +111,9 @@ class UserService {
       details: `Assigned as head of ${department.name} | Password Mode: ${passwordMode === 'manual' ? 'Manual' : 'Auto Generated'}`
     });
 
+    await cacheService.invalidateUserCaches();
+    await cacheService.invalidateDepartmentCaches();
+
     delete user.password;
     
     return {
@@ -154,6 +158,9 @@ class UserService {
       previousValues: { email: user.email, name: user.name },
       details: `Deleted department head ${user.name}`
     });
+
+    await cacheService.invalidateUserCaches();
+    await cacheService.invalidateDepartmentCaches();
 
     return { success: true, message: 'Department head deleted successfully' };
   }

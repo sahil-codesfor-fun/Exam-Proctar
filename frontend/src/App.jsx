@@ -1,35 +1,35 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { LandingPage } from './pages/LandingPage';
-import { FacultyLogin } from './pages/FacultyLogin';
-import { AdminLogin } from './pages/AdminLogin';
-import { StudentDashboard } from './pages/StudentDashboard';
-import StudentOverview from './pages/student/StudentOverview';
-import StudentProfile from './pages/student/StudentProfile';
-import { CodingProgress } from './pages/student/CodingProgress'; 
-import { TeacherDashboard } from './pages/TeacherDashboard';
-import TeacherOverview from './pages/teacher/TeacherOverview';
-import TeacherMonitoring from './pages/teacher/TeacherMonitoring';
-import { TeacherCodingProgress } from './pages/teacher/TeacherCodingProgress';
-import PracticeManager from './pages/teacher/PracticeManager';
-import { LiveMonitor } from './pages/teacher/LiveMonitor';
-import ExamDetail from './pages/teacher/ExamDetail';
-import { CompilerPage } from './pages/CompilerPage';
-import { LiveExamPage } from './pages/LiveExamPage';
-import AdminDashboard from './pages/AdminDashboard';
-import AdminLayout from './components/admin/AdminLayout';
-import ChangePassword from './pages/ChangePassword';
-import SuperAdminLayout from './components/superadmin/SuperAdminLayout';
-import SuperAdminDashboard from './pages/superadmin/Dashboard';
-import Departments from './pages/superadmin/Departments';
-import DepartmentHeads from './pages/superadmin/DepartmentHeads';
-import SuperAdminTeachers from './pages/superadmin/Teachers';
-import SuperAdminSubjects from './pages/superadmin/Subjects';
-import Settings from './pages/superadmin/Settings';
-import SuperAdminLogin from './pages/superadmin/Login';
-import Exams from './pages/superadmin/Exams';
-import AdminSubjects from './pages/admin/Subjects';
+
+const LandingPage = lazy(() => import('./pages/LandingPage').then(module => ({ default: module.LandingPage })));
+const FacultyLogin = lazy(() => import('./pages/FacultyLogin').then(module => ({ default: module.FacultyLogin })));
+const AdminLogin = lazy(() => import('./pages/AdminLogin').then(module => ({ default: module.AdminLogin })));
+const StudentDashboard = lazy(() => import('./pages/StudentDashboard').then(module => ({ default: module.StudentDashboard })));
+const StudentOverview = lazy(() => import('./pages/student/StudentOverview'));
+const StudentProfile = lazy(() => import('./pages/student/StudentProfile'));
+const CodingProgress = lazy(() => import('./pages/student/CodingProgress').then(module => ({ default: module.CodingProgress })));
+const TeacherDashboard = lazy(() => import('./pages/TeacherDashboard').then(module => ({ default: module.TeacherDashboard })));
+const TeacherOverview = lazy(() => import('./pages/teacher/TeacherOverview'));
+const TeacherProfile = lazy(() => import('./pages/teacher/TeacherProfile'));
+const TeacherCodingProgress = lazy(() => import('./pages/teacher/TeacherCodingProgress').then(module => ({ default: module.TeacherCodingProgress })));
+const PracticeManager = lazy(() => import('./pages/teacher/PracticeManager'));
+const ExamDetail = lazy(() => import('./pages/teacher/ExamDetail'));
+const CompilerPage = lazy(() => import('./pages/CompilerPage').then(module => ({ default: module.CompilerPage })));
+const LiveExamPage = lazy(() => import('./pages/LiveExamPage').then(module => ({ default: module.LiveExamPage })));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
+const ChangePassword = lazy(() => import('./pages/ChangePassword'));
+const SuperAdminLayout = lazy(() => import('./components/superadmin/SuperAdminLayout'));
+const SuperAdminDashboard = lazy(() => import('./pages/superadmin/Dashboard'));
+const Departments = lazy(() => import('./pages/superadmin/Departments'));
+const DepartmentHeads = lazy(() => import('./pages/superadmin/DepartmentHeads'));
+const SuperAdminTeachers = lazy(() => import('./pages/superadmin/Teachers'));
+const Settings = lazy(() => import('./pages/superadmin/Settings'));
+const SuperAdminLogin = lazy(() => import('./pages/superadmin/Login'));
+const AdminSubjects = lazy(() => import('./pages/admin/Subjects'));
+const AdminExams = lazy(() => import('./pages/admin/Exams'));
+const AdminTickets = lazy(() => import('./pages/admin/AdminTickets'));
 
 // ── Protected Route wrapper ──────────────────────────────────────
 // Supports a `redirectTo` prop so superadmin routes redirect to their
@@ -93,89 +93,95 @@ function App() {
         )}
 
         <main className={`flex-grow ${isLiveExam || isCompiler || isAuthPage || isAdmin || isChangePass || isSuperAdmin ? '' : 'p-4 md:p-8'}`}>
-          <Routes>
-            {/* ── Public Auth Pages ─────────────────────────────── */}
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/fac" element={<FacultyLogin />} />
-            <Route path="/adm" element={<AdminLogin />} />
+          <Suspense fallback={
+            <div className="h-screen flex items-center justify-center bg-gray-50 text-gray-900">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-gray-400 font-bold uppercase tracking-widest text-xs">Loading module...</span>
+              </div>
+            </div>
+          }>
+            <Routes>
+              {/* ── Public Auth Pages ─────────────────────────────── */}
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/fac" element={<FacultyLogin />} />
+              <Route path="/adm" element={<AdminLogin />} />
 
-            {/* ── Super Admin Login (public) ────────────────────── */}
-            <Route path="/superadmin/login" element={<SuperAdminLogin />} />
+              {/* ── Super Admin Login (public) ────────────────────── */}
+              <Route path="/superadmin/login" element={<SuperAdminLogin />} />
 
-            {/* ── Student Dashboard ─────────────────────────────── */}
-            <Route path="/student-dashboard" element={
-              <ProtectedRoute roles={['student']}><StudentDashboard /></ProtectedRoute>
-            }>
-              <Route index element={<Navigate to="overview" replace />} />
-              <Route path="overview" element={<StudentOverview />} />
-              <Route path="profile" element={<StudentProfile />} />
-              <Route path="coding-progress" element={<CodingProgress />} />
-            </Route>
+              {/* ── Student Dashboard ─────────────────────────────── */}
+              <Route path="/student-dashboard" element={
+                <ProtectedRoute roles={['student']}><StudentDashboard /></ProtectedRoute>
+              }>
+                <Route index element={<Navigate to="overview" replace />} />
+                <Route path="overview" element={<StudentOverview />} />
+                <Route path="profile" element={<StudentProfile />} />
+                <Route path="coding-progress" element={<CodingProgress />} />
+              </Route>
 
-            {/* ── Teacher Dashboard ─────────────────────────────── */}
-            <Route path="/teacher-dashboard" element={
-              <ProtectedRoute roles={['faculty','teacher']} redirectTo="/fac"><TeacherDashboard /></ProtectedRoute>
-            }>
-              <Route index element={<Navigate to="overview" replace />} />
-              <Route path="overview" element={<TeacherOverview />} />
-              <Route path="monitoring" element={<TeacherMonitoring />} />
-              <Route path="coding-progress" element={<TeacherCodingProgress />} />
-              <Route path="practice-manager/*" element={<PracticeManager />} />
-              <Route path="live-monitor" element={<LiveMonitor />} />
-              <Route path="exams/:examId" element={<ExamDetail />} />
-              <Route path="exams/:examId/submissions/:submissionId" element={<ExamDetail />} />
-            </Route>
+              {/* ── Teacher Dashboard ─────────────────────────────── */}
+              <Route path="/teacher-dashboard" element={
+                <ProtectedRoute roles={['faculty','teacher']} redirectTo="/fac"><TeacherDashboard /></ProtectedRoute>
+              }>
+                <Route index element={<Navigate to="overview" replace />} />
+                <Route path="overview" element={<TeacherOverview />} />
+                <Route path="profile" element={<TeacherProfile />} />
+                <Route path="coding-progress" element={<TeacherCodingProgress />} />
+                <Route path="practice-manager/*" element={<PracticeManager />} />
+                <Route path="exams/:examId" element={<ExamDetail />} />
+                <Route path="exams/:examId/submissions/:submissionId" element={<ExamDetail />} />
+              </Route>
 
-            {/* ── Admin Dashboard ───────────────────────────────── */}
-            <Route path="/admin" element={
-              <ProtectedRoute roles={['admin']} redirectTo="/adm">
-                <AdminLayout />
-              </ProtectedRoute>
-            }>
-              <Route index element={<Navigate to="teachers" replace />} />
-              <Route path="dashboard" element={<ComingSoon title="Dashboard Overview" />} />
-              <Route path="teachers" element={<AdminDashboard />} />
-              <Route path="students" element={<ComingSoon title="Students" />} />
-              <Route path="subjects" element={<AdminSubjects />} />
-              <Route path="exams" element={<ComingSoon title="Exams" />} />
-              <Route path="reports" element={<ComingSoon title="Reports" />} />
-              <Route path="activity-logs" element={<ComingSoon title="Activity Logs" />} />
-              <Route path="profile" element={<ComingSoon title="Profile" />} />
-            </Route>
+              {/* ── Admin Dashboard ───────────────────────────────── */}
+              <Route path="/admin" element={
+                <ProtectedRoute roles={['admin']} redirectTo="/adm">
+                  <AdminLayout />
+                </ProtectedRoute>
+              }>
+                <Route index element={<Navigate to="teachers" replace />} />
+                <Route path="dashboard" element={<ComingSoon title="Dashboard Overview" />} />
+                <Route path="teachers" element={<AdminDashboard />} />
+                <Route path="students" element={<ComingSoon title="Students" />} />
+                <Route path="subjects" element={<AdminSubjects />} />
+                <Route path="exams" element={<AdminExams />} />
+                <Route path="tickets" element={<AdminTickets />} />
+                <Route path="reports" element={<ComingSoon title="Reports" />} />
+                <Route path="activity-logs" element={<ComingSoon title="Activity Logs" />} />
+                <Route path="profile" element={<ComingSoon title="Profile" />} />
+              </Route>
 
-            {/* ── Super Admin Portal (protected, nested) ────────── */}
-            <Route path="/superadmin" element={
-              <ProtectedRoute roles={['superadmin']} redirectTo="/superadmin/login">
-                <SuperAdminLayout />
-              </ProtectedRoute>
-            }>
-              <Route index element={<Navigate to="dashboard" replace />} />
-              <Route path="dashboard" element={<SuperAdminDashboard />} />
-              <Route path="departments" element={<Departments />} />
-              <Route path="department-heads" element={<DepartmentHeads />} />
-              <Route path="teachers" element={<SuperAdminTeachers />} />
-              <Route path="students" element={<ComingSoon title="Students" />} />
-              <Route path="subjects" element={<SuperAdminSubjects />} />
-              <Route path="exams" element={<Exams />} />
-              <Route path="reports" element={<ComingSoon title="Reports" />} />
-              <Route path="activity-logs" element={<ComingSoon title="Activity Logs" />} />
-              <Route path="settings" element={<Settings />} />
-              <Route path="profile" element={<ComingSoon title="Profile" />} />
-            </Route>
+              {/* ── Super Admin Portal (protected, nested) ────────── */}
+              <Route path="/superadmin" element={
+                <ProtectedRoute roles={['superadmin']} redirectTo="/superadmin/login">
+                  <SuperAdminLayout />
+                </ProtectedRoute>
+              }>
+                <Route index element={<Navigate to="dashboard" replace />} />
+                <Route path="dashboard" element={<SuperAdminDashboard />} />
+                <Route path="departments" element={<Departments />} />
+                <Route path="department-heads" element={<DepartmentHeads />} />
+                <Route path="teachers" element={<SuperAdminTeachers />} />
+                <Route path="reports" element={<ComingSoon title="Reports" />} />
+                <Route path="activity-logs" element={<ComingSoon title="Activity Logs" />} />
+                <Route path="settings" element={<Settings />} />
+                <Route path="profile" element={<ComingSoon title="Profile" />} />
+              </Route>
 
-            {/* ── Misc Protected Routes ─────────────────────────── */}
-            <Route path="/change-password" element={
-              <ProtectedRoute><ChangePassword /></ProtectedRoute>
-            } />
+              {/* ── Misc Protected Routes ─────────────────────────── */}
+              <Route path="/change-password" element={
+                <ProtectedRoute><ChangePassword /></ProtectedRoute>
+              } />
 
-            <Route path="/compiler" element={
-              <ProtectedRoute><CompilerPage /></ProtectedRoute>
-            } />
+              <Route path="/compiler" element={
+                <ProtectedRoute><CompilerPage /></ProtectedRoute>
+              } />
 
-            <Route path="/exam/live/:id" element={
-              <ProtectedRoute roles={['student']}><LiveExamPage /></ProtectedRoute>
-            } />
-          </Routes>
+              <Route path="/exam/live/:id" element={
+                <ProtectedRoute roles={['student']}><LiveExamPage /></ProtectedRoute>
+              } />
+            </Routes>
+          </Suspense>
         </main>
       </div>
     </AuthProvider>

@@ -63,6 +63,8 @@ model User {
   examResults           ExamResult[]
   liveSessions          LiveSession[]
   examNotifications     ExamNotification[]
+  missedExamTickets     MissedExamTicket[] @relation("TicketStudent")
+  resolvedTickets       MissedExamTicket[] @relation("TicketResolver")
 
   // DSA Tracking & Practice
   practiceSheetsCreated PracticeSheet[]
@@ -201,6 +203,7 @@ model Exam {
   examNotifications  ExamNotification[]
   analytics          ExamAnalytics?
   reports            ExamReport[]
+  missedExamTickets  MissedExamTicket[]
 }
 
 model ExamSchedule {
@@ -519,6 +522,21 @@ model ExamReport {
   generatedAt DateTime @default(now())
   
   exam        Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+}
+
+model MissedExamTicket {
+  id          String   @id @default(uuid())
+  examId      String
+  studentId   String
+  reason      String   @db.Text
+  status      String   @default("pending") // pending, approved, rejected
+  resolvedBy  String?
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  exam        Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student     User     @relation("TicketStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  resolver    User?    @relation("TicketResolver", fields: [resolvedBy], references: [id])
 }
 
 // ---------------- Existing Models Kept ----------------

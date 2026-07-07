@@ -36,6 +36,9 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
 
   // Delete Course Confirmation State
   const [courseToDelete, setCourseToDelete] = useState(null);
+  
+  // Remove Course Allocation State
+  const [courseToRemove, setCourseToRemove] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -129,16 +132,24 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
     }
   };
 
-  const handleRemove = async (courseId) => {
-    if (!window.confirm("Are you sure you want to remove this course from the department?")) return;
+  const handleRemove = (courseId) => {
+    setCourseToRemove(courseId);
+  };
+
+  const confirmRemoveCourse = async () => {
+    if (!courseToRemove) return;
     
+    setSaving(true);
     try {
-      await api.delete(`/superadmin/departments/${department.id}/courses/${courseId}`);
+      await api.delete(`/superadmin/departments/${department.id}/courses/${courseToRemove}`);
       setSuccess('Course removed successfully.');
       await fetchData();
       if (onRefresh) onRefresh();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to remove course.');
+    } finally {
+      setSaving(false);
+      setCourseToRemove(null);
     }
   };
 
@@ -156,6 +167,7 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
     try {
       await api.delete(`/superadmin/courses/${courseToDelete}`);
       setSuccess('Course deleted successfully.');
+      setSelectedCourseIds(prev => prev.filter(id => id !== courseToDelete));
       await fetchData();
       if (onRefresh) onRefresh();
     } catch (err) {
@@ -541,6 +553,37 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors w-full disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {saving ? 'Deleting...' : 'Yes, Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Allocation Confirmation Sub-Modal */}
+      {courseToRemove && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[70]">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden p-6 text-center">
+            <div className="w-16 h-16 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Remove Course?</h3>
+            <p className="text-gray-500 text-sm mb-6">
+              Are you sure you want to remove this course from the department?
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button 
+                onClick={() => setCourseToRemove(null)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors w-full"
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmRemoveCourse}
+                disabled={saving}
+                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors w-full disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {saving ? 'Removing...' : 'Yes, Remove'}
               </button>
             </div>
           </div>

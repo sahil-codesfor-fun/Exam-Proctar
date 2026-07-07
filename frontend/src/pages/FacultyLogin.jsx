@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext'; 
+import { Eye, EyeOff } from 'lucide-react';
 
 
 
@@ -10,6 +11,7 @@ export const FacultyLogin = () => {
   const { login } = useAuth(); 
   const [status, setStatus] = useState({ message: '', type: 'info' });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [credentials, setCredentials] = useState({ email: '', password: '' });
 
   const handleChange = (e) => setCredentials({ ...credentials, [e.target.name]: e.target.value });
@@ -80,7 +82,24 @@ export const FacultyLogin = () => {
 
             <div>
               <label className="block text-xs font-bold text-gray-800 mb-1 uppercase tracking-wider">Password</label>
-              <input type="password" name="password" value={credentials.password} onChange={handleChange} required className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white outline-none transition-all focus:border-emerald-400" placeholder="••••••••" />
+              <div className="relative">
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  name="password" 
+                  value={credentials.password} 
+                  onChange={handleChange} 
+                  required 
+                  className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white outline-none transition-all focus:border-emerald-400 pr-12" 
+                  placeholder="••••••••" 
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
 
             <button type="submit" disabled={loading} className="w-full bg-[#1A5F53] hover:bg-[#134d42] disabled:opacity-60 text-white font-bold py-4 rounded-lg shadow-lg transition-all transform active:scale-[0.98]">

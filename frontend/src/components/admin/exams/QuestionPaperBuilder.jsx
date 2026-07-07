@@ -55,14 +55,14 @@ const QuestionPaperBuilder = ({ exam, onClose }) => {
       let savedQ;
 
       if (isNew) {
-        const res = await api.post(`/superadmin/exams/${exam.id}/questions`, {
+        const res = await api.post(`/admin/exams/${exam.id}/questions`, {
           ...activeQuestion,
           id: undefined // Let DB generate ID
         });
         savedQ = res.data.data;
         setQuestions([...questions, savedQ]);
       } else {
-        const res = await api.put(`/superadmin/exams/${exam.id}/questions/${activeQuestion.id}`, activeQuestion);
+        const res = await api.put(`/admin/exams/${exam.id}/questions/${activeQuestion.id}`, activeQuestion);
         savedQ = res.data.data;
         setQuestions(questions.map(q => q.id === savedQ.id ? savedQ : q));
       }
@@ -78,7 +78,7 @@ const QuestionPaperBuilder = ({ exam, onClose }) => {
     if (!window.confirm("Delete this question?")) return;
     try {
       if (!id.startsWith('temp-')) {
-        await api.delete(`/superadmin/exams/${exam.id}/questions/${id}`);
+        await api.delete(`/admin/exams/${exam.id}/questions/${id}`);
       }
       setQuestions(questions.filter(q => q.id !== id));
     } catch (error) {

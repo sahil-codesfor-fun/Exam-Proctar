@@ -11,9 +11,13 @@ import {
 import {
   getSubjects,
   getTeacherSubjects,
-  assignSubjectsToTeacher
+  assignSubjectsToTeacher,
+  createSubject,
+  updateSubject,
+  deleteSubject
 } from '../controllers/adminSubjectController.js';
 import teacherRoutes from './admin/teacherRoutes.js';
+import examRoutes from './admin/examRoutes.js'; // We will create this
 
 const router = express.Router();
 
@@ -36,12 +40,19 @@ router.route('/faculty/:id/reset-password')
 router.route('/faculty/:id')
   .delete(deleteFaculty);
 
-router.get('/subjects', getSubjects);
+router.route('/subjects')
+  .get(getSubjects)
+  .post(createSubject);
+
+router.route('/subjects/:id')
+  .put(updateSubject)
+  .delete(deleteSubject);
 
 router.route('/teachers/:teacherId/subjects')
   .get(getTeacherSubjects)
   .post(assignSubjectsToTeacher);
 
 router.use('/teachers', teacherRoutes);
+router.use('/exams', examRoutes);
 
 export default router;

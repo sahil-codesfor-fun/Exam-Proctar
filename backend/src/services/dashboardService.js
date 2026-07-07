@@ -1,7 +1,12 @@
 import prisma from '../config/prisma.js';
+import cacheService from './cache.service.js';
 
 class DashboardService {
   async getStats() {
+    const cacheKey = 'dashboard:stats';
+    const cachedStats = await cacheService.get(cacheKey);
+    if (cachedStats) return cachedStats;
+
     const [
       departments,
       departmentHeads,
@@ -34,11 +39,11 @@ class DashboardService {
     const departmentsWithoutCourses = allDepts.filter(d => d._count.allocatedCourses === 0).length;
     
     // Find most active department (the one with most exams/activity, or most allocated courses for simplicity)
-    const mostActiveDepartment = allDepts.reduce((prev, current) => 
+    const mostActiveDepartment = allDepts.length > 0 ? allDepts.reduce((prev, current) => 
       (prev._count.allocatedCourses > current._count.allocatedCourses) ? prev : current
-    , allDepts[0]);
+    , allDepts[0]) : null;
 
-    return {
+    const stats = {
       success: true,
       data: {
         departments,
@@ -61,9 +66,16 @@ class DashboardService {
         mostActiveDepartment: mostActiveDepartment ? mostActiveDepartment.name : null
       }
     };
+
+    await cacheService.set(cacheKey, stats);
+    return stats;
   }
 
   async getRecentActivity() {
+    const cacheKey = 'dashboard:activity';
+    const cachedActivity = await cacheService.get(cacheKey);
+    if (cachedActivity) return cachedActivity;
+
     const activity = await prisma.activityLog.findMany({
       take: 10,
       orderBy: { timestamp: 'desc' },
@@ -72,7 +84,9 @@ class DashboardService {
       }
     });
 
-    return { success: true, data: activity };
+    const result = { success: true, data: activity };
+    await cacheService.set(cacheKey, result);
+    return result;
   }
 }
 

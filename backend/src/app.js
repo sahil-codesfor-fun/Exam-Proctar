@@ -13,6 +13,7 @@ import metadataRoutes from './routes/metadataRoutes.js';
 import practiceRoutes from './routes/practice.routes.js';
 import internalProgressRoutes from './routes/internalProgress.routes.js';
 import integrationRoutes from './routes/integration.routes.js';
+import ticketRoutes from './routes/ticket.routes.js';
 import { sendTestEmail } from './services/emailService.js';
 const app = express();
 
@@ -51,6 +52,7 @@ app.use('/api/metadata',    metadataRoutes);
 app.use('/api/practice',    practiceRoutes);
 app.use('/api/progress',    internalProgressRoutes);
 app.use('/api/integrations', integrationRoutes);
+app.use('/api/tickets',     ticketRoutes);
 
 // ── Health check ──────────────────────────────────────────────
 app.get('/api/test', (_req, res) => {

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext'; 
-
+import { Eye, EyeOff } from 'lucide-react';
 
 
 export const AdminLogin = () => {
@@ -11,6 +11,7 @@ export const AdminLogin = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [status, setStatus] = useState({ message: '', type: 'info' });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [credentials, setCredentials] = useState({ name: '', email: '', password: '' });
 
   const handleChange = (e) => setCredentials({ ...credentials, [e.target.name]: e.target.value });
@@ -95,19 +96,30 @@ export const AdminLogin = () => {
 
             <div>
               <label className="block text-xs font-bold text-gray-800 mb-1 uppercase tracking-wider">Password</label>
-              <input type="password" name="password" value={credentials.password} onChange={handleChange} required className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white outline-none transition-all focus:border-blue-400" placeholder="••••••••" />
+              <div className="relative">
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  name="password" 
+                  value={credentials.password} 
+                  onChange={handleChange} 
+                  required 
+                  className="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white outline-none transition-all focus:border-blue-400 pr-12" 
+                  placeholder="••••••••" 
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
 
             <button type="submit" disabled={loading} className="w-full bg-gray-900 hover:bg-black disabled:opacity-60 text-white font-bold py-4 rounded-lg shadow-lg transition-all transform active:scale-[0.98]">
               {loading ? '⏳ Processing…' : isSignUp ? 'CREATE ADMIN' : 'SYSTEM LOGIN'}
             </button>
           </form>
-
-          <div className="mt-8 text-center">
-            <button type="button" onClick={() => { setIsSignUp(!isSignUp); setStatus({ message: '', type: 'info' }); }} className="text-sm font-bold text-blue-600 hover:underline">
-              {isSignUp ? 'Already have access? Sign In' : 'Need clearance? Register Admin'}
-            </button>
-          </div>
         </div>
       </div>
     </div>

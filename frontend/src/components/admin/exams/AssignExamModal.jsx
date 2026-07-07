@@ -3,39 +3,21 @@ import { X, Users, CheckSquare } from 'lucide-react';
 import api from '../../../services/api';
 const AssignExamModal = ({ exam, onClose, onSave }) => {
   const [loading, setLoading] = useState(false);
-  const [departments, setDepartments] = useState([]);
   
   const [assignType, setAssignType] = useState('department');
-  const [selectedDept, setSelectedDept] = useState('');
   const [semester, setSemester] = useState('');
   const [batch, setBatch] = useState('');
-
-  useEffect(() => {
-    fetchMetadata();
-  }, []);
-
-  const fetchMetadata = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const deptRes = await api.get('/superadmin/departments');
-      setDepartments(deptRes.data.data || []);
-    } catch (e) {
-      console.error(e);
-    }
-  };
 
   const handleAssign = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const payload = {
         assignType,
-        departmentId: selectedDept || undefined,
         semester: semester ? parseInt(semester) : undefined,
         batch: batch || undefined
       };
 
-      await api.post(`/superadmin/exams/${exam.id}/assign`, payload);
+      await api.post(`/admin/exams/${exam.id}/assign`, payload);
       alert('Exam assigned successfully.');
       onSave();
     } catch (error) {
@@ -73,26 +55,11 @@ const AssignExamModal = ({ exam, onClose, onSave }) => {
               onChange={(e) => setAssignType(e.target.value)} 
               className="w-full px-3 py-2 border rounded-lg "
             >
-              <option value="department">By Department</option>
+              <option value="department">Entire Department</option>
               <option value="semester">By Semester</option>
               <option value="batch">By Batch</option>
-              <option value="university">Entire University</option>
             </select>
           </div>
-
-          {(assignType === 'department' || assignType === 'semester' || assignType === 'batch') && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Select Department</label>
-              <select 
-                value={selectedDept} 
-                onChange={(e) => setSelectedDept(e.target.value)} 
-                className="w-full px-3 py-2 border rounded-lg "
-              >
-                <option value="">All Departments</option>
-                {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
-            </div>
-          )}
 
           {assignType === 'semester' && (
             <div>

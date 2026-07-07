@@ -2,6 +2,7 @@ import subjectRepository from '../repositories/subjectRepository.js';
 import departmentRepository from '../repositories/departmentRepository.js';
 import AuditService from './auditService.js';
 import prisma from '../config/prisma.js';
+import cacheService from './cache.service.js';
 
 class SubjectService {
   async getSubjects(query) {
@@ -11,8 +12,12 @@ class SubjectService {
     const status = query.status || '';
     const departmentId = query.departmentId || '';
 
+    const cacheKey = `subjects:list:${page}:${limit}:${search}:${status}:${departmentId}`;
+    const cachedData = await cacheService.get(cacheKey);
+    if (cachedData) return cachedData;
+
     const result = await subjectRepository.findAll({ page, limit, search, status, departmentId });
-    return {
+    const response = {
       success: true,
       data: result.subjects,
       meta: {
@@ -22,12 +27,22 @@ class SubjectService {
         totalPages: Math.ceil(result.total / limit)
       }
     };
+
+    await cacheService.set(cacheKey, response);
+    return response;
   }
 
   async getSubjectById(id) {
+    const cacheKey = `subjects:detail:${id}`;
+    const cachedData = await cacheService.get(cacheKey);
+    if (cachedData) return cachedData;
+
     const subject = await subjectRepository.findById(id);
     if (!subject) throw new Error('Subject not found');
-    return { success: true, data: subject };
+
+    const response = { success: true, data: subject };
+    await cacheService.set(cacheKey, response);
+    return response;
   }
 
   async createSubject(data, userId) {
@@ -62,6 +77,7 @@ class SubjectService {
       newValues: subject
     });
 
+    await cacheService.invalidateSubjectCaches();
     return { success: true, message: 'Subject created successfully', data: subject };
   }
 
@@ -91,6 +107,7 @@ class SubjectService {
       newValues: updated
     });
 
+    await cacheService.invalidateSubjectCaches();
     return { success: true, message: 'Subject updated successfully', data: updated };
   }
 
@@ -109,6 +126,7 @@ class SubjectService {
         details: 'Hard deleted subject'
       });
 
+      await cacheService.invalidateSubjectCaches();
       return { success: true, message: 'Subject deleted successfully' };
     } catch (err) {
       if (err.code === 'P2003') {
@@ -127,6 +145,7 @@ class SubjectService {
           details: 'Soft deleted subject due to existing relations'
         });
 
+        await cacheService.invalidateSubjectCaches();
         return { success: true, message: 'Subject archived because it has existing associations (exams or teachers)' };
       }
       throw err;
@@ -167,12 +186,21 @@ class SubjectService {
       newValues: { subjectIds }
     });
 
+    await cacheService.invalidateSubjectCaches();
+    await cacheService.invalidateUserCaches();
     return { success: true, message: 'Subjects assigned successfully' };
   }
 
   async getTeacherSubjects(teacherId) {
+    const cacheKey = `subjects:teacher:${teacherId}`;
+    const cachedData = await cacheService.get(cacheKey);
+    if (cachedData) return cachedData;
+
     const subjects = await subjectRepository.getTeacherSubjects(teacherId);
-    return { success: true, data: subjects };
+    
+    const response = { success: true, data: subjects };
+    await cacheService.set(cacheKey, response);
+    return response;
   }
 }
 

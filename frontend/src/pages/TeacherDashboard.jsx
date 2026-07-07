@@ -578,10 +578,9 @@ export const TeacherDashboard = () => {
         <nav className="flex-1 space-y-2">
           {[
             { icon: <LayoutGrid size={18}/>, label: 'OVERVIEW', to: 'overview' }, 
-            { icon: <ShieldAlert size={18}/>, label: 'MONITORING', to: 'monitoring' },
             { icon: <BookOpen size={18}/>, label: 'PRACTICE MANAGER', to: 'practice-manager' },
-            { icon: <Activity size={18}/>, label: 'LIVE MONITOR', to: 'live-monitor' },
-            { icon: <Code size={18}/>, label: 'CODING PROGRESS', to: 'coding-progress' }
+            { icon: <Code size={18}/>, label: 'CODING PROGRESS', to: 'coding-progress' },
+            { icon: <Activity size={18}/>, label: 'PROFILE', to: 'profile' }
           ].map(item => {
             const isActive = location.pathname.includes(item.to);
             return (

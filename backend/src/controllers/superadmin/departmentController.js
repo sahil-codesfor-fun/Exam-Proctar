@@ -90,7 +90,21 @@ export const allocateCourses = async (req, res) => {
       return res.status(400).json({ success: false, message: "All selected courses are already allocated to this department." });
     }
 
-    const newAllocations = newCourseIds.map(courseId => ({
+    // Validate that all newCourseIds actually exist in the database
+    // (Prevents foreign key constraint errors if a course was deleted but still in frontend state)
+    const validCourses = await prisma.course.findMany({
+      where: { id: { in: newCourseIds } },
+      select: { id: true }
+    });
+    const validCourseIds = validCourses.map(c => c.id);
+    
+    const validatedNewCourseIds = newCourseIds.filter(cid => validCourseIds.includes(cid));
+
+    if (validatedNewCourseIds.length === 0) {
+      return res.status(400).json({ success: false, message: "Selected courses are either already allocated or no longer exist." });
+    }
+
+    const newAllocations = validatedNewCourseIds.map(courseId => ({
       departmentId: id,
       courseId,
       academicYear: metadata?.academicYear || null,
@@ -102,7 +116,7 @@ export const allocateCourses = async (req, res) => {
 
     await prisma.departmentCourse.createMany({ data: newAllocations });
 
-    res.status(201).json({ success: true, message: `Successfully allocated ${newCourseIds.length} course(s).` });
+    res.status(201).json({ success: true, message: `Successfully allocated ${validatedNewCourseIds.length} course(s).` });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

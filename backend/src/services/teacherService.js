@@ -2,6 +2,7 @@ import prisma from '../config/prisma.js';
 import bcrypt from 'bcryptjs';
 import AuditService from './auditService.js';
 import teacherRepository from '../repositories/teacherRepository.js';
+import cacheService from './cache.service.js';
 
 class TeacherService {
   async getTeachers(departmentId, query) {
@@ -16,6 +17,10 @@ class TeacherService {
     const effectiveDepartmentId = departmentId || reqDepartmentId || undefined;
 
     const skip = (page - 1) * limit;
+
+    const cacheKey = `users:teachers:${effectiveDepartmentId || 'all'}:${page}:${limit}:${search}:${status}:${designation}:${subjectId}`;
+    const cachedData = await cacheService.get(cacheKey);
+    if (cachedData) return cachedData;
 
     const where = {};
     if (status) {
@@ -45,11 +50,14 @@ class TeacherService {
     // Remove passwords
     teachers.forEach(t => delete t.password);
 
-    return {
+    const response = {
       success: true,
       data: teachers,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) }
     };
+
+    await cacheService.set(cacheKey, response);
+    return response;
   }
 
   async provisionTeacher(data, departmentId, headId) {
@@ -100,6 +108,8 @@ class TeacherService {
       details: `Provisioned teacher ${name} | Password Mode: ${passwordMode === 'manual' ? 'Manual' : 'Auto Generated'}`
     });
 
+    await cacheService.invalidateUserCaches();
+
     delete teacher.password;
 
     return {
@@ -109,10 +119,17 @@ class TeacherService {
   }
 
   async getTeacherDetails(id, departmentId) {
+    const cacheKey = `users:teacher:${id}`;
+    const cachedData = await cacheService.get(cacheKey);
+    if (cachedData) return cachedData;
+
     const teacher = await teacherRepository.findByIdAndDepartment(id, departmentId);
     if (!teacher) throw new Error('Teacher not found');
     delete teacher.password;
-    return { success: true, data: teacher };
+
+    const response = { success: true, data: teacher };
+    await cacheService.set(cacheKey, response);
+    return response;
   }
 
   async updateTeacher(id, departmentId, data, headId) {
@@ -124,7 +141,10 @@ class TeacherService {
       entityId: id,
       details: `Updated teacher details for ${teacher.name}`
     });
+    
+    await cacheService.invalidateUserCaches();
     delete teacher.password;
+    
     return { success: true, data: teacher };
   }
 
@@ -162,6 +182,8 @@ class TeacherService {
       details: `Assigned ${subjects.length} subjects to ${teacher.name}`
     });
 
+    await cacheService.invalidateUserCaches();
+
     return { success: true, message: 'Subjects assigned successfully' };
   }
 
@@ -183,6 +205,8 @@ class TeacherService {
       details: `Reset password for teacher ID ${teacherId}`
     });
 
+    await cacheService.invalidateUserCaches();
+
     return { success: true, data: { tempPassword } };
   }
 
@@ -195,6 +219,9 @@ class TeacherService {
       entityId: teacherId,
       details: `Soft deleted teacher ID ${teacherId}`
     });
+    
+    await cacheService.invalidateUserCaches();
+    
     return { success: true, message: 'Teacher deleted successfully' };
   }
 
@@ -207,6 +234,9 @@ class TeacherService {
       entityId: teacherId,
       details: `Permanently deleted teacher ID ${teacherId}`
     });
+
+    await cacheService.invalidateUserCaches();
+
     return { success: true, message: 'Teacher permanently deleted' };
   }
 }

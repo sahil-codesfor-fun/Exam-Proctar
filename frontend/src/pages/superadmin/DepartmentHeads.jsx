@@ -10,6 +10,7 @@ const DepartmentHeads = () => {
   const [generatedCreds, setGeneratedCreds] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', employeeId: '', departmentId: '' });
   
   const [passwordMode, setPasswordMode] = useState('auto');
@@ -103,12 +104,15 @@ const DepartmentHeads = () => {
 
   const confirmDelete = async () => {
     if (!deleteConfirm) return;
+    setIsDeleting(true);
     try {
       await api.delete(`/superadmin/users/${deleteConfirm.id}`);
       setDeleteConfirm(null);
       fetchData();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to delete department head');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -439,9 +443,14 @@ const DepartmentHeads = () => {
                 </button>
                 <button 
                   onClick={confirmDelete} 
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors shadow-sm flex items-center gap-2"
+                  disabled={isDeleting}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors shadow-sm flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  <Trash2 className="w-4 h-4" /> Yes, Delete
+                  {isDeleting ? (
+                    <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Deleting...</>
+                  ) : (
+                    <><Trash2 className="w-4 h-4" /> Yes, Delete</>
+                  )}
                 </button>
               </div>
             </div>

@@ -11,14 +11,12 @@ const Tabs = [
 const CreateExamModal = ({ exam, onClose, onSave }) => {
   const [activeTab, setActiveTab] = useState('basic');
   const [loading, setLoading] = useState(false);
-  const [departments, setDepartments] = useState([]);
   const [subjects, setSubjects] = useState([]);
 
   const [formData, setFormData] = useState({
     title: '',
     examCode: '',
     description: '',
-    departmentId: '',
     subjectId: '',
     examType: 'regular',
     difficulty: 'medium',
@@ -73,11 +71,9 @@ const CreateExamModal = ({ exam, onClose, onSave }) => {
   const fetchMetadata = async () => {
     try {
       const token = localStorage.getItem('token');
-      const [deptRes, subjRes] = await Promise.all([
-        api.get('/superadmin/departments'),
-        api.get('/superadmin/subjects')
+      const [subjRes] = await Promise.all([
+        api.get('/admin/subjects')
       ]);
-      setDepartments(deptRes.data.data || []);
       setSubjects(subjRes.data.data || []);
     } catch (e) {
       console.error(e);
@@ -101,7 +97,6 @@ const CreateExamModal = ({ exam, onClose, onSave }) => {
         title: formData.title,
         examCode: formData.examCode,
         description: formData.description,
-        departmentId: formData.departmentId || undefined,
         subjectId: formData.subjectId || undefined,
         examType: formData.examType,
         difficulty: formData.difficulty,
@@ -136,9 +131,9 @@ const CreateExamModal = ({ exam, onClose, onSave }) => {
       };
 
       if (exam?.id) {
-        await api.put(`/superadmin/exams/${exam.id}`, payload);
+        await api.put(`/admin/exams/${exam.id}`, payload);
       } else {
-        await api.post('/superadmin/exams', payload);
+        await api.post('/admin/exams', payload);
       }
       onSave();
     } catch (error) {
@@ -205,13 +200,7 @@ const CreateExamModal = ({ exam, onClose, onSave }) => {
                   </div>
 
                   <div className="grid grid-cols-2 gap-5">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                      <select name="departmentId" value={formData.departmentId} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg ">
-                        <option value="">Select Department</option>
-                        {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                      </select>
-                    </div>
+                    <div className="col-span-2">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
                       <select name="subjectId" value={formData.subjectId} onChange={handleChange} className="w-full px-3 py-2 border rounded-lg ">
@@ -220,6 +209,7 @@ const CreateExamModal = ({ exam, onClose, onSave }) => {
                       </select>
                     </div>
                   </div>
+                </div>
 
                   <div className="grid grid-cols-3 gap-5">
                     <div>

@@ -168,3 +168,60 @@ export const getPublicDepartments = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const getFacultyProfile = async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: {
+        departmentRel: { select: { name: true, code: true } },
+        subjectsTeaching: {
+          include: {
+            subject: true
+          }
+        },
+        _count: {
+          select: {
+            examsCreated: true,
+            practiceSheetsCreated: true
+          }
+        }
+      }
+    });
+
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    
+    // Calculate additional stats (e.g., active exams, total past exams)
+    const activeExams = await prisma.exam.count({
+      where: { creatorId: req.user.id, status: 'active' }
+    });
+    const draftedExams = await prisma.exam.count({
+      where: { creatorId: req.user.id, status: 'draft' }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        facultyId: user.facultyId,
+        department: user.departmentRel,
+        designation: user.designation,
+        qualification: user.qualification,
+        experience: user.experience,
+        phone: user.phone,
+        joinedAt: user.createdAt,
+        subjects: user.subjectsTeaching.map(st => st.subject),
+        stats: {
+          totalExamsCreated: user._count.examsCreated,
+          activeExams,
+          draftedExams,
+          totalPracticeSheets: user._count.practiceSheetsCreated
+        }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

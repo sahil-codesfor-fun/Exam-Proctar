@@ -3,8 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, Upload, Plus, Code, Trash2 } from 'lucide-react';
 import api from '../../services/api';
 
-const PracticeSheetEditor = () => {
-  const { id } = useParams();
+const PracticeSheetEditor = ({ sheetId, onClose, onSave }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -29,11 +28,11 @@ const PracticeSheetEditor = () => {
   const [uploadErrors, setUploadErrors] = useState([]);
 
   useEffect(() => {
-    if (id) {
+    if (sheetId) {
       const fetchSheet = async () => {
         try {
           setLoading(true);
-          const res = await api.get(`/practice/${id}`);
+          const res = await api.get(`/practice/${sheetId}`);
           const sheet = res.data.sheet;
           setForm({
             title: sheet.title || '',
@@ -61,19 +60,19 @@ const PracticeSheetEditor = () => {
       };
       fetchSheet();
     }
-  }, [id]);
+  }, [sheetId]);
 
-  const handleSave = async (status = 'draft') => {
+  const handleSaveBtn = async (status = 'draft') => {
     try {
       setSaving(true);
       const payload = { ...form, status, questions };
-      if (id) {
-        await api.put(`/practice/${id}`, payload);
-        navigate('/teacher-dashboard/practice-manager');
+      if (sheetId) {
+        await api.put(`/practice/${sheetId}`, payload);
       } else {
-        const res = await api.post('/practice', payload);
-        navigate(`/teacher-dashboard/practice-manager/edit/${res.data.sheet.id}`, { replace: true });
+        await api.post('/practice', payload);
       }
+      if (onSave) onSave();
+      if (onClose) onClose();
     } catch (err) {
       console.error(err);
     } finally {
@@ -232,21 +231,21 @@ const PracticeSheetEditor = () => {
       {/* Header */}
       <div className="flex justify-between items-center bg-white p-4 rounded-2xl border shadow-sm">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/teacher-dashboard/practice-manager')} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500">
+          <button onClick={() => { if(onClose) onClose(); else navigate('/teacher-dashboard/practice-manager'); }} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500">
             <ArrowLeft size={20} />
           </button>
-          <h1 className="text-xl font-black text-gray-900">{id ? 'Edit Practice Sheet' : 'New Practice Sheet'}</h1>
+          <h1 className="text-xl font-black text-gray-900">{sheetId ? 'Edit Practice Sheet' : 'New Practice Sheet'}</h1>
         </div>
         <div className="flex gap-3">
-          {id && (
-            <button onClick={() => window.open(`/compiler?practiceSheetId=${id}`, '_blank')} className="px-5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold text-xs uppercase tracking-widest rounded-xl border border-blue-200 transition-all">
+          {sheetId && (
+            <button onClick={() => window.open(`/compiler?practiceSheetId=${sheetId}`, '_blank')} className="px-5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold text-xs uppercase tracking-widest rounded-xl border border-blue-200 transition-all">
               👀 Preview
             </button>
           )}
-          <button onClick={() => handleSave('draft')} disabled={saving} className="px-5 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold text-xs uppercase tracking-widest rounded-xl border transition-all">
+          <button onClick={() => handleSaveBtn('draft')} disabled={saving} className="px-5 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold text-xs uppercase tracking-widest rounded-xl border transition-all">
             Save Draft
           </button>
-          <button onClick={() => handleSave('published')} disabled={saving} className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-emerald-500/30 transition-all flex items-center gap-2">
+          <button onClick={() => handleSaveBtn('published')} disabled={saving} className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-emerald-500/30 transition-all flex items-center gap-2">
             <Save size={16} /> Publish
           </button>
         </div>

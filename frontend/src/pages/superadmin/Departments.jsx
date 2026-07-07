@@ -12,6 +12,7 @@ const Departments = () => {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Allocate Courses State
   const [allocatingDept, setAllocatingDept] = useState(null);
@@ -69,12 +70,15 @@ const Departments = () => {
 
   const confirmDelete = async () => {
     if (!deleteConfirm) return;
+    setIsDeleting(true);
     try {
       await api.delete(`/superadmin/departments/${deleteConfirm.id}`);
       setDeleteConfirm(null);
       fetchDepartments();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to delete department');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -150,9 +154,25 @@ const Departments = () => {
               <th className="px-6 py-4 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
-            {departments.filter(d => showArchived || d.status !== 'ARCHIVED').map(dept => (
-              <tr key={dept.id} className="hover:bg-gray-50">
+          <tbody>
+            {loading ? (
+              Array.from({ length: 5 }).map((_, idx) => (
+                <tr key={`skeleton-${idx}`} className="animate-pulse">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-gray-200 rounded-lg"></div>
+                      <div className="h-4 bg-gray-200 rounded w-32"></div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-16"></div></td>
+                  <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
+                  <td className="px-6 py-4"><div className="h-6 bg-gray-200 rounded-full w-24"></div></td>
+                  <td className="px-6 py-4"><div className="h-6 bg-gray-200 rounded-full w-16"></div></td>
+                  <td className="px-6 py-4"><div className="h-6 bg-gray-200 rounded w-6 float-right"></div></td>
+                </tr>
+              ))
+            ) : departments.filter(d => showArchived || d.status !== 'ARCHIVED').map(dept => (
+              <tr key={dept.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
@@ -187,12 +207,12 @@ const Departments = () => {
                       e.stopPropagation();
                       setActiveDropdown(activeDropdown === dept.id ? null : dept.id);
                     }}
-                    className="text-gray-400 hover:text-gray-900 focus:outline-none p-1 rounded-md hover:bg-gray-100"
+                    className="text-gray-400 hover:text-gray-900 focus:outline-none p-1 rounded-md hover:bg-gray-100 transition-colors"
                   >
                     <MoreVertical className="w-5 h-5" />
                   </button>
                   {activeDropdown === dept.id && (
-                    <div className="absolute right-6 top-10 mt-1 w-40 bg-white rounded-lg shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-gray-100 z-50 py-1" onClick={e => e.stopPropagation()}>
+                    <div className="absolute right-6 top-10 mt-1 w-40 bg-white rounded-lg shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-gray-100 z-50 py-1 animate-in fade-in zoom-in-95 duration-100" onClick={e => e.stopPropagation()}>
                       <button onClick={() => { setAllocatingDept(dept); setActiveDropdown(null); }} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors flex items-center gap-2">
                         <Layers className="w-4 h-4" /> Allocate Courses
                       </button>
@@ -270,9 +290,14 @@ const Departments = () => {
                 </button>
                 <button 
                   onClick={confirmDelete} 
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors shadow-sm flex items-center gap-2"
+                  disabled={isDeleting}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors shadow-sm flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  <Trash2 className="w-4 h-4" /> Yes, Delete
+                  {isDeleting ? (
+                    <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Deleting...</>
+                  ) : (
+                    <><Trash2 className="w-4 h-4" /> Yes, Delete</>
+                  )}
                 </button>
               </div>
             </div>

@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
+import api from '../../services/api';
 
 const getExamValue = (exam, sub) => {
   if (sub && sub.maxScore) return sub.maxScore;
@@ -32,6 +33,39 @@ const getExamValue = (exam, sub) => {
 const StudentOverview = () => {
   const navigate = useNavigate();
   const { exams, submissions, activeExams, upcomingExams, getSub, nowTime } = useOutletContext();
+  const [myTickets, setMyTickets] = useState([]);
+  const [ticketModal, setTicketModal] = useState({ open: false, examId: null, examTitle: '', reason: '' });
+  const [submittingTicket, setSubmittingTicket] = useState(false);
+
+  useEffect(() => {
+    const fetchTickets = async () => {
+      try {
+        const res = await api.get('/tickets/my');
+        setMyTickets(res.data.data || []);
+      } catch (err) {
+        console.error('Failed to fetch tickets', err);
+      }
+    };
+    fetchTickets();
+  }, []);
+
+  const handleSubmitTicket = async () => {
+    if (!ticketModal.reason.trim()) return alert('Please provide a reason');
+    setSubmittingTicket(true);
+    try {
+      const res = await api.post('/tickets', { examId: ticketModal.examId, reason: ticketModal.reason });
+      setMyTickets([res.data.data, ...myTickets]);
+      setTicketModal({ open: false, examId: null, examTitle: '', reason: '' });
+      alert('Ticket submitted successfully');
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Failed to submit ticket');
+    } finally {
+      setSubmittingTicket(false);
+    }
+  };
+
+  const getTicketStatus = (examId) => myTickets.find(t => (t.exam?._id || t.exam?.id || t.examId) === examId);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
@@ -104,13 +138,31 @@ const StudentOverview = () => {
                       </div>
                       
                       {!done && (
-                        <button 
-                          onClick={() => navigate(`/exam/live/${examIdSafe}`)}
-                          disabled={isExpired}
-                          className={`font-black text-[10px] uppercase tracking-widest py-3 px-8 rounded-xl transition-all shadow-lg active:scale-95 ${isExpired ? 'bg-gray-200 text-gray-500 cursor-not-allowed shadow-none' : 'bg-[#1A5F53] hover:bg-[#134d42] text-white shadow-emerald-900/10'}`}
-                        >
-                          {isExpired ? 'Session Expired' : inProgress ? 'Resume Terminal' : 'Initialize Exam'}
-                        </button>
+                        <>
+                          {isExpired ? (
+                            <div className="flex gap-2">
+                              {getTicketStatus(examIdSafe) ? (
+                                <span className={`font-black text-[10px] uppercase tracking-widest py-3 px-6 rounded-xl border ${getTicketStatus(examIdSafe).status === 'approved' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : getTicketStatus(examIdSafe).status === 'rejected' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                                  Ticket: {getTicketStatus(examIdSafe).status}
+                                </span>
+                              ) : (
+                                <button 
+                                  onClick={() => setTicketModal({ open: true, examId: examIdSafe, examTitle: exam.title, reason: '' })}
+                                  className="font-black text-[10px] uppercase tracking-widest py-3 px-6 rounded-xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-all"
+                                >
+                                  Submit Ticket
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <button 
+                              onClick={() => navigate(`/exam/live/${examIdSafe}`)}
+                              className="font-black text-[10px] uppercase tracking-widest py-3 px-8 rounded-xl transition-all shadow-lg active:scale-95 bg-[#1A5F53] hover:bg-[#134d42] text-white shadow-emerald-900/10"
+                            >
+                              {inProgress ? 'Resume Terminal' : 'Initialize Exam'}
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -222,6 +274,31 @@ const StudentOverview = () => {
         </div>
       </div>
 
+      {ticketModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-black text-gray-900 tracking-tight mb-2 uppercase">Submit Ticket</h3>
+            <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mb-6">Appeal for {ticketModal.examTitle}</p>
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Reason for missed exam</label>
+                <textarea 
+                  value={ticketModal.reason}
+                  onChange={(e) => setTicketModal(prev => ({ ...prev, reason: e.target.value }))}
+                  placeholder="Please provide a valid reason..."
+                  className="w-full mt-1 p-4 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-emerald-500 transition-colors h-32 resize-none"
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => setTicketModal({ open: false, examId: null, examTitle: '', reason: '' })} className="flex-1 px-4 py-3 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold text-xs uppercase tracking-widest rounded-xl transition-all">Cancel</button>
+                <button onClick={handleSubmitTicket} disabled={submittingTicket} className="flex-1 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg transition-all disabled:opacity-50">
+                  {submittingTicket ? 'Submitting...' : 'Submit'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

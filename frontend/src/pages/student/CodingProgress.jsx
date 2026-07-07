@@ -29,16 +29,28 @@ const NexusContributionGraph = ({ activityMap }) => {
   useEffect(() => {
     const temp = [];
     const today = new Date();
-    // Generate 365 days (52 weeks x 7 days = 364)
+    
+    // Determine the start date (364 days ago)
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() - 364);
+    
+    // Get the day of the week for the start date (0 = Sunday, 6 = Saturday)
+    const startDayOfWeek = startDate.getDay();
+    
+    // Pad the beginning with null to align the first date to its correct weekday
+    for (let i = 0; i < startDayOfWeek; i++) {
+      temp.push({ date: null, count: 0, isPadding: true });
+    }
+    
+    // Generate 365 days
     for (let i = 364; i >= 0; i--) {
       const d = new Date(today);
-      d.setDate(d.getDate() - i);
+      d.setDate(today.getDate() - i);
       const dateStr = d.toISOString().split('T')[0];
       
-      // 🚀 Reads purely from the backend now. If undefined, defaults to 0 (empty).
       const count = activityMap?.[dateStr] || 0;
       
-      temp.push({ date: d, count });
+      temp.push({ date: d, count, isPadding: false });
     }
     setDays(temp);
   }, [activityMap]);
@@ -83,8 +95,8 @@ const NexusContributionGraph = ({ activityMap }) => {
               {days.map((day, i) => (
                 <div 
                   key={i} 
-                  className={`w-3 h-3 rounded-sm transition-colors duration-300 hover:ring-1 hover:ring-white/50 ${getLevelClass(day.count)}`} 
-                  title={`${day.count} contributions on ${day.date.toDateString()}`}
+                  className={`w-3 h-3 rounded-sm transition-colors duration-300 ${day.isPadding ? 'bg-transparent' : getLevelClass(day.count)} ${!day.isPadding ? 'hover:ring-1 hover:ring-white/50 cursor-pointer' : ''}`} 
+                  title={day.isPadding ? '' : `${day.count} contributions on ${day.date.toDateString()}`}
                 ></div>
               ))}
             </div>

@@ -1,5 +1,6 @@
 import departmentRepository from '../repositories/departmentRepository.js';
 import AuditService from './auditService.js';
+import cacheService from './cache.service.js';
 
 class DepartmentService {
   async getDepartments(query) {
@@ -8,8 +9,12 @@ class DepartmentService {
     const search = query.search || '';
     const status = query.status || ''; // e.g., ACTIVE
 
+    const cacheKey = `departments:${page}:${limit}:${search}:${status}`;
+    const cachedData = await cacheService.get(cacheKey);
+    if (cachedData) return cachedData;
+
     const result = await departmentRepository.findAll({ page, limit, search, status });
-    return {
+    const response = {
       success: true,
       data: result.departments,
       meta: {
@@ -19,6 +24,9 @@ class DepartmentService {
         totalPages: Math.ceil(result.total / limit)
       }
     };
+
+    await cacheService.set(cacheKey, response);
+    return response;
   }
 
   async createDepartment(data, userId) {
@@ -50,6 +58,8 @@ class DepartmentService {
       entityId: department.id,
       newValues: department
     });
+
+    await cacheService.invalidateDepartmentCaches();
 
     return {
       success: true,
@@ -84,6 +94,8 @@ class DepartmentService {
       newValues: updated
     });
 
+    await cacheService.invalidateDepartmentCaches();
+
     return {
       success: true,
       message: 'Department updated successfully',
@@ -105,6 +117,8 @@ class DepartmentService {
         entityId: id,
         details: 'Hard deleted department'
       });
+
+      await cacheService.invalidateDepartmentCaches();
 
       return {
         success: true,
@@ -128,6 +142,8 @@ class DepartmentService {
           newValues: { status: 'ARCHIVED' },
           details: 'Soft deleted department due to existing relations'
         });
+
+        await cacheService.invalidateDepartmentCaches();
 
         return {
           success: true,
@@ -153,6 +169,8 @@ class DepartmentService {
       newValues: { status: newStatus },
       details: `Status changed to ${newStatus}`
     });
+
+    await cacheService.invalidateDepartmentCaches();
 
     return {
       success: true,
