@@ -25,13 +25,34 @@ export const getUnifiedDashboard = async (req, res) => {
       include: { badge: true }
     });
 
+    // 🚀 THE NEW ENGINE: Fetch submissions to build the activityMap for the heatmap!
+    // We only count submissions that are actually 'submitted' or 'auto_submitted'
+    const submissions = await prisma.submission.findMany({
+      where: { 
+        studentId: studentId,
+        status: { in: ['submitted', 'auto_submitted'] }
+      },
+      select: { createdAt: true }
+    });
+
+    // Build the date map (e.g., { "2026-07-07": 1 })
+    const activityMap = {};
+    submissions.forEach(sub => {
+      if (sub.createdAt) {
+        // Ensure we handle Date objects properly
+        const dateStr = new Date(sub.createdAt).toISOString().split('T')[0];
+        activityMap[dateStr] = (activityMap[dateStr] || 0) + 1;
+      }
+    });
+
     res.status(200).json({
       success: true,
       data: {
         progress,
         stats,
         topicProgress,
-        badges
+        badges,
+        activityMap // 👈 BOOM! Now the frontend heatmap gets its fuel!
       }
     });
   } catch (error) {
