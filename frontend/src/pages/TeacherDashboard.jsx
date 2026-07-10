@@ -578,6 +578,7 @@ export const TeacherDashboard = () => {
         <nav className="flex-1 space-y-2">
           {[
             { icon: <LayoutGrid size={18}/>, label: 'OVERVIEW', to: 'overview' }, 
+            { icon: <BookOpen size={18}/>, label: 'COURSE PROGRESS', to: 'course-progress' },
             { icon: <BookOpen size={18}/>, label: 'PRACTICE MANAGER', to: 'practice-manager' },
             { icon: <Code size={18}/>, label: 'CODING PROGRESS', to: 'coding-progress' },
             { icon: <Activity size={18}/>, label: 'PROFILE', to: 'profile' }

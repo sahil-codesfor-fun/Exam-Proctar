@@ -102,6 +102,7 @@ model Department {
   exams       Exam[]
   assignments ExamAssignment[]
   allocatedCourses DepartmentCourse[]
+  hubCourses  HubCourse[]
 }
 
 model Subject {
@@ -320,8 +321,37 @@ model Question {
   constraints      String?        @db.Text
   timeLimitSeconds Int            @default(0)
   
+  // Hub specific fields
+  sourceUrl        String?
+  companyTags      Json?
+  solvedSource     String         @default("NEXUS")
+  hubModuleId      String?
+  
+  // Owlcoder-specific rich fields
+  owlcoderId       String?        @unique  // Original _id from Owlcoder
+  inputFormat      String?        @db.Text
+  outputFormat     String?        @db.Text
+  sampleInput      String?        @db.Text
+  sampleOutput     String?        @db.Text
+  explanation      String?        @db.Text
+  category         String?        // Trainer, Practice, Lab
+  tagsInfo         String?        // Human-readable tags
+  
+  // Solution code in multiple languages
+  solutionJava     String?        @db.LongText
+  solutionPython   String?        @db.LongText
+  solutionC        String?        @db.LongText
+  solutionCpp      String?        @db.LongText
+  
+  // Stub (student template) code
+  stubJava         String?        @db.LongText
+  stubPython       String?        @db.LongText
+  stubC            String?        @db.LongText
+  stubCpp          String?        @db.LongText
+  
   exam             Exam?          @relation(fields: [examId], references: [id], onDelete: Cascade)
   questionBank     QuestionBank?  @relation(fields: [questionBankId], references: [id], onDelete: SetNull)
+  hubModule        HubModule?     @relation(fields: [hubModuleId], references: [id], onDelete: SetNull)
   
   options          QuestionOption[]
   testCases        TestCase[]
@@ -913,4 +943,51 @@ model DailyGoal {
   student         User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
 }
 
+// ---------------- Courses & Career Hub Models ----------------
 
+model HubCourse {
+  id          String      @id @default(cuid())
+  title       String
+  description String?     @db.Text
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  departmentId String?
+  department  Department? @relation(fields: [departmentId], references: [id])
+  
+  modules     HubModule[]
+}
+
+model HubModule {
+  id          String      @id @default(cuid())
+  courseId    String
+  title       String
+  order       Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  course      HubCourse   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  questions   Question[]
+  articles    HubArticle[]
+}
+
+model HubArticle {
+  id              String    @id @default(cuid())
+  moduleId        String
+  topicName       String
+  articleContent  String?   @db.LongText
+  owlcoderId      String?   @unique
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  module          HubModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+}
+
+model SyncQueue {
+  id          String   @id @default(cuid())
+  studentId   String
+  questionId  String
+  source      String   // e.g. "LEETCODE", "HACKERRANK"
+  status      String   @default("PENDING") // PENDING, PROCESSED, ERROR
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

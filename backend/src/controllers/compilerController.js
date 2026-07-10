@@ -262,7 +262,7 @@ export const judgeCode = async (req, res) => {
           attemptNumber,
           status: 'Accepted' // or maybe dynamic based on verdict
         },
-        include: { student: { select: { name: true, rollNo: true } } }
+        include: { student: { select: { name: true, studentId: true } } }
       });
 
       // Emit Live Submission Event for Teacher Monitoring
@@ -272,7 +272,7 @@ export const judgeCode = async (req, res) => {
           submissionId: submission.id,
           studentId,
           studentName: submission.student.name,
-          rollNo: submission.student.rollNo,
+          rollNo: submission.student.studentId,
           questionId,
           verdict: finalVerdict,
           attemptNumber,

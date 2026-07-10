@@ -50,19 +50,40 @@ export const getMyCodingMetrics = async (req, res) => {
 
 export const getAllStudentsMetrics = async (req, res) => {
   try {
-    // 1. Fetch External Integrations (LeetCode, HackerRank)
+    const departmentId = req.user.departmentId;
+
+    // Fetch all students in this department
+    const students = await prisma.user.findMany({
+      where: { departmentId, role: 'student' },
+      select: {
+        id: true,
+        name: true,
+        studentId: true,
+        email: true,
+        course: true,
+        section: true
+      }
+    });
+
+    const studentIds = students.map(s => s.id);
+
+    // 1. Fetch External Integrations (LeetCode, HackerRank) for these students
     const externalIntegrations = await prisma.platformIntegration.findMany({
-      where: { syncStatus: { not: 'DISCONNECTED' } },
+      where: { 
+        userId: { in: studentIds },
+        syncStatus: { not: 'DISCONNECTED' } 
+      },
       include: {
-        user: { select: { name: true, studentId: true } },
+        user: { select: { name: true, studentId: true, email: true, course: true } },
         statistics: true
       }
     });
 
     // 2. Fetch Internal Nexus Playground Metrics
     const internalMetrics = await prisma.studentCodingMetrics.findMany({
+      where: { studentId: { in: studentIds } },
       include: {
-        user: { select: { name: true, studentId: true } }
+        user: { select: { name: true, studentId: true, email: true, course: true } }
       }
     });
 
@@ -104,7 +125,7 @@ export const getAllStudentsMetrics = async (req, res) => {
     // 5. Combine and Sort by Total Solved descending
     const combinedData = [...processedExternal, ...processedInternal].sort((a, b) => b.totalSolved - a.totalSolved);
 
-    res.json({ success: true, data: combinedData });
+    res.json({ success: true, data: combinedData, students });
   } catch (error) {
     console.error('❌ Error fetching teacher metrics:', error);
     res.status(500).json({ success: false, message: 'Server error fetching all metrics' });

@@ -11,7 +11,8 @@ import {
   Menu,
   X,
   User,
-  Activity
+  Activity,
+  UploadCloud
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -27,6 +28,7 @@ const AdminSidebar = () => {
     { name: 'Subjects', icon: BookOpen, path: '/admin/subjects' },
     { name: 'Exams', icon: FileText, path: '/admin/exams' },
     { name: 'Tickets', icon: Activity, path: '/admin/tickets' },
+    { name: 'Courses Hub', icon: UploadCloud, path: '/admin/courses-hub' },
     { name: 'Reports', icon: BarChart3, path: '/admin/reports' },
     { name: 'Activity Logs', icon: Activity, path: '/admin/activity-logs' },
   ];

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
-import { LayoutGrid, Code, User as UserIcon, LogOut, Terminal } from 'lucide-react';
+import { LayoutGrid, Code, User as UserIcon, LogOut, Terminal, BookOpen } from 'lucide-react';
 
 export const StudentDashboard = () => {
   const navigate = useNavigate();
@@ -139,6 +139,10 @@ export const StudentDashboard = () => {
             <button onClick={() => navigate('/compiler')} className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-200">
               <Terminal size={16} /> Code Playground
             </button>
+            
+            <NavLink to="courses" className={({ isActive }) => `flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-emerald-100 transition-all duration-200 ${isActive ? 'bg-[#1A5F53] text-white shadow-lg shadow-emerald-900/20' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'}`}>
+              <BookOpen size={16} /> Courses
+            </NavLink>
 
             <NavLink to="profile" className={({ isActive }) => `flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-emerald-100 transition-all duration-200 ${isActive ? 'bg-[#1A5F53] text-white shadow-lg shadow-emerald-900/20' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'}`}>
               <UserIcon size={16} /> Profile

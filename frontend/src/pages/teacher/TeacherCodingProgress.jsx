@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api'; 
-import { Users, Code2, Terminal, ChevronDown, ChevronUp, RefreshCw, AlertCircle } from 'lucide-react';
+import { Users, Code2, Terminal, ChevronDown, ChevronUp, RefreshCw, AlertCircle, Search, Download } from 'lucide-react';
 
 // 🌮 THE SALSA SWITCHER: Styles rows dynamically based on the platform!
 const getPlatformStyling = (platformString) => {
@@ -53,6 +53,17 @@ export const TeacherCodingProgress = () => {
   // State for Universal Sync
   const [isSyncingAll, setIsSyncingAll] = useState(false);
   const [syncWarning, setSyncWarning] = useState('');
+  
+  // State for Search
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // State for Download
+  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+  const [downloadStep, setDownloadStep] = useState(1);
+  const [selectedAcademicCourse, setSelectedAcademicCourse] = useState(null);
+  
+  const academicCourses = [...new Set(groupedStudents.map(s => s.user?.course).filter(Boolean))];
+  const PLATFORMS = ['LEETCODE', 'HACKERRANK', 'NEXUS'];
 
   const fetchAllStats = async () => {
     try {
@@ -60,35 +71,37 @@ export const TeacherCodingProgress = () => {
       const res = await api.get('/metrics/all');
       
       if (res.data.success) {
-        const rawData = res.data.data;
+        const rawData = res.data.data || [];
+        const students = res.data.students || [];
         
-        // 🧠 THE BRAIN: Group the flat data by Student ID
-        const grouped = rawData.reduce((acc, curr) => {
-          const m = curr || {};
-          const sId = m.user?.studentId || m.id || 'unknown';
+        // 🧠 THE BRAIN: Map over ALL students, attach metrics
+        const grouped = students.reduce((acc, student) => {
+          const sId = student.studentId || student.id;
           
-          if (!acc[sId]) {
-            acc[sId] = {
-              user: m.user,
-              totalSolved: 0,
-              easySolved: 0,
-              mediumSolved: 0,
-              hardSolved: 0,
-              platforms: []
-            };
-          }
-          
-          // Add to the student's combined totals
-          acc[sId].totalSolved += (m.totalSolved || 0);
-          acc[sId].easySolved += (m.easySolved || 0);
-          acc[sId].mediumSolved += (m.mediumSolved || 0);
-          acc[sId].hardSolved += (m.hardSolved || 0);
-          
-          // Push the specific platform data into their array
-          acc[sId].platforms.push(m);
+          acc[sId] = {
+            user: student,
+            totalSolved: 0,
+            easySolved: 0,
+            mediumSolved: 0,
+            hardSolved: 0,
+            platforms: []
+          };
           
           return acc;
         }, {});
+
+        // Add metrics to students
+        rawData.forEach(m => {
+          if (!m) return;
+          const sId = m.user?.studentId || m.user?.id || m.id || 'unknown';
+          if (grouped[sId]) {
+            grouped[sId].totalSolved += (m.totalSolved || 0);
+            grouped[sId].easySolved += (m.easySolved || 0);
+            grouped[sId].mediumSolved += (m.mediumSolved || 0);
+            grouped[sId].hardSolved += (m.hardSolved || 0);
+            grouped[sId].platforms.push(m);
+          }
+        });
 
         // Convert the object back to an array and sort by whoever has the most total solved
         const sortedArray = Object.values(grouped).sort((a, b) => b.totalSolved - a.totalSolved);
@@ -102,6 +115,47 @@ export const TeacherCodingProgress = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDownloadCSV = (platformId = null) => {
+    let targetStudents = groupedStudents;
+    if (selectedAcademicCourse) {
+      targetStudents = groupedStudents.filter(s => s.user?.course === selectedAcademicCourse);
+    }
+
+    if (targetStudents.length === 0) return;
+
+    let targetPlatforms = PLATFORMS;
+    if (platformId) {
+      targetPlatforms = PLATFORMS.filter(p => p === platformId);
+    }
+
+    const platformHeaders = targetPlatforms.map(p => `"${p} Easy","${p} Medium","${p} Hard","${p} Total"`).join(',');
+    const header = `Roll No,Name,Email,Program,Total Solved,${platformHeaders}\n`;
+
+    const rows = targetStudents.map(student => {
+      const platformData = targetPlatforms.map(p => {
+        const pData = student.platforms.find(pl => pl.platform === p);
+        if (!pData) return `"Not Logged In","Not Logged In","Not Logged In","Not Logged In"`;
+        return `${pData.easySolved || 0},${pData.mediumSolved || 0},${pData.hardSolved || 0},${pData.totalSolved || 0}`;
+      }).join(',');
+      
+      return `"${student.user?.studentId || ''}","${student.user?.name || ''}","${student.user?.email || ''}","${student.user?.course || ''}",${student.totalSolved || 0},${platformData}`;
+    });
+
+    const csvContent = header + rows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    const fileNameSuffix = platformId ? platformId.toLowerCase() : 'all_platforms';
+    link.setAttribute("download", `coding_metrics_${fileNameSuffix}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    setShowDownloadMenu(false);
   };
 
   useEffect(() => {
@@ -159,7 +213,7 @@ export const TeacherCodingProgress = () => {
   return (
     <div className="w-full animate-in fade-in duration-700 font-sans pb-12">
       
-      {/* Header Section with Universal Sync Button */}
+      {/* Header Section with Universal Sync Button and Search */}
       <div className="mb-8 px-2 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-700 shrink-0">
@@ -171,21 +225,118 @@ export const TeacherCodingProgress = () => {
           </div>
         </div>
 
-        {/* 🚀 Universal Sync Button */}
-        <div className="flex flex-col items-end">
-          <button 
-            onClick={handleUniversalSync}
-            disabled={isSyncingAll}
-            className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-gray-900/20 disabled:opacity-50"
-          >
-            <RefreshCw size={14} className={isSyncingAll ? "animate-spin" : ""} />
-            {isSyncingAll ? 'Syncing Class...' : 'Universal Sync'}
-          </button>
-          {syncWarning && (
-            <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest mt-2 animate-in slide-in-from-top-1">
-               <AlertCircle size={10} className="inline mr-1" /> {syncWarning}
-            </span>
-          )}
+        {/* Actions: Search and Universal Sync */}
+        <div className="flex flex-col items-end gap-3 sm:flex-row sm:items-center">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+            <input 
+              type="text"
+              placeholder="Search students..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all w-full sm:w-64 shadow-sm"
+            />
+          </div>
+
+          <div className="flex flex-col items-end gap-2">
+            <button 
+              onClick={handleUniversalSync}
+              disabled={isSyncingAll}
+              className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-gray-900/20 disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={isSyncingAll ? "animate-spin" : ""} />
+              {isSyncingAll ? 'Syncing...' : 'Universal Sync'}
+            </button>
+            {syncWarning && (
+              <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest absolute -bottom-5 right-0 animate-in slide-in-from-top-1">
+                <AlertCircle size={10} className="inline mr-1" /> {syncWarning}
+              </span>
+            )}
+          </div>
+
+          <div className="relative">
+            <button 
+              onClick={() => {
+                setShowDownloadMenu(!showDownloadMenu);
+                if (!showDownloadMenu) setDownloadStep(1);
+              }}
+              disabled={groupedStudents.length === 0}
+              className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-blue-900/20 active:scale-95 disabled:opacity-50"
+            >
+              <Download size={14} /> Download CSV
+            </button>
+
+            {showDownloadMenu && (
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-50">
+                <div className="p-2">
+                  {downloadStep === 1 ? (
+                    <>
+                      <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-2 pt-1">Select Program</div>
+                      <button 
+                        onClick={() => {
+                          setSelectedAcademicCourse(null);
+                          setDownloadStep(2);
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors flex items-center justify-between"
+                      >
+                        All Programs
+                        <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{groupedStudents.length}</span>
+                      </button>
+                      {academicCourses.length > 0 && <div className="my-1 border-t border-gray-100"></div>}
+                      <div className="max-h-60 overflow-y-auto">
+                        {academicCourses.map(course => {
+                          const count = groupedStudents.filter(s => s.user?.course === course).length;
+                          return (
+                            <button 
+                              key={course}
+                              onClick={() => {
+                                setSelectedAcademicCourse(course);
+                                setDownloadStep(2);
+                              }}
+                              className="w-full text-left px-3 py-2 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors flex items-center justify-between truncate"
+                            >
+                              {course}
+                              <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{count}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2 mb-2 px-2 pt-1">
+                        <button 
+                          onClick={() => setDownloadStep(1)} 
+                          className="text-gray-400 hover:text-gray-700 transition-colors"
+                        >
+                          <ChevronUp size={14} className="-rotate-90" />
+                        </button>
+                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">Select Platform</div>
+                      </div>
+                      <button 
+                        onClick={() => handleDownloadCSV(null)}
+                        className="w-full text-left px-3 py-2 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors flex items-center justify-between"
+                      >
+                        All Platforms
+                      </button>
+                      <div className="my-1 border-t border-gray-100"></div>
+                      <div className="max-h-60 overflow-y-auto">
+                        {PLATFORMS.map(platform => (
+                          <button 
+                            key={platform}
+                            onClick={() => handleDownloadCSV(platform)}
+                            className="w-full text-left px-3 py-2 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors truncate"
+                          >
+                            {platform === 'NEXUS' ? 'Nexus Playground' : platform === 'LEETCODE' ? 'LeetCode' : 'HackerRank'}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -200,9 +351,14 @@ export const TeacherCodingProgress = () => {
           <div className="w-1/6 text-right">Details</div>
         </div>
 
-        {/* Student Grouped Rows */}
-        <div className="flex flex-col">
-          {groupedStudents.map((student) => {
+        {/* Filtered Rows */}
+        <div className="divide-y divide-gray-50">
+          {groupedStudents
+            .filter(student => 
+              (student.user?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+              (student.user?.studentId || '').toLowerCase().includes(searchQuery.toLowerCase())
+            )
+            .map((student) => {
             const sId = student.user?.studentId || 'unknown';
             const isExpanded = expandedRows[sId];
 

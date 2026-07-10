@@ -146,29 +146,53 @@ export function CompilerPage() {
       fetchQuestion();
     }
   }, [questionId]);
+  const moduleId = searchParams.get('moduleId');
   
-  // 🚀 NUEVO: Fetch ALL practice sheets!
+  // 🚀 Fetch practice sheets or the specific module!
   useEffect(() => {
     const fetchSheets = async () => {
       try {
-        const res = await api.get('/practice');
-        if (res.data.success) {
-          const sheets = res.data.sheets || res.data.data || [];
-          setPracticeSheets(sheets);
-          
-          if (res.data.questionStatuses) {
-              setQuestionStatuses(res.data.questionStatuses);
+        if (moduleId) {
+          const res = await api.get(`/hub/modules/${moduleId}`);
+          if (res.data.success && res.data.module) {
+            const mod = res.data.module;
+            // Format module to look like a practice sheet for the sidebar
+            const formattedSheet = {
+              id: mod.id,
+              title: mod.title,
+              questions: mod.questions.map((q, idx) => ({
+                questionId: q.id,
+                order: idx,
+                question: q
+              }))
+            };
+            setPracticeSheets([formattedSheet]);
+            
+            // Map the isSolved flag into questionStatuses format
+            const mappedStatuses = mod.questions.map(q => ({
+              questionId: q.id,
+              status: q.isSolved ? 'Accepted' : 'Not Started',
+              draft: null
+            }));
+            setQuestionStatuses(mappedStatuses);
           }
+        } else {
+          const res = await api.get('/practice');
+          if (res.data.success) {
+            const sheets = res.data.sheets || res.data.data || [];
+            setPracticeSheets(sheets);
+            if (res.data.questionStatuses) setQuestionStatuses(res.data.questionStatuses);
 
-          // If no question is selected, default to the first question of the first sheet
-          if (!questionId && sheets.length > 0 && sheets[0].questions?.length > 0) {
-            setSearchParams(prev => { prev.set('questionId', sheets[0].questions[0].questionId); return prev; });
+            // If no question is selected, default to the first question of the first sheet
+            if (!questionId && sheets.length > 0 && sheets[0].questions?.length > 0) {
+              setSearchParams(prev => { prev.set('questionId', sheets[0].questions[0].questionId); return prev; });
+            }
           }
         }
-      } catch (err) { console.error("Failed to fetch practice sheets:", err); }
+      } catch (err) { console.error("Failed to fetch:", err); }
     };
     fetchSheets();
-  }, []);
+  }, [moduleId]);
 
   // Compute the active sheet based on the current question
   const activeSheet = practiceSheets.find(s => s.questions?.some(q => q.questionId === questionId)) || practiceSheets[0];
@@ -188,20 +212,35 @@ export function CompilerPage() {
     return () => clearTimeout(saveDraft);
   }, [code, lang, questionId, activeSheet]);
 
-  useEffect(() => {
-    if (questionId) {
-      const qs = questionStatuses.find(q => q.questionId === questionId);
-      if (qs && qs.draft && qs.draft.language === lang) {
-        setCode(qs.draft.code);
-      }
-    }
-  }, [questionId, questionStatuses, lang]);
+  const activeKeyRef = useRef(null);
+  const lastLoadedDraftRef = useRef(null);
 
   useEffect(() => {
-    const template = backendTemplates[lang] || TEMPLATES[lang] || '// Start coding here';
-    setCode(template);
-    setRunResult(null); setJudgeResult(null);
-  }, [lang, backendTemplates]);
+    const key = `${questionId}_${lang}`;
+    const qs = questionStatuses.find(q => q.questionId === questionId);
+    const draftCode = (qs && qs.draft && qs.draft.language === lang) ? qs.draft.code : null;
+    
+    // Did we just switch question or language?
+    if (activeKeyRef.current !== key) {
+      setRunResult(null);
+      setJudgeResult(null);
+      activeKeyRef.current = key;
+      lastLoadedDraftRef.current = null; // reset draft tracker for new context
+      
+      if (draftCode) {
+        setCode(draftCode);
+        lastLoadedDraftRef.current = `${key}_has_draft`;
+      } else {
+        const template = backendTemplates[lang] || TEMPLATES[lang] || '// Start coding here';
+        setCode(template);
+      }
+    } 
+    // We are in the same context, but a draft just arrived from a delayed API fetch
+    else if (draftCode && lastLoadedDraftRef.current !== `${key}_has_draft`) {
+      setCode(draftCode);
+      lastLoadedDraftRef.current = `${key}_has_draft`;
+    }
+  }, [questionId, lang, questionStatuses, backendTemplates]);
 
   const handleRun = async () => {
     setRunning(true); setRunResult(null); setTab('output');
@@ -236,7 +275,13 @@ export function CompilerPage() {
         });
       }
     } catch (e) {
-      setJudgeResult({ verdict: 'runtime_error', passed: 0, total: 0, results: [] });
+      setJudgeResult({ 
+        verdict: 'error', 
+        passed: 0, 
+        total: 0, 
+        results: [],
+        message: e.response?.data?.message || e.message || 'Judge failed' 
+      });
     } finally { setJudging(false); }
   };
 
@@ -261,7 +306,17 @@ export function CompilerPage() {
       <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-6 py-3 bg-gray-900 border-b border-gray-800 flex-shrink-0">
         <div className="flex items-center gap-4">
             <button onClick={() => {
-                if (user?.role === 'student') navigate('/student-dashboard/coding-progress');
+                const moduleId = searchParams.get('moduleId');
+                if (user?.role === 'student') {
+                    if (moduleId) {
+                        // We need the courseId to go back to the module correctly.
+                        // Wait, do we have courseId? No. Let's just use navigate(-1) as a fallback if courseId isn't known, or go to student-dashboard/courses?
+                        // Actually, the route is /student-dashboard/courses/module/:moduleId
+                        navigate(`/student-dashboard/courses/module/${moduleId}`);
+                    } else {
+                        navigate('/student-dashboard/coding-progress');
+                    }
+                }
                 else navigate('/teacher-dashboard/practice-manager');
             }}
             className="bg-gray-800 border border-gray-700 hover:bg-gray-700 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors">
@@ -288,47 +343,44 @@ export function CompilerPage() {
       <div className="flex-1 flex overflow-hidden">
 
         {/* 1. Left Sidebar: Navigator (Shows ALL Sheets!) */}
-        <div className="w-full md:w-64 flex-shrink-0 bg-gray-900/50 border-r border-gray-800 flex flex-col overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-700 [&::-webkit-scrollbar-thumb]:rounded-full pb-8">
-            {practiceSheets.map((sheet, sheetIdx) => (
-                <div key={sheet.id || sheetIdx} className="mb-6">
-                    {/* Sticky Sheet Header */}
-                    <div className="px-4 py-3 sticky top-0 bg-gray-900/95 backdrop-blur z-10 border-b border-gray-800 shadow-sm mb-3">
-                        <h3 className="text-[11px] font-black text-gray-300 uppercase tracking-widest truncate" title={sheet.title}>{sheet.title}</h3>
-                        <div className="flex justify-between items-center mt-2">
-                            <span className="text-[9px] font-bold text-gray-500 uppercase">{sheet.questions?.length || 0} Questions</span>
-                        </div>
-                    </div>
-                    
-                    {/* Grid of Questions for this Sheet */}
-                    <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-4 gap-2 px-4">
-                        {sheet.questions?.map((q, idx) => {
-                            const qs = questionStatuses.find(status => status.questionId === q.questionId);
-                            const isSolved = qs?.status === 'Accepted';
-                            const isAttempted = qs && qs.status !== 'Not Started' && !isSolved;
-                            const isActive = questionId === q.questionId;
-
-                            return (
-                                <button key={q.questionId} 
-                                    onClick={() => setSearchParams(prev => { prev.set('questionId', q.questionId); return prev; })}
-                                    className={`w-full aspect-square flex items-center justify-center rounded-lg text-xs font-bold border transition-all ${
-                                        isActive ? 'bg-blue-600 border-blue-500 text-white shadow-[0_0_10px_rgba(37,99,235,0.4)]' :
-                                        isSolved ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' :
-                                        isAttempted ? 'bg-amber-500/20 border-amber-500/50 text-amber-400' :
-                                        'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500 hover:bg-gray-700'
-                                    }`}>
-                                    {idx + 1}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-            ))}
-            {practiceSheets.length === 0 && (
-                <div className="p-4 text-center text-gray-500 text-xs font-bold uppercase mt-10">
-                    No Practice Sheets Available
-                </div>
-            )}
-        </div>
+        {practiceSheets.length > 0 && (
+          <div className="w-full md:w-64 flex-shrink-0 bg-gray-900/50 border-r border-gray-800 flex flex-col overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-700 [&::-webkit-scrollbar-thumb]:rounded-full pb-8">
+              {practiceSheets.map((sheet, sheetIdx) => (
+                  <div key={sheet.id || sheetIdx} className="mb-6">
+                      {/* Sticky Sheet Header */}
+                      <div className="px-4 py-3 sticky top-0 bg-gray-900/95 backdrop-blur z-10 border-b border-gray-800 shadow-sm mb-3">
+                          <h3 className="text-[11px] font-black text-gray-300 uppercase tracking-widest truncate" title={sheet.title}>{sheet.title}</h3>
+                          <div className="flex justify-between items-center mt-2">
+                              <span className="text-[9px] font-bold text-gray-500 uppercase">{sheet.questions?.length || 0} Questions</span>
+                          </div>
+                      </div>
+                      
+                      {/* Grid of Questions for this Sheet */}
+                      <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-4 gap-2 px-4">
+                          {sheet.questions?.map((q, idx) => {
+                              const qs = questionStatuses.find(status => status.questionId === q.questionId);
+                              const isSolved = qs?.status === 'Accepted';
+                              const isAttempted = qs && qs.status !== 'Not Started' && !isSolved;
+                              const isActive = questionId === q.questionId;
+  
+                              return (
+                                  <button key={q.questionId} 
+                                      onClick={() => setSearchParams(prev => { prev.set('questionId', q.questionId); return prev; })}
+                                      className={`w-full aspect-square flex items-center justify-center rounded-lg text-xs font-bold border transition-all ${
+                                          isActive ? 'bg-blue-600 border-blue-500 text-white shadow-[0_0_10px_rgba(37,99,235,0.4)]' :
+                                          isSolved ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' :
+                                          isAttempted ? 'bg-amber-500/20 border-amber-500/50 text-amber-400' :
+                                          'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500 hover:bg-gray-700'
+                                      }`}>
+                                      {idx + 1}
+                                  </button>
+                              );
+                          })}
+                      </div>
+                  </div>
+              ))}
+          </div>
+        )}
 
         {/* 2. Middle Column: Description */}
         <div className="w-2/5 border-r border-gray-800 overflow-y-auto p-6 bg-gray-900/30 flex flex-col [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-700 [&::-webkit-scrollbar-thumb]:rounded-full">
@@ -341,7 +393,13 @@ export function CompilerPage() {
                           Q{(activeSheet?.questions?.findIndex(q => q.questionId === questionId) ?? 0) + 1}
                         </span>
                         <span className="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-3 py-1 rounded-lg">{question.points || 10} pts</span>
-                        <span className="bg-orange-500/20 text-orange-400 text-xs font-bold px-3 py-1 rounded-lg">{question.difficulty || 'Medium'}</span>
+                        <span className={`text-xs font-bold px-3 py-1 rounded-lg ${
+                          question.difficulty?.toLowerCase() === 'easy' ? 'bg-emerald-500/20 text-emerald-400' :
+                          question.difficulty?.toLowerCase() === 'medium' ? 'bg-amber-500/20 text-amber-400' :
+                          'bg-red-500/20 text-red-400'
+                        }`}>
+                          {question.difficulty ? question.difficulty.charAt(0).toUpperCase() + question.difficulty.slice(1).toLowerCase() : 'Medium'}
+                        </span>
                     </div>
                     
                     <h2 className="text-xl font-bold mb-3 text-white">{question.title}</h2>
@@ -488,19 +546,22 @@ export function CompilerPage() {
                         ) : judgeResult ? (
                             <div className="animate-in slide-in-from-bottom-2 duration-300">
                                 <div className={`text-sm font-bold mb-3 pb-2 border-b ${judgeResult.verdict === 'accepted' ? 'text-emerald-400 border-emerald-500/20' : 'text-red-400 border-red-500/20'}`}>
-                                    {judgeResult.verdict === 'accepted' ? '✅ All Test Cases Passed Successfully' : `❌ Passed ${judgeResult.passed} out of ${judgeResult.total} Test Cases`}
+                                    {judgeResult.verdict === 'error' ? '❌ ' + (judgeResult.message || 'Judge Failed') :
+                                     judgeResult.verdict === 'accepted' ? '✅ All Test Cases Passed Successfully' : `❌ Passed ${judgeResult.passed} out of ${judgeResult.total} Test Cases`}
                                 </div>
                                 
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                                    {judgeResult.results?.map((r, i) => (
-                                    <div key={i} className={`p-3 border rounded-xl flex-1 ${r.passed ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
-                                        <div className={`text-xs font-black tracking-wider uppercase flex items-center justify-between ${r.passed ? 'text-emerald-400' : 'text-red-400'}`}>
-                                            <span>{r.hidden ? `Secret TC ${i + 1}` : `Public TC ${i + 1}`}</span>
-                                            <span>{r.passed ? '✓' : '✗'}</span>
-                                        </div>
-                                    </div>
-                                    ))}
-                                </div>
+                                {judgeResult.results?.length > 0 && (
+                                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                      {judgeResult.results.map((r, i) => (
+                                      <div key={i} className={`p-3 border rounded-xl flex-1 ${r.passed ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+                                          <div className={`text-xs font-black tracking-wider uppercase flex items-center justify-between ${r.passed ? 'text-emerald-400' : 'text-red-400'}`}>
+                                              <span>{r.hidden ? `Secret TC ${i + 1}` : `Public TC ${i + 1}`}</span>
+                                              <span>{r.passed ? '✓' : '✗'}</span>
+                                          </div>
+                                      </div>
+                                      ))}
+                                  </div>
+                                )}
                             </div>
                         ) : (
                             <p className="text-gray-600 text-xs font-bold uppercase tracking-widest text-center mt-10">

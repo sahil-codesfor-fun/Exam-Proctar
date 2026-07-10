@@ -14,12 +14,15 @@ import practiceRoutes from './routes/practice.routes.js';
 import internalProgressRoutes from './routes/internalProgress.routes.js';
 import integrationRoutes from './routes/integration.routes.js';
 import ticketRoutes from './routes/ticket.routes.js';
+import hubCourseRoutes from './routes/hubCourseRoutes.js';
 import { sendTestEmail } from './services/emailService.js';
+import { initDelayedSyncEngine } from './services/delayedSyncEngine.js';
 const app = express();
 
 // 🚨 THE REAL VIP LIST 🚨
 const allowedOrigins = [
   'http://localhost:5173',
+  'http://localhost:5174',
   'https://exam-proctar.vercel.app' // NO trailing slash!
 ];
 
@@ -53,6 +56,10 @@ app.use('/api/practice',    practiceRoutes);
 app.use('/api/progress',    internalProgressRoutes);
 app.use('/api/integrations', integrationRoutes);
 app.use('/api/tickets',     ticketRoutes);
+app.use('/api/hub-courses', hubCourseRoutes);
+
+// ── Initialize Background Services ─────────────────────────────
+initDelayedSyncEngine();
 
 // ── Health check ──────────────────────────────────────────────
 app.get('/api/test', (_req, res) => {

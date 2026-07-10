@@ -9,10 +9,14 @@ const StudentDashboard = lazy(() => import('./pages/StudentDashboard').then(modu
 const StudentOverview = lazy(() => import('./pages/student/StudentOverview'));
 const StudentProfile = lazy(() => import('./pages/student/StudentProfile'));
 const CodingProgress = lazy(() => import('./pages/student/CodingProgress').then(module => ({ default: module.CodingProgress })));
+const StudentCourses = lazy(() => import('./pages/student/StudentCourses'));
+const StudentCourseDetails = lazy(() => import('./pages/student/StudentCourseDetails'));
+const StudentModule = lazy(() => import('./pages/student/StudentModule'));
 const TeacherDashboard = lazy(() => import('./pages/TeacherDashboard').then(module => ({ default: module.TeacherDashboard })));
 const TeacherOverview = lazy(() => import('./pages/teacher/TeacherOverview'));
 const TeacherProfile = lazy(() => import('./pages/teacher/TeacherProfile'));
 const TeacherCodingProgress = lazy(() => import('./pages/teacher/TeacherCodingProgress').then(module => ({ default: module.TeacherCodingProgress })));
+const TeacherCourseProgress = lazy(() => import('./pages/teacher/TeacherCourseProgress').then(module => ({ default: module.TeacherCourseProgress })));
 const PracticeManager = lazy(() => import('./pages/teacher/PracticeManager'));
 const ExamDetail = lazy(() => import('./pages/teacher/ExamDetail'));
 const CompilerPage = lazy(() => import('./pages/CompilerPage').then(module => ({ default: module.CompilerPage })));
@@ -30,6 +34,7 @@ const SuperAdminLogin = lazy(() => import('./pages/superadmin/Login'));
 const AdminSubjects = lazy(() => import('./pages/admin/Subjects'));
 const AdminExams = lazy(() => import('./pages/admin/Exams'));
 const AdminTickets = lazy(() => import('./pages/admin/AdminTickets'));
+const CoursesHub = lazy(() => import('./pages/admin/CoursesHub'));
 
 // ── Protected Route wrapper ──────────────────────────────────────
 // Supports a `redirectTo` prop so superadmin routes redirect to their
@@ -118,6 +123,9 @@ function App() {
                 <Route path="overview" element={<StudentOverview />} />
                 <Route path="profile" element={<StudentProfile />} />
                 <Route path="coding-progress" element={<CodingProgress />} />
+                <Route path="courses" element={<StudentCourses />} />
+                <Route path="courses/:courseId" element={<StudentCourseDetails />} />
+                <Route path="courses/module/:moduleId" element={<StudentModule />} />
               </Route>
 
               {/* ── Teacher Dashboard ─────────────────────────────── */}
@@ -128,6 +136,7 @@ function App() {
                 <Route path="overview" element={<TeacherOverview />} />
                 <Route path="profile" element={<TeacherProfile />} />
                 <Route path="coding-progress" element={<TeacherCodingProgress />} />
+                <Route path="course-progress" element={<TeacherCourseProgress />} />
                 <Route path="practice-manager/*" element={<PracticeManager />} />
                 <Route path="exams/:examId" element={<ExamDetail />} />
                 <Route path="exams/:examId/submissions/:submissionId" element={<ExamDetail />} />
@@ -146,6 +155,7 @@ function App() {
                 <Route path="subjects" element={<AdminSubjects />} />
                 <Route path="exams" element={<AdminExams />} />
                 <Route path="tickets" element={<AdminTickets />} />
+                <Route path="courses-hub" element={<CoursesHub />} />
                 <Route path="reports" element={<ComingSoon title="Reports" />} />
                 <Route path="activity-logs" element={<ComingSoon title="Activity Logs" />} />
                 <Route path="profile" element={<ComingSoon title="Profile" />} />
