@@ -124,6 +124,7 @@ export const CodingProgress = () => {
   const { user } = useAuth();
   const [integrations, setIntegrations] = useState([]);
   const [practiceSheets, setPracticeSheets] = useState([]);
+  const [courses, setCourses] = useState([]);
   const [internalStats, setInternalStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -142,15 +143,17 @@ export const CodingProgress = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [resInt, resSheets, resExt] = await Promise.all([
+      const [resInt, resSheets, resExt, resCourses] = await Promise.all([
         api.get('/progress/dashboard').catch(() => null),
         api.get('/practice').catch(() => null),
-        api.get('/integrations').catch(() => null) 
+        api.get('/integrations').catch(() => null),
+        api.get('/hub-courses').catch(() => null)
       ]);
 
       if (resInt?.data?.success) setInternalStats(resInt.data.data);
       if (resSheets?.data?.success) setPracticeSheets(resSheets.data.sheets.filter(s => s.status === 'published'));
       if (resExt?.data?.success) setIntegrations(resExt.data.data);
+      if (resCourses?.data?.success) setCourses(resCourses.data.courses);
     } catch (err) {
       console.error(err);
     } finally {
@@ -221,11 +224,14 @@ export const CodingProgress = () => {
   });
 
   // 🚀 FALLBACK CALCULATION
-  const calculatedUploaded = practiceSheets.reduce((acc, sheet) => {
+  const sheetQuestionsCount = practiceSheets.reduce((acc, sheet) => {
     return acc + (sheet.questions?.length || sheet.problems?.length || sheet.totalQuestions || 0);
   }, 0);
+  
+  const calculatedUploaded = sheetQuestionsCount;
 
-  const nexusSolved = internalStats?.progress?.totalSolved || 0;
+  // Use the newly added backend metric specifically for Practice Sheets
+  const nexusSolved = internalStats?.practiceSolvedCount || 0;
   const nexusUploaded = internalStats?.progress?.totalUploaded || calculatedUploaded || Math.max(nexusSolved, 1); 
   const nexusProgressPercent = nexusUploaded > 0 ? Math.round((nexusSolved / nexusUploaded) * 100) : 0;
 

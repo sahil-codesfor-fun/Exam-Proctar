@@ -45,6 +45,18 @@ export const getUnifiedDashboard = async (req, res) => {
       }
     });
 
+    // 🚀 NEW: Calculate ONLY Practice Sheet questions solved for the Code Playground progress bar
+    const practiceSubmissions = await prisma.practiceSubmission.findMany({
+      where: {
+        studentId: studentId,
+        verdict: { in: ['accepted', 'Accepted'] },
+        practiceSheetId: { not: null }
+      },
+      select: { questionId: true },
+      distinct: ['questionId']
+    });
+    const practiceSolvedCount = practiceSubmissions.length;
+
     res.status(200).json({
       success: true,
       data: {
@@ -52,7 +64,8 @@ export const getUnifiedDashboard = async (req, res) => {
         stats,
         topicProgress,
         badges,
-        activityMap // 👈 BOOM! Now the frontend heatmap gets its fuel!
+        activityMap, // 👈 BOOM! Now the frontend heatmap gets its fuel!
+        practiceSolvedCount
       }
     });
   } catch (error) {
