@@ -79,29 +79,24 @@ export const uploadCourseCsv = async (req, res) => {
           });
           createdModules.push(newModule);
 
-          for (const article of chunk) {
-            // Normalize keys by stripping BOM, trimming, and lowercasing for robust matching
+          const articlesData = chunk.map(article => {
             const normalizedArticle = {};
             for (const key in article) {
               const cleanKey = key.replace(/^\uFEFF/, '').trim().toLowerCase();
               normalizedArticle[cleanKey] = article[key];
             }
-
-            console.log("----- ARTICLE CSV ROW DUMP -----");
-            console.log("Original keys:", Object.keys(article));
-            console.log("Normalized keys:", Object.keys(normalizedArticle));
             const topicName = normalizedArticle['topic name'] || normalizedArticle['title'] || normalizedArticle['topic_name'] || normalizedArticle['topicname'] || normalizedArticle['article title'] || 'Untitled Topic';
             const readingMaterial = normalizedArticle['reading material'] || normalizedArticle['content'] || normalizedArticle['article_data'] || normalizedArticle['article_data_clean'] || normalizedArticle['articlecontent'] || normalizedArticle['article'] || '';
             
-            await tx.hubArticle.create({
-              data: {
-                moduleId: newModule.id,
-                topicName,
-                articleContent: readingMaterial
-              }
-            });
-            articlesCreated++;
-          }
+            return {
+              moduleId: newModule.id,
+              topicName,
+              articleContent: readingMaterial
+            };
+          });
+
+          await tx.hubArticle.createMany({ data: articlesData });
+          articlesCreated += articlesData.length;
         }
 
         // 3. Process Questions and distribute them evenly across modules
@@ -116,79 +111,82 @@ export const uploadCourseCsv = async (req, res) => {
           const questionsForThisModule = questionsRaw.slice(questionIndex, questionIndex + questionsPerModule);
           questionIndex += questionsPerModule;
 
-          for (const data of questionsForThisModule) {
-            const normalizedData = {};
-            for (const key in data) {
-              const cleanKey = key.replace(/^\uFEFF/, '').trim().toLowerCase();
-              normalizedData[cleanKey] = data[key];
-            }
-
-            const problem_name = normalizedData['problem_name'] || normalizedData['title'] || normalizedData['problem name'];
-            const complexity = normalizedData['complexity'] || normalizedData['difficulty'];
-            const problem_data_problem_desc = normalizedData['problem_data_problem_desc'] || normalizedData['description'];
-            const problem_data_constraints = normalizedData['problem_data_constraints'] || normalizedData['constraints'];
-            const problem_link = normalizedData['problem_link'] || normalizedData['sourceurl'] || normalizedData['url'];
-            const tags = normalizedData['tags'] || normalizedData['topics'];
-            const companies = normalizedData['companies'] || normalizedData['companytags'];
-            const category = normalizedData['category'] || 'Practice';
+          for (let i = 0; i < questionsForThisModule.length; i += 10) {
+            const batch = questionsForThisModule.slice(i, i + 10);
             
-            let companyTags = [];
-            if (companies) companyTags = companies.split(',').map(tag => tag.trim());
-
-            // Extract testcases
-            const testCases = [];
-            
-            // 1. Explicit Judge Testcases
-            const tcInput1 = normalizedData['testcase_input'];
-            const tcOutput1 = normalizedData['testcase_output'];
-            if (tcInput1 || tcOutput1) {
-              testCases.push({ input: tcInput1 || '', expectedOutput: tcOutput1 || '', isHidden: false, points: 5 });
-            }
-
-            const tcInputHidden = normalizedData['hidden_testcase_input'];
-            const tcOutputHidden = normalizedData['hidden_testcase_output'];
-            if (tcInputHidden || tcOutputHidden) {
-              testCases.push({ input: tcInputHidden || '', expectedOutput: tcOutputHidden || '', isHidden: true, points: 5 });
-            }
-
-            // 2. Visible Examples (problem_data_input, problem_data_input2, etc.)
-            const exampleSuffixes = ['', '2', '3', '4'];
-            exampleSuffixes.forEach(suffix => {
-              const exInput = normalizedData[`problem_data_input${suffix}`];
-              const exOutput = normalizedData[`problem_data_output${suffix}`];
-              // Avoid duplicating the explicit testcase_input if it's the exact same string
-              if ((exInput || exOutput) && exInput !== tcInput1) {
-                testCases.push({ 
-                  input: exInput || '', 
-                  expectedOutput: exOutput || '', 
-                  isHidden: false, 
-                  points: 0 // Examples don't usually carry points in the backend
-                });
+            await Promise.all(batch.map(async (data) => {
+              const normalizedData = {};
+              for (const key in data) {
+                const cleanKey = key.replace(/^\uFEFF/, '').trim().toLowerCase();
+                normalizedData[cleanKey] = data[key];
               }
-            });
-            
-            const formattedDesc = (problem_data_problem_desc || '').replace(/\\n/g, '\n');
 
-            await tx.question.create({
-              data: {
-                type: 'Programming',
-                title: problem_name || 'Untitled Problem',
-                description: formattedDesc,
-                difficulty: complexity || 'medium',
-                constraints: problem_data_constraints || '',
-                points: 10,
-                sourceUrl: problem_link || null,
-                companyTags,
-                topics: tags || null,
-                category: category.trim().charAt(0).toUpperCase() + category.trim().slice(1).toLowerCase(),
-                solvedSource: 'NEXUS',
-                hubModuleId: mod.id,
-                testCases: {
-                  create: testCases
+              const problem_name = normalizedData['problem_name'] || normalizedData['title'] || normalizedData['problem name'];
+              const complexity = normalizedData['complexity'] || normalizedData['difficulty'];
+              const problem_data_problem_desc = normalizedData['problem_data_problem_desc'] || normalizedData['description'];
+              const problem_data_constraints = normalizedData['problem_data_constraints'] || normalizedData['constraints'];
+              const problem_link = normalizedData['problem_link'] || normalizedData['sourceurl'] || normalizedData['url'];
+              const tags = normalizedData['tags'] || normalizedData['topics'];
+              const companies = normalizedData['companies'] || normalizedData['companytags'];
+              const category = normalizedData['category'] || 'Practice';
+              
+              let companyTags = [];
+              if (companies) companyTags = companies.split(',').map(tag => tag.trim());
+
+              // Extract testcases
+              const testCases = [];
+              
+              // 1. Explicit Judge Testcases
+              const tcInput1 = normalizedData['testcase_input'];
+              const tcOutput1 = normalizedData['testcase_output'];
+              if (tcInput1 || tcOutput1) {
+                testCases.push({ input: tcInput1 || '', expectedOutput: tcOutput1 || '', isHidden: false, points: 5 });
+              }
+
+              const tcInputHidden = normalizedData['hidden_testcase_input'];
+              const tcOutputHidden = normalizedData['hidden_testcase_output'];
+              if (tcInputHidden || tcOutputHidden) {
+                testCases.push({ input: tcInputHidden || '', expectedOutput: tcOutputHidden || '', isHidden: true, points: 5 });
+              }
+
+              // 2. Visible Examples
+              const exampleSuffixes = ['', '2', '3', '4'];
+              exampleSuffixes.forEach(suffix => {
+                const exInput = normalizedData[`problem_data_input${suffix}`];
+                const exOutput = normalizedData[`problem_data_output${suffix}`];
+                if ((exInput || exOutput) && exInput !== tcInput1) {
+                  testCases.push({ 
+                    input: exInput || '', 
+                    expectedOutput: exOutput || '', 
+                    isHidden: false, 
+                    points: 0
+                  });
                 }
-              }
-            });
-            questionsCreated++;
+              });
+              
+              const formattedDesc = (problem_data_problem_desc || '').replace(/\\n/g, '\n');
+
+              await tx.question.create({
+                data: {
+                  type: 'Programming',
+                  title: problem_name || 'Untitled Problem',
+                  description: formattedDesc,
+                  difficulty: complexity || 'medium',
+                  constraints: problem_data_constraints || '',
+                  points: 10,
+                  sourceUrl: problem_link || null,
+                  companyTags,
+                  topics: tags || null,
+                  category: category.trim().charAt(0).toUpperCase() + category.trim().slice(1).toLowerCase(),
+                  solvedSource: 'NEXUS',
+                  hubModuleId: mod.id,
+                  testCases: {
+                    create: testCases
+                  }
+                }
+              });
+            }));
+            questionsCreated += batch.length;
           }
         }
 
