@@ -11,6 +11,7 @@ const DepartmentHeads = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', employeeId: '', departmentId: '' });
   
   const [passwordMode, setPasswordMode] = useState('auto');
@@ -63,6 +64,7 @@ const DepartmentHeads = () => {
       }
     }
 
+    setIsSubmitting(true);
     try {
       const res = await api.post('/superadmin/users', {
         ...formData,
@@ -83,6 +85,8 @@ const DepartmentHeads = () => {
       fetchData();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to provision department head');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -116,7 +120,7 @@ const DepartmentHeads = () => {
     }
   };
 
-  const isSubmitDisabled = !formData.departmentId || 
+  const isSubmitDisabled = isSubmitting || !formData.departmentId || 
     (passwordMode === 'manual' && (strengthScore < 5 || manualPassword !== confirmPassword || !confirmPassword));
 
   return (
@@ -356,7 +360,13 @@ const DepartmentHeads = () => {
               
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
                 <button type="button" onClick={closeModals} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
-                <button type="submit" disabled={isSubmitDisabled} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50">Generate Account</button>
+                <button type="submit" disabled={isSubmitDisabled} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 flex items-center gap-2">
+                  {isSubmitting ? (
+                    <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Generating...</>
+                  ) : (
+                    'Generate Account'
+                  )}
+                </button>
               </div>
             </form>
           </div>

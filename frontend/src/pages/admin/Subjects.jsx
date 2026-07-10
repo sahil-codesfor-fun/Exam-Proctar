@@ -7,6 +7,7 @@ const AdminSubjects = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showArchived, setShowArchived] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -36,6 +37,7 @@ const AdminSubjects = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
       if (editingId) {
         await api.put(`/admin/subjects/${editingId}`, formData);
@@ -48,6 +50,8 @@ const AdminSubjects = () => {
       fetchSubjects();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to save subject');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -271,9 +275,14 @@ const AdminSubjects = () => {
                 </button>
                 <button 
                   type="submit" 
-                  className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded font-medium"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded font-medium disabled:opacity-50 flex items-center gap-2"
                 >
-                  Save Subject
+                  {isSubmitting ? (
+                    <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Saving...</>
+                  ) : (
+                    'Save Subject'
+                  )}
                 </button>
               </div>
             </form>

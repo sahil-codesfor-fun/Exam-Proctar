@@ -113,14 +113,11 @@ const PracticeManagerList = () => {
                 </div>
               </div>
               <div className="p-4 bg-gray-50 flex justify-between items-center">
-                <div className="flex -space-x-2">
-                   {/* Placeholder for assigned students count */}
-                   <div className="w-7 h-7 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-[9px] font-black text-blue-700">
-                     {sheet.assignments?.length || 0}
-                   </div>
-                   <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4 self-center">Assigned</div>
+                <div className="flex items-center gap-2">
+                   <Users size={14} className="text-blue-500" />
+                   <span className="text-xs font-bold text-gray-600">{sheet.assignments?.length || 0} <span className="text-gray-400 font-medium">Assigned</span></span>
                 </div>
-                <button onClick={() => navigate(`manage/${sheet.id}`)} className="text-xs font-bold text-emerald-600 uppercase tracking-widest flex items-center gap-1 group-hover:text-emerald-700">
+                <button onClick={() => setEditorModal({ isOpen: true, id: sheet.id })} className="text-xs font-bold text-emerald-600 uppercase tracking-widest flex items-center gap-1 group-hover:text-emerald-700">
                   Manage <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                 </button>
               </div>

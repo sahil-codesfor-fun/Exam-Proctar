@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, Upload, Plus, Code, Trash2 } from 'lucide-react';
+import { ArrowLeft, Save, Upload, Plus, Code, Trash2, ChevronDown } from 'lucide-react';
 import api from '../../services/api';
 
 const PracticeSheetEditor = ({ sheetId, onClose, onSave }) => {
@@ -26,6 +26,7 @@ const PracticeSheetEditor = ({ sheetId, onClose, onSave }) => {
   
   // Validation state
   const [uploadErrors, setUploadErrors] = useState([]);
+  const [expandedQ, setExpandedQ] = useState(null);
 
   useEffect(() => {
     if (sheetId) {
@@ -242,11 +243,19 @@ const PracticeSheetEditor = ({ sheetId, onClose, onSave }) => {
               👀 Preview
             </button>
           )}
-          <button onClick={() => handleSaveBtn('draft')} disabled={saving} className="px-5 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold text-xs uppercase tracking-widest rounded-xl border transition-all">
-            Save Draft
+          <button onClick={() => handleSaveBtn('draft')} disabled={saving} className="px-5 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold text-xs uppercase tracking-widest rounded-xl border transition-all disabled:opacity-50 flex items-center gap-2">
+            {saving ? (
+              <><div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div> Saving...</>
+            ) : (
+              'Save Draft'
+            )}
           </button>
-          <button onClick={() => handleSaveBtn('published')} disabled={saving} className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-emerald-500/30 transition-all flex items-center gap-2">
-            <Save size={16} /> Publish
+          <button onClick={() => handleSaveBtn('published')} disabled={saving} className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-emerald-500/30 transition-all flex items-center gap-2 disabled:opacity-50">
+            {saving ? (
+              <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Publishing...</>
+            ) : (
+              <><Save size={16} /> Publish</>
+            )}
           </button>
         </div>
       </div>
@@ -351,18 +360,66 @@ const PracticeSheetEditor = ({ sheetId, onClose, onSave }) => {
                 </div>
               ) : (
                 questions.map((q, idx) => (
-                  <div key={q.id} className="flex items-center gap-4 bg-white p-4 rounded-xl border hover:shadow-md transition-all group">
-                    <div className="font-black text-gray-300 text-lg w-6">{idx + 1}</div>
-                    <div className="flex-1">
-                      <h4 className="font-bold text-gray-900">{q.title}</h4>
-                      <div className="flex gap-2 mt-1">
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-wider ${q.difficulty === 'easy' ? 'bg-green-100 text-green-700' : q.difficulty === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>{q.difficulty}</span>
-                        <span className="text-[9px] px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded font-black uppercase tracking-wider">{q.topic}</span>
+                  <div key={q.id} className="bg-white rounded-xl border hover:shadow-md transition-all group">
+                    <div 
+                      className="flex items-center gap-4 p-4 cursor-pointer select-none"
+                      onClick={() => setExpandedQ(expandedQ === q.id ? null : q.id)}
+                    >
+                      <div className="font-black text-gray-300 text-lg w-6">{idx + 1}</div>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-gray-900">{q.title}</h4>
+                        <div className="flex gap-2 mt-1">
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-wider ${q.difficulty === 'easy' ? 'bg-green-100 text-green-700' : q.difficulty === 'medium' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>{q.difficulty}</span>
+                          <span className="text-[9px] px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded font-black uppercase tracking-wider">{q.topic}</span>
+                          {q.points && <span className="text-[9px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded font-black uppercase tracking-wider">{q.points} pts</span>}
+                          {q.testCases?.length > 0 && <span className="text-[9px] px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded font-black uppercase tracking-wider">{q.testCases.length} test cases</span>}
+                        </div>
                       </div>
+                      <ChevronDown size={18} className={`text-gray-400 transition-transform duration-200 ${expandedQ === q.id ? 'rotate-180' : ''}`} />
+                      <button onClick={(e) => { e.stopPropagation(); removeQuestion(q.id); }} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100">
+                        <Trash2 size={16} />
+                      </button>
                     </div>
-                    <button onClick={() => removeQuestion(q.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100">
-                      <Trash2 size={16} />
-                    </button>
+                    {expandedQ === q.id && (
+                      <div className="px-4 pb-4 pt-0 border-t border-gray-100 animate-in slide-in-from-top-2 duration-200">
+                        {/* Description */}
+                        {q.description && (
+                          <div className="mt-3">
+                            <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Description</h5>
+                            <p className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 p-3 rounded-lg border">{q.description}</p>
+                          </div>
+                        )}
+                        {/* Test Cases */}
+                        {q.testCases?.length > 0 && (
+                          <div className="mt-3">
+                            <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Test Cases ({q.testCases.length})</h5>
+                            <div className="space-y-2">
+                              {q.testCases.map((tc, tcIdx) => (
+                                <div key={tcIdx} className="bg-gray-50 border rounded-lg p-3 text-xs">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="font-black text-gray-500 uppercase tracking-widest text-[10px]">Case {tcIdx + 1}</span>
+                                    {tc.isHidden && <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded font-black uppercase tracking-wider">Hidden</span>}
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                      <span className="text-[10px] font-bold text-gray-400 block mb-1">Input</span>
+                                      <pre className="bg-white border rounded p-2 text-gray-800 font-mono whitespace-pre-wrap break-all">{tc.input || '(empty)'}</pre>
+                                    </div>
+                                    <div>
+                                      <span className="text-[10px] font-bold text-gray-400 block mb-1">Expected Output</span>
+                                      <pre className="bg-white border rounded p-2 text-gray-800 font-mono whitespace-pre-wrap break-all">{tc.expectedOutput || '(empty)'}</pre>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {(!q.testCases || q.testCases.length === 0) && !q.description && (
+                          <p className="text-sm text-gray-400 italic mt-3">No additional details available for this question.</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))
               )}

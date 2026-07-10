@@ -32,7 +32,6 @@ const SuperAdminTeachers = lazy(() => import('./pages/superadmin/Teachers'));
 const Settings = lazy(() => import('./pages/superadmin/Settings'));
 const SuperAdminLogin = lazy(() => import('./pages/superadmin/Login'));
 const AdminSubjects = lazy(() => import('./pages/admin/Subjects'));
-const AdminExams = lazy(() => import('./pages/admin/Exams'));
 const AdminTickets = lazy(() => import('./pages/admin/AdminTickets'));
 const CoursesHub = lazy(() => import('./pages/admin/CoursesHub'));
 
@@ -153,7 +152,6 @@ function App() {
                 <Route path="teachers" element={<AdminDashboard />} />
                 <Route path="students" element={<ComingSoon title="Students" />} />
                 <Route path="subjects" element={<AdminSubjects />} />
-                <Route path="exams" element={<AdminExams />} />
                 <Route path="tickets" element={<AdminTickets />} />
                 <Route path="courses-hub" element={<CoursesHub />} />
                 <Route path="reports" element={<ComingSoon title="Reports" />} />

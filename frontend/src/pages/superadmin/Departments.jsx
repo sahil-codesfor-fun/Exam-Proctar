@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
-import { Search, Plus, MoreVertical, Building2, Layers, AlertCircle, Trash2 } from 'lucide-react';
+import { Search, Plus, MoreVertical, Building2, Layers, AlertCircle, Trash2, Loader2 } from 'lucide-react';
 import AllocateCoursesModal from '../../components/superadmin/departments/AllocateCoursesModal';
 
 const Departments = () => {
@@ -13,7 +13,8 @@ const Departments = () => {
   const [showArchived, setShowArchived] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  
+  const [isSaving, setIsSaving] = useState(false); // 👈 Added processing state
+
   // Allocate Courses State
   const [allocatingDept, setAllocatingDept] = useState(null);
 
@@ -21,7 +22,7 @@ const Departments = () => {
     try {
       // Use standard api get
       const res = await api.get('/superadmin/departments');
-      
+
       // For each department, we could fetch allocated courses count if backend doesn't provide it, 
       // but assuming the backend was updated to return _count or we can fetch it. 
       // Since we didn't add it to department list API, we'll fetch them manually for now, or just show a button.
@@ -41,6 +42,7 @@ const Departments = () => {
 
   const handleCreateOrUpdate = async (e) => {
     e.preventDefault();
+    setIsSaving(true); // 👈 Start processing
     try {
       if (editId) {
         await api.put(`/superadmin/departments/${editId}`, formData);
@@ -53,6 +55,8 @@ const Departments = () => {
       fetchDepartments();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to save department');
+    } finally {
+      setIsSaving(false); // 👈 Stop processing
     }
   };
 
@@ -97,7 +101,7 @@ const Departments = () => {
           <p className="text-gray-500 mt-1">Manage university departments and assignments.</p>
         </div>
         <div className="flex gap-3">
-          <button 
+          <button
             onClick={() => {
               if (departments.length > 0) {
                 setAllocatingDept(departments[0]);
@@ -109,7 +113,7 @@ const Departments = () => {
           >
             <Layers className="w-5 h-5 text-blue-500" /> Allocate Courses
           </button>
-          <button 
+          <button
             onClick={() => {
               setEditId(null);
               setFormData({ name: '', code: '' });
@@ -126,16 +130,16 @@ const Departments = () => {
         <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 rounded-t-xl">
           <div className="relative w-64">
             <Search className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
-            <input 
-              type="text" 
-              placeholder="Search departments..." 
+            <input
+              type="text"
+              placeholder="Search departments..."
               className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
             />
           </div>
           <div className="flex items-center gap-2">
-            <input 
-              type="checkbox" 
-              id="showArchived" 
+            <input
+              type="checkbox"
+              id="showArchived"
               checked={showArchived}
               onChange={(e) => setShowArchived(e.target.checked)}
               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
@@ -184,7 +188,7 @@ const Departments = () => {
                 <td className="px-6 py-4 text-gray-600 font-mono text-sm">{dept.code}</td>
                 <td className="px-6 py-4 text-gray-600">{dept.head?.name || 'Unassigned'}</td>
                 <td className="px-6 py-4">
-                  <button 
+                  <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setAllocatingDept(dept);
@@ -195,14 +199,13 @@ const Departments = () => {
                   </button>
                 </td>
                 <td className="px-6 py-4">
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    dept.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                  }`}>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${dept.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                    }`}>
                     {dept.status}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right relative">
-                  <button 
+                  <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setActiveDropdown(activeDropdown === dept.id ? null : dept.id);
@@ -243,24 +246,33 @@ const Departments = () => {
             <form onSubmit={handleCreateOrUpdate} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Department Name</label>
-                <input 
+                <input
                   type="text" required
                   className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
-                  value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})}
+                  value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Department Code</label>
-                <input 
+                <input
                   type="text" required
                   className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none uppercase"
-                  value={formData.code} onChange={e => setFormData({...formData, code: e.target.value.toUpperCase()})}
+                  value={formData.code} onChange={e => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
                 />
               </div>
               <div className="flex justify-end gap-3 pt-4">
-                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
-                  {editId ? 'Save Changes' : 'Create Department'}
+                <button type="button" onClick={() => setShowModal(false)} disabled={isSaving} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg disabled:opacity-50">Cancel</button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed transition-colors min-w-[140px]"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      PROCESSING...
+                    </>
+                  ) : editId ? 'Save Changes' : 'Create Department'}
                 </button>
               </div>
             </form>
@@ -278,18 +290,18 @@ const Departments = () => {
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">Delete Department?</h3>
               <p className="text-gray-600 mb-6">
-                Are you sure you want to delete <span className="font-semibold text-gray-900">"{deleteConfirm.name}"</span>? 
+                Are you sure you want to delete <span className="font-semibold text-gray-900">"{deleteConfirm.name}"</span>?
                 This action cannot be undone. If there are users or subjects attached, it may be archived instead.
               </p>
               <div className="flex justify-end gap-3">
-                <button 
-                  onClick={() => setDeleteConfirm(null)} 
+                <button
+                  onClick={() => setDeleteConfirm(null)}
                   className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
                 >
                   Cancel
                 </button>
-                <button 
-                  onClick={confirmDelete} 
+                <button
+                  onClick={confirmDelete}
                   disabled={isDeleting}
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors shadow-sm flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
@@ -306,7 +318,7 @@ const Departments = () => {
       )}
 
       {allocatingDept && (
-        <AllocateCoursesModal 
+        <AllocateCoursesModal
           department={allocatingDept}
           onClose={() => setAllocatingDept(null)}
           onRefresh={fetchDepartments}
