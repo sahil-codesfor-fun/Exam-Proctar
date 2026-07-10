@@ -7,7 +7,7 @@ const generateToken = (id) => {
 };
 
 export const registerUser = async (req, res) => {
-  const { name, studentId, email, password, role, course, section, departmentId } = req.body;
+  const { name, studentId, email, password, course, section, departmentId } = req.body;
 
   try {
     const userExists = await prisma.user.findFirst({
@@ -28,19 +28,16 @@ export const registerUser = async (req, res) => {
       name,
       email,
       password: hashedPassword,
-      role: role || 'student',
+      role: 'student', // Strictly forced for public signups
       isActive: true,
       passwordResetRequired: false,
-      course: role === 'student' ? course : null,
-      section: role === 'student' ? section : null,
+      course: course || null,
+      section: section || null,
       departmentId: departmentId || null
     };
 
-    if (newUserData.role === 'teacher' || newUserData.role === 'faculty') {
-      newUserData.facultyId = `FAC-${Date.now()}`;
-    } else {
-      newUserData.studentId = studentId;
-    }
+    // Public signups are always students
+    newUserData.studentId = studentId;
 
     const user = await prisma.user.create({ data: newUserData });
 

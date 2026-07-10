@@ -433,7 +433,6 @@ export const getModuleContent = async (req, res) => {
             id: true,
             title: true,
             difficulty: true,
-            owlcoderId: true,
             companyTags: true,
             category: true,
             sourceUrl: true

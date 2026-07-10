@@ -172,7 +172,7 @@ const Exams = () => {
 
           <button 
             onClick={() => { setSearchTerm(''); setFilterStatus('all'); }}
-            className="p-2 border border-gray-300 rounded-lg hover:bg-gray-100 :bg-slate-700 text-gray-600 transition-colors"
+            className="p-2 border border-gray-300 rounded-lg hover:bg-gray-100 hover:bg-slate-700 text-gray-600 transition-colors"
             title="Reset Filters"
           >
             <RefreshCcw size={18} />
@@ -212,7 +212,7 @@ const Exams = () => {
                 </tr>
               ) : (
                 filteredExams.map(exam => (
-                  <tr key={exam.id} className="hover:bg-gray-50 :bg-slate-800/50 transition-colors">
+                  <tr key={exam.id} className="hover:bg-gray-50 hover:bg-slate-800/50 transition-colors">
                     <td className="py-3 px-4">
                       <div className="font-medium text-gray-900 ">{exam.title}</div>
                       <div className="text-xs text-gray-500">{exam.examCode}</div>

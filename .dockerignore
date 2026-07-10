@@ -1,0 +1,16 @@
+node_modules/
+.git/
+.env
+**/.env
+*.local
+
+# Dangerous test & script files
+backend/test-db*.js
+backend/test-prisma.js
+backend/test2.js
+backend/src/scripts/deleteCourses.js
+backend/src/scripts/fixModules.js
+backend/src/scripts/restructureModules.js
+
+# Sensitive data
+backend/src/data/*.csv

@@ -327,8 +327,8 @@ model Question {
   solvedSource     String         @default("NEXUS")
   hubModuleId      String?
   
-  // Owlcoder-specific rich fields
-  owlcoderId       String?        @unique  // Original _id from Owlcoder
+  // Legacy import tracking field
+  legacyImportId   String?        @unique
   inputFormat      String?        @db.Text
   outputFormat     String?        @db.Text
   sampleInput      String?        @db.Text
@@ -975,7 +975,7 @@ model HubArticle {
   moduleId        String
   topicName       String
   articleContent  String?   @db.LongText
-  owlcoderId      String?   @unique
+  legacyImportId  String?   @unique
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   

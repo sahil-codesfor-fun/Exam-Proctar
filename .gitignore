@@ -6,3 +6,14 @@ frontend/node_modules/
 backend/.env
 frontend/.env
 *.local
+
+# ── Dangerous test & script files (must never reach production) ──
+backend/test-db*.js
+backend/test-prisma.js
+backend/test2.js
+backend/src/scripts/deleteCourses.js
+backend/src/scripts/fixModules.js
+backend/src/scripts/restructureModules.js
+
+# ── Sensitive data directories ──
+backend/src/data/*.csv
