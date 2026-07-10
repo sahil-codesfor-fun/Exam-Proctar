@@ -198,6 +198,9 @@ export const uploadCourseCsv = async (req, res) => {
           articlesImported: articlesCreated,
           questionsImported: questionsCreated
         };
+      }, {
+        maxWait: 10000, // 10 seconds max wait to connect to prisma
+        timeout: 60000 // 60 seconds max transaction duration (useful for large CSVs in production)
       });
 
       return res.status(200).json({
