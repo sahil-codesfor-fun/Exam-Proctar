@@ -19,6 +19,9 @@ import { sendTestEmail } from './services/emailService.js';
 import { initDelayedSyncEngine } from './services/delayedSyncEngine.js';
 const app = express();
 
+// Trust reverse proxy for rate limiting (e.g. Render, Heroku)
+app.set('trust proxy', 1);
+
 // 🚨 THE REAL VIP LIST 🚨
 const allowedOrigins = [
   'http://localhost:5173',

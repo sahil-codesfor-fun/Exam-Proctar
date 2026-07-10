@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import csv from 'csv-parser';
 import stream from 'stream';
+import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
@@ -107,14 +108,15 @@ export const uploadCourseCsv = async (req, res) => {
         const questionsPerModule = Math.ceil(questionsRaw.length / createdModules.length);
         let questionIndex = 0;
 
-        for (const mod of createdModules) {
-          const questionsForThisModule = questionsRaw.slice(questionIndex, questionIndex + questionsPerModule);
-          questionIndex += questionsPerModule;
+          const allQuestions = [];
+          const allTestCases = [];
 
-          for (let i = 0; i < questionsForThisModule.length; i += 10) {
-            const batch = questionsForThisModule.slice(i, i + 10);
-            
-            await Promise.all(batch.map(async (data) => {
+          for (const mod of createdModules) {
+            const questionsForThisModule = questionsRaw.slice(questionIndex, questionIndex + questionsPerModule);
+            questionIndex += questionsPerModule;
+
+            for (const data of questionsForThisModule) {
+              const questionId = crypto.randomUUID();
               const normalizedData = {};
               for (const key in data) {
                 const cleanKey = key.replace(/^\uFEFF/, '').trim().toLowerCase();
@@ -133,20 +135,17 @@ export const uploadCourseCsv = async (req, res) => {
               let companyTags = [];
               if (companies) companyTags = companies.split(',').map(tag => tag.trim());
 
-              // Extract testcases
-              const testCases = [];
-              
               // 1. Explicit Judge Testcases
               const tcInput1 = normalizedData['testcase_input'];
               const tcOutput1 = normalizedData['testcase_output'];
               if (tcInput1 || tcOutput1) {
-                testCases.push({ input: tcInput1 || '', expectedOutput: tcOutput1 || '', isHidden: false, points: 5 });
+                allTestCases.push({ questionId, input: tcInput1 || '', expectedOutput: tcOutput1 || '', isHidden: false, points: 5 });
               }
 
               const tcInputHidden = normalizedData['hidden_testcase_input'];
               const tcOutputHidden = normalizedData['hidden_testcase_output'];
               if (tcInputHidden || tcOutputHidden) {
-                testCases.push({ input: tcInputHidden || '', expectedOutput: tcOutputHidden || '', isHidden: true, points: 5 });
+                allTestCases.push({ questionId, input: tcInputHidden || '', expectedOutput: tcOutputHidden || '', isHidden: true, points: 5 });
               }
 
               // 2. Visible Examples
@@ -155,7 +154,8 @@ export const uploadCourseCsv = async (req, res) => {
                 const exInput = normalizedData[`problem_data_input${suffix}`];
                 const exOutput = normalizedData[`problem_data_output${suffix}`];
                 if ((exInput || exOutput) && exInput !== tcInput1) {
-                  testCases.push({ 
+                  allTestCases.push({ 
+                    questionId, 
                     input: exInput || '', 
                     expectedOutput: exOutput || '', 
                     isHidden: false, 
@@ -166,29 +166,31 @@ export const uploadCourseCsv = async (req, res) => {
               
               const formattedDesc = (problem_data_problem_desc || '').replace(/\\n/g, '\n');
 
-              await tx.question.create({
-                data: {
-                  type: 'Programming',
-                  title: problem_name || 'Untitled Problem',
-                  description: formattedDesc,
-                  difficulty: complexity || 'medium',
-                  constraints: problem_data_constraints || '',
-                  points: 10,
-                  sourceUrl: problem_link || null,
-                  companyTags,
-                  topics: tags || null,
-                  category: category.trim().charAt(0).toUpperCase() + category.trim().slice(1).toLowerCase(),
-                  solvedSource: 'NEXUS',
-                  hubModuleId: mod.id,
-                  testCases: {
-                    create: testCases
-                  }
-                }
+              allQuestions.push({
+                id: questionId,
+                type: 'Programming',
+                title: problem_name || 'Untitled Problem',
+                description: formattedDesc,
+                difficulty: complexity || 'medium',
+                constraints: problem_data_constraints || '',
+                points: 10,
+                sourceUrl: problem_link || null,
+                companyTags,
+                topics: tags || null,
+                category: category.trim().charAt(0).toUpperCase() + category.trim().slice(1).toLowerCase(),
+                solvedSource: 'NEXUS',
+                hubModuleId: mod.id
               });
-            }));
-            questionsCreated += batch.length;
+            }
           }
-        }
+
+          if (allQuestions.length > 0) {
+            await tx.question.createMany({ data: allQuestions });
+          }
+          if (allTestCases.length > 0) {
+            await tx.testCase.createMany({ data: allTestCases });
+          }
+          questionsCreated = allQuestions.length;
 
         return {
           courseId: course.id,
