@@ -210,11 +210,11 @@ export const uploadCourseCsv = async (req, res) => {
 
     } catch (dbError) {
       console.error('Database insertion error:', dbError);
-      return res.status(500).json({ error: 'Failed to insert data into database.' });
+      return res.status(500).json({ error: `Failed to insert data: ${dbError.message || dbError}` });
     }
   } catch (error) {
     console.error('CSV Upload Error:', error);
-    return res.status(500).json({ error: 'An unexpected error occurred during file processing.' });
+    return res.status(500).json({ error: `Upload error: ${error.message || error}` });
   }
 };
 
