@@ -36,6 +36,7 @@ const StudentOverview = () => {
   const [myTickets, setMyTickets] = useState([]);
   const [ticketModal, setTicketModal] = useState({ open: false, examId: null, examTitle: '', reason: '' });
   const [submittingTicket, setSubmittingTicket] = useState(false);
+  const [loadingTickets, setLoadingTickets] = useState(true);
 
   useEffect(() => {
     const fetchTickets = async () => {
@@ -44,6 +45,8 @@ const StudentOverview = () => {
         setMyTickets(res.data.data || []);
       } catch (err) {
         console.error('Failed to fetch appeals', err);
+      } finally {
+        setLoadingTickets(false);
       }
     };
     fetchTickets();
@@ -164,7 +167,11 @@ const StudentOverview = () => {
                         <>
                           {isExpired ? (
                             <div className="flex gap-2">
-                              {ticket ? (
+                              {loadingTickets ? (
+                                <span className="font-black text-[10px] uppercase tracking-widest py-3 px-6 rounded-xl border bg-gray-50 text-gray-400 border-gray-100 animate-pulse">
+                                  Fetching...
+                                </span>
+                              ) : ticket ? (
                                 <span className={`font-black text-[10px] uppercase tracking-widest py-3 px-6 rounded-xl border ${ticket.status === 'approved' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : ticket.status === 'rejected' ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
                                   Appeal: {ticket.status} {ticket.isRescheduled && '(Rescheduled)'}
                                 </span>

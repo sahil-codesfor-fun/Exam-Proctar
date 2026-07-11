@@ -240,14 +240,19 @@ export const LiveExamPage = () => {
         }
 
         let initialTimeLeft = e.durationMinutes * 60; 
+        const submissionId = s._id || s.id;
+        const savedStart = localStorage.getItem(`exam_started_${submissionId}`);
+
         if (e.endTime) {
           const endMs = new Date(e.endTime).getTime();
           const nowMs = Date.now();
           initialTimeLeft = Math.max(0, Math.floor((endMs - nowMs) / 1000));
-        } else if (e.startTime) {
-          const endMs = new Date(e.startTime).getTime() + (e.durationMinutes * 60 * 1000);
+        } else if (savedStart) {
+          const endMs = parseInt(savedStart) + (e.durationMinutes * 60 * 1000);
           const nowMs = Date.now();
           initialTimeLeft = Math.max(0, Math.floor((endMs - nowMs) / 1000));
+        } else {
+          initialTimeLeft = e.durationMinutes * 60;
         }
         
         setTimeLeft(initialTimeLeft);
@@ -389,9 +394,17 @@ export const LiveExamPage = () => {
 
 
   const enterFullscreen = () => {
+    const handleSuccess = () => {
+      const subId = submissionRef.current?._id || submissionRef.current?.id;
+      if (subId && !localStorage.getItem(`exam_started_${subId}`)) {
+         localStorage.setItem(`exam_started_${subId}`, Date.now().toString());
+      }
+      setPhase('exam');
+    };
+
     document.documentElement.requestFullscreen?.()
-      .then(() => setPhase('exam'))
-      .catch(() => setPhase('exam'));
+      .then(handleSuccess)
+      .catch(handleSuccess);
   };
 
   const updateAnswer = (qId, field, value) => {
