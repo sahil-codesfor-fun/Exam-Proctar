@@ -18,6 +18,7 @@ import {
 } from '../controllers/adminSubjectController.js';
 import teacherRoutes from './admin/teacherRoutes.js';
 import examRoutes from './admin/examRoutes.js'; // We will create this
+import studentRoutes from './admin/studentRoutes.js';
 
 const router = express.Router();
 
@@ -53,6 +54,7 @@ router.route('/teachers/:teacherId/subjects')
   .post(assignSubjectsToTeacher);
 
 router.use('/teachers', teacherRoutes);
+router.use('/students', studentRoutes);
 router.use('/exams', examRoutes);
 
 export default router;

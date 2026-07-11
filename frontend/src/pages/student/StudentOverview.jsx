@@ -43,7 +43,7 @@ const StudentOverview = () => {
         const res = await api.get('/tickets/my');
         setMyTickets(res.data.data || []);
       } catch (err) {
-        console.error('Failed to fetch tickets', err);
+        console.error('Failed to fetch appeals', err);
       }
     };
     fetchTickets();
@@ -56,10 +56,10 @@ const StudentOverview = () => {
       const res = await api.post('/tickets', { examId: ticketModal.examId, reason: ticketModal.reason });
       setMyTickets([res.data.data, ...myTickets]);
       setTicketModal({ open: false, examId: null, examTitle: '', reason: '' });
-      alert('Ticket submitted successfully');
+      alert('Appeal submitted successfully');
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || 'Failed to submit ticket');
+      alert(err.response?.data?.message || 'Failed to submit appeal');
     } finally {
       setSubmittingTicket(false);
     }
@@ -89,12 +89,30 @@ const StudentOverview = () => {
                 const sub = getSub(examIdSafe);
                 const done = sub && ['submitted', 'auto_submitted'].includes(sub.status);
                 const inProgress = sub && sub.status === 'in_progress';
-                const isExpired = exam.status === 'ended' || (exam.endTime && new Date(exam.endTime).getTime() < nowTime);
+                const ticket = getTicketStatus(examIdSafe);
+                const isRescheduled = ticket?.isRescheduled;
+                const originalExpired = exam.status === 'ended' || (exam.endTime && new Date(exam.endTime).getTime() < nowTime);
+                
+                let isExpired = originalExpired;
+                let isRescheduleWindowOpen = false;
+                
+                if (isRescheduled) {
+                   const resStartTime = new Date(ticket.rescheduledStartTime).getTime();
+                   const resEndTime = new Date(ticket.rescheduledEndTime).getTime();
+                   if (nowTime >= resStartTime && nowTime <= resEndTime) {
+                      isRescheduleWindowOpen = true;
+                      isExpired = false; 
+                   } else if (nowTime < resStartTime) {
+                      isExpired = true; // Wait for it to open
+                   } else {
+                      isExpired = true; // Ended
+                   }
+                }
                 
                 const calculatedValue = getExamValue(exam, sub);
 
                 return (
-                  <div key={examIdSafe} className={`bg-white rounded-[2rem] border border-gray-100 p-8 hover:shadow-2xl hover:shadow-gray-200/50 transition-all group ${isExpired && !done ? 'opacity-60 grayscale' : ''}`}>
+                  <div key={examIdSafe} className={`bg-white rounded-[2rem] border border-gray-100 p-8 hover:shadow-2xl hover:shadow-gray-200/50 transition-all group ${isExpired && !done ? 'opacity-90' : ''}`}>
                     <div className="flex justify-between items-start mb-6">
                       <div>
                         <h4 className="text-xl font-black text-gray-900 uppercase tracking-tight group-hover:text-emerald-700 transition-colors">{exam.title}</h4>
@@ -111,7 +129,7 @@ const StudentOverview = () => {
                       {done ? (
                         <span className="bg-emerald-50 text-emerald-600 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-emerald-100">✓ Completed</span>
                       ) : isExpired ? (
-                        <span className="bg-gray-100 text-gray-500 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-gray-200">❌ Expired</span>
+                        <span className="bg-gray-100 text-gray-500 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-gray-200">{isRescheduled ? (nowTime < new Date(ticket.rescheduledStartTime).getTime() ? 'Awaiting Reschedule' : 'Reschedule Expired') : '❌ Expired'}</span>
                       ) : inProgress ? (
                         <span className="bg-amber-50 text-amber-600 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-amber-100 animate-pulse">⏳ Session Open</span>
                       ) : (
@@ -121,7 +139,12 @@ const StudentOverview = () => {
 
                     <div className="flex flex-col md:flex-row md:items-center justify-between pt-6 border-t border-gray-50 gap-4">
                       <div className="flex flex-wrap gap-4 md:gap-6">
-                        {exam.startTime && (
+                        {isRescheduled && ticket.rescheduledStartTime ? (
+                          <div className="flex flex-col">
+                            <span className="text-[9px] font-black text-[#ff7b00] uppercase">Rescheduled To</span>
+                            <span className="text-xs font-black text-gray-700">{new Date(ticket.rescheduledStartTime).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
+                          </div>
+                        ) : exam.startTime && (
                           <div className="flex flex-col">
                             <span className="text-[9px] font-black text-gray-300 uppercase">Started At</span>
                             <span className="text-xs font-black text-gray-700">{new Date(exam.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
@@ -129,7 +152,7 @@ const StudentOverview = () => {
                         )}
                         <div className="flex flex-col">
                           <span className="text-[9px] font-black text-gray-300 uppercase">Window</span>
-                          <span className="text-xs font-black text-gray-700">{exam.durationMinutes}m</span>
+                          <span className="text-xs font-black text-gray-700">{isRescheduled && ticket.rescheduledStartTime && ticket.rescheduledEndTime ? Math.round((new Date(ticket.rescheduledEndTime) - new Date(ticket.rescheduledStartTime)) / 60000) : exam.durationMinutes}m</span>
                         </div>
                         <div className="flex flex-col">
                           <span className="text-[9px] font-black text-gray-300 uppercase">Value</span>
@@ -141,25 +164,25 @@ const StudentOverview = () => {
                         <>
                           {isExpired ? (
                             <div className="flex gap-2">
-                              {getTicketStatus(examIdSafe) ? (
-                                <span className={`font-black text-[10px] uppercase tracking-widest py-3 px-6 rounded-xl border ${getTicketStatus(examIdSafe).status === 'approved' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : getTicketStatus(examIdSafe).status === 'rejected' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
-                                  Ticket: {getTicketStatus(examIdSafe).status}
+                              {ticket ? (
+                                <span className={`font-black text-[10px] uppercase tracking-widest py-3 px-6 rounded-xl border ${ticket.status === 'approved' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : ticket.status === 'rejected' ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                                  Appeal: {ticket.status} {ticket.isRescheduled && '(Rescheduled)'}
                                 </span>
                               ) : (
                                 <button 
                                   onClick={() => setTicketModal({ open: true, examId: examIdSafe, examTitle: exam.title, reason: '' })}
-                                  className="font-black text-[10px] uppercase tracking-widest py-3 px-6 rounded-xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-all"
+                                  className="font-black text-[10px] uppercase tracking-widest py-3 px-6 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all"
                                 >
-                                  Submit Ticket
+                                  Submit Appeal
                                 </button>
                               )}
                             </div>
                           ) : (
                             <button 
                               onClick={() => navigate(`/exam/live/${examIdSafe}`)}
-                              className="font-black text-[10px] uppercase tracking-widest py-3 px-8 rounded-xl transition-all shadow-lg active:scale-95 bg-[#1A5F53] hover:bg-[#134d42] text-white shadow-emerald-900/10"
+                              className={`font-black text-[10px] uppercase tracking-widest py-3 px-8 rounded-xl transition-all shadow-lg active:scale-95 text-white ${isRescheduleWindowOpen ? 'bg-[#ff7b00] hover:bg-[#e06c00] shadow-orange-900/10' : 'bg-[#1A5F53] hover:bg-[#134d42] shadow-emerald-900/10'}`}
                             >
-                              {inProgress ? 'Resume Terminal' : 'Initialize Exam'}
+                              {inProgress ? 'Resume Terminal' : (isRescheduleWindowOpen ? 'Start Rescheduled Exam' : 'Initialize Exam')}
                             </button>
                           )}
                         </>
@@ -277,7 +300,7 @@ const StudentOverview = () => {
       {ticketModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-black text-gray-900 tracking-tight mb-2 uppercase">Submit Ticket</h3>
+            <h3 className="text-xl font-black text-gray-900 tracking-tight mb-2 uppercase">Submit Appeal</h3>
             <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mb-6">Appeal for {ticketModal.examTitle}</p>
             <div className="space-y-4">
               <div>

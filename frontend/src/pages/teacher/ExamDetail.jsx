@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Users, Edit, Trash2 } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import HistoricalSubmissions from '../../components/results/HistoricalSubmissions';
+import TeacherReschedulePanel from './TeacherReschedulePanel';
 import api from '../../services/api';
 
 const ExamDetail = () => {
@@ -11,6 +12,7 @@ const ExamDetail = () => {
   const { exams, subs, loadSubs, toggleStatus, deleteExam, showConfirm, openEditModal } = useOutletContext();
   
   const [liveStudents, setLiveStudents] = useState([]);
+  const [activeTab, setActiveTab] = useState('submissions');
   
   // Find the exam from the context or fetch it if not found
   const exam = exams.find(e => e._id === examId);
@@ -136,7 +138,23 @@ const ExamDetail = () => {
         </div>
       )}
 
-      <HistoricalSubmissions exam={exam} />
+      <div className="flex gap-4 border-b border-gray-200 mb-6">
+        <button 
+          onClick={() => setActiveTab('submissions')}
+          className={`pb-4 px-2 text-sm font-bold transition-all ${activeTab === 'submissions' ? 'text-gray-900 border-b-2 border-emerald-500' : 'text-gray-400 hover:text-gray-600'}`}
+        >
+          Historical Submissions
+        </button>
+        <button 
+          onClick={() => setActiveTab('reschedule')}
+          className={`pb-4 px-2 text-sm font-bold transition-all ${activeTab === 'reschedule' ? 'text-gray-900 border-b-2 border-emerald-500' : 'text-gray-400 hover:text-gray-600'}`}
+        >
+          Make-Up Reschedules
+        </button>
+      </div>
+
+      {activeTab === 'submissions' && <HistoricalSubmissions exam={exam} />}
+      {activeTab === 'reschedule' && <TeacherReschedulePanel examId={exam._id} />}
     </div>
   );
 };

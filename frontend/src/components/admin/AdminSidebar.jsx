@@ -25,7 +25,7 @@ const AdminSidebar = () => {
     { name: 'Teachers', icon: GraduationCap, path: '/admin/teachers' },
     { name: 'Students', icon: Users, path: '/admin/students' },
     { name: 'Subjects', icon: BookOpen, path: '/admin/subjects' },
-    { name: 'Tickets', icon: Activity, path: '/admin/tickets' },
+    { name: 'Appeals', icon: Activity, path: '/admin/tickets' },
     { name: 'Courses Hub', icon: UploadCloud, path: '/admin/courses-hub' },
     { name: 'Reports', icon: BarChart3, path: '/admin/reports' },
     { name: 'Activity Logs', icon: Activity, path: '/admin/activity-logs' },

@@ -8,7 +8,7 @@ export const createExam = async (req, res) => {
     if (!departmentId) {
       return res.status(400).json({ success: false, message: 'Department is required' });
     }
-    
+
     // Role based access check
     if (req.user.role !== 'superadmin' && req.user.departmentId && req.user.departmentId !== departmentId) {
       return res.status(403).json({ success: false, message: 'You can only create exams for your own department' });
@@ -38,8 +38,8 @@ export const createExam = async (req, res) => {
           examCode,
           description: examData.description,
           course: examData.course,
-          targetBatch: targetBatch || null,     
-          targetSection: targetSection || null, 
+          targetBatch: targetBatch || null,
+          targetSection: targetSection || null,
           departmentId: departmentId,
           subjectId: subjectId || null,
           status: examData.status || 'draft',
@@ -68,13 +68,13 @@ export const createExam = async (req, res) => {
       });
     });
 
-    const responseData = { 
-      ...exam, 
-      _id: exam.id, 
-      faculty: exam.creator, 
-      proctoring: proctoring || {}, 
-      randomizeQuestions: exam.settings?.randomizeQuestions, 
-      questionsToServe: exam.settings?.questionPoolSize 
+    const responseData = {
+      ...exam,
+      _id: exam.id,
+      faculty: exam.creator,
+      proctoring: proctoring || {},
+      randomizeQuestions: exam.settings?.randomizeQuestions,
+      questionsToServe: exam.settings?.questionPoolSize
     };
 
     if (responseData.status === 'published' || responseData.status === 'active') {
@@ -82,25 +82,25 @@ export const createExam = async (req, res) => {
     }
 
     res.status(201).json({ success: true, data: responseData, message: "Exam deployed successfully" });
-  } catch (err) { 
+  } catch (err) {
     console.error("Create Exam Error:", err);
-    res.status(500).json({ success: false, message: err.message }); 
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
 export const getExams = async (req, res) => {
   try {
     let filter = {};
-    if (req.user.role === 'teacher' || req.user.role === 'faculty') {
+    if (['teacher', 'faculty', 'admin', 'superadmin'].includes(req.user.role)) {
       filter = { creatorId: req.user.id };
     } else {
       const student = await prisma.user.findUnique({ where: { id: req.user.id } });
       const batch = student?.studentId && student.studentId.length >= 2 ? '20' + student.studentId.substring(0, 2) : null;
-      
+
       const studentCourse = student?.course || '';
       const allowedCourses = [studentCourse];
       if (studentCourse.startsWith('B.Tech CSE') && studentCourse !== 'B.Tech CSE') {
-          allowedCourses.push('B.Tech CSE');
+        allowedCourses.push('B.Tech CSE');
       }
 
       filter = {
@@ -127,23 +127,23 @@ export const getExams = async (req, res) => {
           enableWebcam: exam.settings?.aiFaceDetection || false,
           disableCopyPaste: exam.settings?.clipboardDetection !== false,
         };
-        const examCopy = { 
-          ...exam, 
-          _id: exam.id, 
-          faculty: exam.creator ? { ...exam.creator, _id: exam.creator.id } : { name: 'Academic Core', _id: 'system' }, 
-          proctoring, 
-          randomizeQuestions: exam.settings?.randomizeQuestions || false, 
+        const examCopy = {
+          ...exam,
+          _id: exam.id,
+          faculty: exam.creator ? { ...exam.creator, _id: exam.creator.id } : { name: 'Academic Core', _id: 'system' },
+          proctoring,
+          randomizeQuestions: exam.settings?.randomizeQuestions || false,
           questionsToServe: exam.settings?.questionPoolSize || null,
           startTime: exam.schedule?.startDate,
           endTime: exam.schedule?.endDate,
           durationMinutes: exam.schedule?.durationMinutes
         };
-        
+
         if (req.user.role === 'student') {
           const marksOverride = examCopy.randomizeQuestions && examCopy.proctoring?.marksPerNode ? parseInt(examCopy.proctoring.marksPerNode, 10) : null;
           examCopy.questions = (examCopy.questions || []).map(q => {
             const qCopy = { ...q, _id: q.id };
-            if (marksOverride) qCopy.points = marksOverride; 
+            if (marksOverride) qCopy.points = marksOverride;
             if (qCopy.testCases) qCopy.testCases = qCopy.testCases.filter(tc => !tc.isHidden);
             if (qCopy.options) qCopy.options = qCopy.options.map(opt => ({ ...opt, isCorrect: undefined }));
             return qCopy;
@@ -154,9 +154,9 @@ export const getExams = async (req, res) => {
     });
 
     res.json({ success: true, data: formattedExams });
-  } catch (err) { 
+  } catch (err) {
     console.error("Get Exams Error:", err);
-    res.status(500).json({ success: false, message: err.message }); 
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
@@ -175,13 +175,13 @@ export const getExam = async (req, res) => {
       enableWebcam: exam.settings?.aiFaceDetection || false,
       disableCopyPaste: exam.settings?.clipboardDetection !== false,
     };
-    
-    const examCopy = { 
-      ...exam, 
-      _id: exam.id, 
-      faculty: exam.creator ? { ...exam.creator, _id: exam.creator.id } : { name: 'Academic Core', _id: 'system' }, 
+
+    const examCopy = {
+      ...exam,
+      _id: exam.id,
+      faculty: exam.creator ? { ...exam.creator, _id: exam.creator.id } : { name: 'Academic Core', _id: 'system' },
       proctoring,
-      randomizeQuestions: exam.settings?.randomizeQuestions || false, 
+      randomizeQuestions: exam.settings?.randomizeQuestions || false,
       questionsToServe: exam.settings?.questionPoolSize || null,
       startTime: exam.schedule?.startDate,
       endTime: exam.schedule?.endDate,
@@ -189,19 +189,28 @@ export const getExam = async (req, res) => {
     };
 
     if (req.user.role === 'student') {
+      const rescheduleTicket = await prisma.missedExamTicket.findFirst({
+        where: { examId: exam.id, studentId: req.user.id, isRescheduled: true, status: 'approved' }
+      });
+      if (rescheduleTicket && rescheduleTicket.rescheduledStartTime && rescheduleTicket.rescheduledEndTime) {
+         examCopy.startTime = rescheduleTicket.rescheduledStartTime;
+         examCopy.endTime = rescheduleTicket.rescheduledEndTime;
+         examCopy.durationMinutes = Math.round((new Date(rescheduleTicket.rescheduledEndTime) - new Date(rescheduleTicket.rescheduledStartTime)) / 60000);
+      }
+
       const marksOverride = examCopy.randomizeQuestions && examCopy.proctoring?.marksPerNode ? parseInt(examCopy.proctoring.marksPerNode, 10) : null;
       examCopy.questions = (examCopy.questions || []).map(q => {
         const qCopy = { ...q, _id: q.id };
-        if (marksOverride) qCopy.points = marksOverride; 
+        if (marksOverride) qCopy.points = marksOverride;
         if (qCopy.testCases) qCopy.testCases = qCopy.testCases.filter(tc => !tc.isHidden);
         if (qCopy.options) qCopy.options = qCopy.options.map(opt => ({ ...opt, isCorrect: undefined }));
         return qCopy;
       });
     }
     res.json({ success: true, data: examCopy });
-  } catch (err) { 
+  } catch (err) {
     console.error("Get Exam Error:", err);
-    res.status(500).json({ success: false, message: err.message }); 
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
@@ -213,7 +222,7 @@ export const updateExam = async (req, res) => {
     if (!departmentId) {
       return res.status(400).json({ success: false, message: 'Department is required' });
     }
-    
+
     // Role based access check
     if (req.user.role !== 'superadmin' && req.user.departmentId && req.user.departmentId !== departmentId) {
       return res.status(403).json({ success: false, message: 'You can only update exams for your own department' });
@@ -285,21 +294,21 @@ export const updateExam = async (req, res) => {
       });
     });
 
-    const responseData = { 
-      ...updatedExam, 
-      _id: updatedExam.id, 
-      proctoring: proctoring || {}, 
-      randomizeQuestions: updatedExam.settings?.randomizeQuestions, 
-      questionsToServe: updatedExam.settings?.questionPoolSize 
+    const responseData = {
+      ...updatedExam,
+      _id: updatedExam.id,
+      proctoring: proctoring || {},
+      randomizeQuestions: updatedExam.settings?.randomizeQuestions,
+      questionsToServe: updatedExam.settings?.questionPoolSize
     };
 
     if (responseData.status === 'published' || responseData.status === 'active') {
       try { const io = getIO(); io.emit('exam_published', responseData); } catch (e) { console.error(e); }
     }
     res.json({ success: true, data: responseData, message: "Exam updated successfully" });
-  } catch (err) { 
+  } catch (err) {
     console.error("Update Exam Error:", err);
-    res.status(500).json({ success: false, message: err.message }); 
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
@@ -310,11 +319,11 @@ export const deleteExam = async (req, res) => {
     if (exam.creatorId !== req.user.id) return res.status(403).json({ success: false, message: 'Not authorized' });
 
     await prisma.exam.delete({ where: { id: req.params.id } });
-    try { const io = getIO(); io.emit('exam_deleted', { examId: req.params.id }); } catch (e) {}
+    try { const io = getIO(); io.emit('exam_deleted', { examId: req.params.id }); } catch (e) { }
     res.json({ success: true, message: 'Exam deleted' });
-  } catch (err) { 
+  } catch (err) {
     console.error("Delete Exam Error:", err);
-    res.status(500).json({ success: false, message: err.message }); 
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
@@ -328,10 +337,10 @@ export const updateExamStatus = async (req, res) => {
     const updatedExam = await prisma.exam.update({ where: { id: req.params.id }, data: { status: status }, include: { settings: true, schedule: true } });
     const responseData = { ...updatedExam, _id: updatedExam.id };
 
-    try { const io = getIO(); io.emit('exam_status_changed', { examId: updatedExam.id, status }); io.emit('exam_published', responseData); } catch (e) {}
+    try { const io = getIO(); io.emit('exam_status_changed', { examId: updatedExam.id, status }); io.emit('exam_published', responseData); } catch (e) { }
     res.json({ success: true, data: responseData, message: "Status updated successfully" });
-  } catch (err) { 
+  } catch (err) {
     console.error("Update Exam Status Error:", err);
-    res.status(500).json({ success: false, message: err.message }); 
+    res.status(500).json({ success: false, message: err.message });
   }
 };

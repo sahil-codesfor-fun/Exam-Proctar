@@ -555,18 +555,21 @@ model ExamReport {
 }
 
 model MissedExamTicket {
-  id          String   @id @default(uuid())
-  examId      String
-  studentId   String
-  reason      String   @db.Text
-  status      String   @default("pending") // pending, approved, rejected
-  resolvedBy  String?
-  resolvedAt  DateTime?
-  createdAt   DateTime @default(now())
+  id                   String    @id @default(uuid())
+  examId               String
+  studentId            String
+  reason               String    @db.Text
+  status               String    @default("pending") // pending, approved, rejected
+  resolvedBy           String?
+  resolvedAt           DateTime?
+  isRescheduled        Boolean   @default(false)
+  rescheduledStartTime DateTime?
+  rescheduledEndTime   DateTime?
+  createdAt            DateTime  @default(now())
 
-  exam        Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
-  student     User     @relation("TicketStudent", fields: [studentId], references: [id], onDelete: Cascade)
-  resolver    User?    @relation("TicketResolver", fields: [resolvedBy], references: [id])
+  exam                 Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student              User      @relation("TicketStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  resolver             User?     @relation("TicketResolver", fields: [resolvedBy], references: [id])
 }
 
 // ---------------- Existing Models Kept ----------------

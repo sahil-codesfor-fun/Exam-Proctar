@@ -12,4 +12,8 @@ router.get('/my', protect, ticketController.getMyTickets);
 router.get('/admin', protect, adminOnly, ticketController.getAllTickets);
 router.patch('/admin/:id/resolve', protect, adminOnly, ticketController.resolveTicket);
 
+// Reschedule routes
+router.get('/reschedule/:examId', protect, ticketController.getApprovedRescheduleRequests);
+router.post('/reschedule', protect, ticketController.rescheduleExamForStudents);
+
 export default router;

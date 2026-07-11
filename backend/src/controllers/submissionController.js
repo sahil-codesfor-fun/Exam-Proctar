@@ -21,8 +21,32 @@ export const startSubmission = async (req, res) => {
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
 
     const now = new Date();
+    
+    // Check for a rescheduled ticket for this specific student
+    const rescheduleTicket = await prisma.missedExamTicket.findFirst({
+      where: {
+        examId: examId,
+        studentId: req.user.id,
+        isRescheduled: true,
+        status: 'approved'
+      }
+    });
+
+    let hasRescheduledAccess = false;
+    if (rescheduleTicket && rescheduleTicket.rescheduledStartTime && rescheduleTicket.rescheduledEndTime) {
+       const resStartTime = new Date(rescheduleTicket.rescheduledStartTime);
+       const resEndTime = new Date(rescheduleTicket.rescheduledEndTime);
+       if (now >= resStartTime && now <= resEndTime) {
+          hasRescheduledAccess = true;
+       }
+    }
+
     const isAutoStarted = exam.status === 'published' && exam.startTime && new Date(exam.startTime) <= now;
-    if (exam.status !== 'active' && !isAutoStarted) return res.status(400).json({ success: false, message: 'Exam is not active yet.' });
+    
+    if (!hasRescheduledAccess) {
+      if (exam.status !== 'active' && !isAutoStarted) return res.status(400).json({ success: false, message: 'Exam is not active yet.' });
+    }
+    
     if (isAutoStarted && exam.status !== 'active') await prisma.exam.update({ where: { id: examId }, data: { status: 'active' } });
 
     let sub = await prisma.submission.findFirst({ where: { examId: examId, studentId: req.user.id } });

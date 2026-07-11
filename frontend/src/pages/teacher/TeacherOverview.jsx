@@ -79,7 +79,7 @@ const TeacherOverview = () => {
                       <div className="flex gap-2 justify-end opacity-60 group-hover:opacity-100 transition-opacity">
                         
                         <button onClick={() => navigate(`/teacher-dashboard/exams/${exam._id}`)} className="text-[10px] bg-purple-50 text-purple-600 hover:bg-purple-100 border border-purple-100 px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm transition-all flex items-center gap-1">
-                          <BarChart2 size={12}/> Results
+                          <BarChart2 size={12}/> Manage
                         </button>
                         
                         {exam.status === 'draft' && (

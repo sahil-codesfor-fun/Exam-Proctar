@@ -24,13 +24,13 @@ const AdminTickets = () => {
   }, []);
 
   const handleResolve = async (id, status) => {
-    if (!window.confirm(`Are you sure you want to mark this ticket as ${status}?`)) return;
+    if (!window.confirm(`Are you sure you want to mark this appeal as ${status}?`)) return;
     try {
       await api.patch(`/tickets/admin/${id}/resolve`, { status });
       fetchTickets();
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || 'Failed to update ticket');
+      alert(err.response?.data?.message || 'Failed to update appeal');
     }
   };
 
@@ -44,7 +44,7 @@ const AdminTickets = () => {
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex justify-between items-end">
         <div>
-          <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Missed Exam Tickets</h2>
+          <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Missed Exam Appeals</h2>
           <p className="text-sm font-medium text-gray-500 mt-1">Review and manage student appeals for missed exams.</p>
         </div>
       </div>
@@ -78,11 +78,11 @@ const AdminTickets = () => {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-gray-400 font-medium">Loading tickets...</td>
+                  <td colSpan="6" className="px-6 py-12 text-center text-gray-400 font-medium">Loading appeals...</td>
                 </tr>
               ) : filteredTickets.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-gray-400 font-medium">No tickets found.</td>
+                  <td colSpan="6" className="px-6 py-12 text-center text-gray-400 font-medium">No appeals found.</td>
                 </tr>
               ) : (
                 filteredTickets.map((ticket) => (

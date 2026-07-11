@@ -33,6 +33,7 @@ const Settings = lazy(() => import('./pages/superadmin/Settings'));
 const SuperAdminLogin = lazy(() => import('./pages/superadmin/Login'));
 const AdminSubjects = lazy(() => import('./pages/admin/Subjects'));
 const AdminTickets = lazy(() => import('./pages/admin/AdminTickets'));
+const AdminStudents = lazy(() => import('./pages/admin/AdminStudents'));
 const CoursesHub = lazy(() => import('./pages/admin/CoursesHub'));
 
 // ── Protected Route wrapper ──────────────────────────────────────
@@ -150,7 +151,7 @@ function App() {
                 <Route index element={<Navigate to="teachers" replace />} />
                 <Route path="dashboard" element={<ComingSoon title="Dashboard Overview" />} />
                 <Route path="teachers" element={<AdminDashboard />} />
-                <Route path="students" element={<ComingSoon title="Students" />} />
+                <Route path="students" element={<AdminStudents />} />
                 <Route path="subjects" element={<AdminSubjects />} />
                 <Route path="tickets" element={<AdminTickets />} />
                 <Route path="courses-hub" element={<CoursesHub />} />

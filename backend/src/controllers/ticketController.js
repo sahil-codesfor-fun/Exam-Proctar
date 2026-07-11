@@ -103,3 +103,49 @@ export const resolveTicket = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// Reschedule logic
+export const getApprovedRescheduleRequests = async (req, res) => {
+  try {
+    const { examId } = req.params;
+    const tickets = await prisma.missedExamTicket.findMany({
+      where: {
+        examId,
+        status: 'approved'
+      },
+      include: {
+        student: { select: { name: true, email: true, studentId: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ success: true, data: tickets });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const rescheduleExamForStudents = async (req, res) => {
+  try {
+    const { ticketIds, newStartTime, newEndTime } = req.body;
+
+    if (!ticketIds || !newStartTime || !newEndTime) {
+      return res.status(400).json({ success: false, message: 'Missing required fields' });
+    }
+
+    const updatedTickets = await prisma.missedExamTicket.updateMany({
+      where: {
+        id: { in: ticketIds },
+        status: 'approved'
+      },
+      data: {
+        isRescheduled: true,
+        rescheduledStartTime: new Date(newStartTime),
+        rescheduledEndTime: new Date(newEndTime)
+      }
+    });
+
+    res.json({ success: true, message: `Rescheduled exam for ${updatedTickets.count} students.`, count: updatedTickets.count });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
