@@ -15,7 +15,7 @@ export const startSubmission = async (req, res) => {
     
     const exam = await prisma.exam.findUnique({ 
       where: { id: examId },
-      include: { questions: { include: { options: true, matchingPairs: true } } } 
+      include: { questions: { include: { options: true, matchingPairs: true } }, schedule: true } 
     });
 
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
@@ -41,7 +41,7 @@ export const startSubmission = async (req, res) => {
        }
     }
 
-    const isAutoStarted = exam.status === 'published' && exam.startTime && new Date(exam.startTime) <= now;
+    const isAutoStarted = exam.status === 'published' && exam.schedule?.startDate && new Date(exam.schedule.startDate) <= now;
     
     if (!hasRescheduledAccess) {
       if (exam.status !== 'active' && !isAutoStarted) return res.status(400).json({ success: false, message: 'Exam is not active yet.' });
