@@ -57,8 +57,8 @@ const TeacherReschedulePanel = ({ examId }) => {
       setSubmitting(true);
       await api.post('/tickets/reschedule', {
         ticketIds: selectedIds,
-        newStartTime: rescheduleData.newStartTime,
-        newEndTime: rescheduleData.newEndTime
+        newStartTime: new Date(rescheduleData.newStartTime).toISOString(),
+        newEndTime: new Date(rescheduleData.newEndTime).toISOString()
       });
       alert('Rescheduling successful!');
       
@@ -68,8 +68,8 @@ const TeacherReschedulePanel = ({ examId }) => {
           return {
             ...t,
             isRescheduled: true,
-            rescheduledStartTime: rescheduleData.newStartTime,
-            rescheduledEndTime: rescheduleData.newEndTime
+            rescheduledStartTime: new Date(rescheduleData.newStartTime).toISOString(),
+            rescheduledEndTime: new Date(rescheduleData.newEndTime).toISOString()
           };
         }
         return t;
