@@ -67,7 +67,8 @@ export const createExam = async (req, res) => {
         include: { questions: { include: { options: true, testCases: true, matchingPairs: true } }, creator: { select: { name: true, email: true } }, settings: true, schedule: true }
       });
     },{
-      maxWait: 10000
+      maxWait: 10000,
+      timeout: 10000
     });
 
     const responseData = {
