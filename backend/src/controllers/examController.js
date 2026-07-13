@@ -60,6 +60,8 @@ export const createExam = async (req, res) => {
               aiFaceDetection: proctoring?.enableWebcam || false,
               clipboardDetection: proctoring?.disableCopyPaste !== false, // Defaults to true
               autoTerminateViolations: proctoring?.maxViolations ? parseInt(proctoring.maxViolations, 10) : 5,
+              enableTypeDistribution: proctoring?.enableTypeDistribution || false,
+              typeDistribution: proctoring?.typeDistribution || null,
             }
           },
           questions: { create: formattedQuestions || [] }
@@ -78,6 +80,8 @@ export const createExam = async (req, res) => {
       proctoring: proctoring || {},
       randomizeQuestions: exam.settings?.randomizeQuestions,
       questionsToServe: exam.settings?.questionPoolSize,
+      typeDistribution: exam.settings?.typeDistribution,
+      enableTypeDistribution: exam.settings?.enableTypeDistribution,
       startTime: exam.schedule?.startDate,
       endTime: exam.schedule?.endDate,
       durationMinutes: exam.schedule?.durationMinutes
@@ -132,6 +136,8 @@ export const getExams = async (req, res) => {
           requireFullscreen: exam.settings?.fullscreenRequired || false,
           enableWebcam: exam.settings?.aiFaceDetection || false,
           disableCopyPaste: exam.settings?.clipboardDetection !== false,
+          enableTypeDistribution: exam.settings?.enableTypeDistribution || false,
+          typeDistribution: exam.settings?.typeDistribution || null,
         };
         const examCopy = {
           ...exam,
@@ -180,6 +186,8 @@ export const getExam = async (req, res) => {
       requireFullscreen: exam.settings?.fullscreenRequired || false,
       enableWebcam: exam.settings?.aiFaceDetection || false,
       disableCopyPaste: exam.settings?.clipboardDetection !== false,
+      enableTypeDistribution: exam.settings?.enableTypeDistribution || false,
+      typeDistribution: exam.settings?.typeDistribution || null,
     };
 
     const examCopy = {
@@ -283,6 +291,8 @@ export const updateExam = async (req, res) => {
                 aiFaceDetection: proctoring?.enableWebcam || false,
                 clipboardDetection: proctoring?.disableCopyPaste !== false,
                 autoTerminateViolations: proctoring?.maxViolations ? parseInt(proctoring.maxViolations, 10) : 5,
+                enableTypeDistribution: proctoring?.enableTypeDistribution || false,
+                typeDistribution: proctoring?.typeDistribution || null,
               },
               update: {
                 randomizeQuestions: isRand,
@@ -292,6 +302,8 @@ export const updateExam = async (req, res) => {
                 aiFaceDetection: proctoring?.enableWebcam || false,
                 clipboardDetection: proctoring?.disableCopyPaste !== false,
                 autoTerminateViolations: proctoring?.maxViolations ? parseInt(proctoring.maxViolations, 10) : 5,
+                enableTypeDistribution: proctoring?.enableTypeDistribution || false,
+                typeDistribution: proctoring?.typeDistribution || null,
               }
             }
           },

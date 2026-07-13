@@ -15,7 +15,7 @@ export const startSubmission = async (req, res) => {
     
     const exam = await prisma.exam.findUnique({ 
       where: { id: examId },
-      include: { questions: { include: { options: true, matchingPairs: true } }, schedule: true } 
+      include: { questions: { include: { options: true, matchingPairs: true } }, schedule: true, settings: true } 
     });
 
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
@@ -58,11 +58,11 @@ export const startSubmission = async (req, res) => {
       resumed = true;
     } else {
       let pool = [...exam.questions];
-      const isRandomized = exam.randomizeQuestions === true || exam.randomizeQuestions === 'true' || exam.randomizeQuestions === 1;
+      const isRandomized = exam.settings?.randomizeQuestions === true;
 
       if (isRandomized) {
-         const isTypeDistEnabled = exam.proctoringRules?.enableTypeDistribution || exam.proctoring?.enableTypeDistribution;
-         const dist = exam.proctoringRules?.typeDistribution || exam.proctoring?.typeDistribution;
+         const isTypeDistEnabled = exam.settings?.enableTypeDistribution;
+         const dist = exam.settings?.typeDistribution;
 
          if (isTypeDistEnabled && dist) {
              let finalPool = [];
@@ -77,7 +77,7 @@ export const startSubmission = async (req, res) => {
              pool = shuffleArray(finalPool); 
          } else {
              pool = shuffleArray(pool);
-             const serveLimit = parseInt(exam.questionsToServe, 10);
+             const serveLimit = parseInt(exam.settings?.questionPoolSize, 10);
              if (!isNaN(serveLimit) && serveLimit > 0) pool = pool.slice(0, serveLimit); 
          }
       }

@@ -230,6 +230,10 @@ model ExamSettings {
   shuffleSections           Boolean   @default(false)
   questionPoolSize          Int?
   
+  // Mixed Question Types (Fairness Engine)
+  enableTypeDistribution    Boolean   @default(false)
+  typeDistribution          Json?
+  
   // Grading
   totalMarks                Int       @default(0)
   passingMarks              Int       @default(0)
