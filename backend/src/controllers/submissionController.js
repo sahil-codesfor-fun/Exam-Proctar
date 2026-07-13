@@ -126,7 +126,7 @@ export const startSubmission = async (req, res) => {
       });
     }
 
-    res.json({ success: true, resumed, data: { ...sub, _id: sub.id } });
+    res.json({ success: true, resumed, data: { ...sub, _id: sub.id, rescheduledEndTime: hasRescheduledAccess ? rescheduleTicket.rescheduledEndTime : null } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -285,10 +285,10 @@ export const getMySubmissions = async (req, res) => {
   try {
     const subs = await prisma.submission.findMany({
       where: { studentId: req.user.id },
-      include: { exam: { select: { title: true, durationMinutes: true, endTime: true, status: true } } },
+      include: { exam: { select: { title: true, status: true, course: true, schedule: { select: { durationMinutes: true, startDate: true, endDate: true } } } } },
       orderBy: { createdAt: 'desc' }
     });
-    res.json({ success: true, data: subs.map(s => ({ ...s, _id: s.id, exam: { ...s.exam, _id: s.examId } })) });
+    res.json({ success: true, data: subs.map(s => ({ ...s, _id: s.id, exam: { ...s.exam, _id: s.examId, durationMinutes: s.exam?.schedule?.durationMinutes, startTime: s.exam?.schedule?.startDate, endTime: s.exam?.schedule?.endDate } })) });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 

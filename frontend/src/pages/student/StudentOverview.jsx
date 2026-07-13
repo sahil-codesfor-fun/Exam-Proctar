@@ -37,25 +37,61 @@ const StudentOverview = () => {
   const [ticketModal, setTicketModal] = useState({ open: false, examId: null, examTitle: '', reason: '' });
   const [submittingTicket, setSubmittingTicket] = useState(false);
   const [loadingTickets, setLoadingTickets] = useState(true);
+  const [attemptedExams, setAttemptedExams] = useState({});
 
   useEffect(() => {
-    const fetchTickets = async () => {
+    const fetchData = async () => {
       try {
-        const res = await api.get('/tickets/my');
-        setMyTickets(res.data.data || []);
+        const ticketRes = await api.get('/tickets/my');
+        setMyTickets(ticketRes.data.data || []);
       } catch (err) {
         console.error('Failed to fetch appeals', err);
-      } finally {
-        setLoadingTickets(false);
       }
+
+      try {
+        const subRes = await api.get(`/submissions/my?t=${Date.now()}`);
+        const subMap = {};
+        (subRes.data.data || []).forEach(s => {
+          subMap[s.examId || s.exam?._id || s.exam?.id] = s.status;
+        });
+        setAttemptedExams(subMap);
+      } catch (err) {
+        console.error('Failed to fetch submissions', err);
+      }
+
+      setLoadingTickets(false);
     };
-    fetchTickets();
+    fetchData();
   }, []);
 
   const handleSubmitTicket = async () => {
     if (!ticketModal.reason.trim()) return alert('Please provide a reason');
     setSubmittingTicket(true);
     try {
+      // Pre-check: verify student hasn't already attempted this exam
+      try {
+        const freshSubRes = await api.get(`/submissions/my?t=${Date.now()}`);
+        const freshSubs = freshSubRes.data.data || [];
+        const alreadyAttempted = freshSubs.some(s => {
+          const subExamId = s.examId || s.exam?._id || s.exam?.id;
+          return subExamId === ticketModal.examId;
+        });
+        if (alreadyAttempted) {
+          // Update local state so the button becomes disabled
+          const subMap = {};
+          freshSubs.forEach(s => {
+            subMap[s.examId || s.exam?._id || s.exam?.id] = s.status;
+          });
+          setAttemptedExams(subMap);
+          setTicketModal({ open: false, examId: null, examTitle: '', reason: '' });
+          setSubmittingTicket(false);
+          alert('You have already attempted this exam. Appeal is not allowed.');
+          return;
+        }
+      } catch (checkErr) {
+        console.error('Pre-check failed, proceeding with appeal submission', checkErr);
+      }
+
       const res = await api.post('/tickets', { examId: ticketModal.examId, reason: ticketModal.reason });
       setMyTickets([res.data.data, ...myTickets]);
       setTicketModal({ open: false, examId: null, examTitle: '', reason: '' });
@@ -90,14 +126,17 @@ const StudentOverview = () => {
               {activeExams.map(exam => {
                 const examIdSafe = exam._id || exam.id;
                 const sub = getSub(examIdSafe);
-                const done = sub && ['submitted', 'auto_submitted'].includes(sub.status);
-                const inProgress = sub && sub.status === 'in_progress';
+                const contextSub = submissions.find(s => (s.examId || s.exam?._id || s.exam?.id) === examIdSafe);
+                const hasAttempted = !!attemptedExams[examIdSafe] || !!sub || !!contextSub;
+                const done = (sub && ['submitted', 'auto_submitted', 'force_submitted'].includes(sub.status)) || ['submitted', 'auto_submitted', 'force_submitted'].includes(attemptedExams[examIdSafe]) || (contextSub && ['submitted', 'auto_submitted', 'force_submitted'].includes(contextSub.status));
+                const inProgress = (sub && sub.status === 'in_progress') || (contextSub && contextSub.status === 'in_progress');
                 const ticket = getTicketStatus(examIdSafe);
                 const isRescheduled = ticket?.isRescheduled;
                 const originalExpired = exam.status === 'ended' || (exam.endTime && new Date(exam.endTime).getTime() < nowTime);
                 
                 let isExpired = originalExpired;
                 let isRescheduleWindowOpen = false;
+                let rescheduleEnded = false;
                 
                 if (isRescheduled) {
                    const resStartTime = new Date(ticket.rescheduledStartTime).getTime();
@@ -109,6 +148,7 @@ const StudentOverview = () => {
                       isExpired = true; // Wait for it to open
                    } else {
                       isExpired = true; // Ended
+                      rescheduleEnded = true;
                    }
                 }
                 
@@ -132,7 +172,7 @@ const StudentOverview = () => {
                       {done ? (
                         <span className="bg-emerald-50 text-emerald-600 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-emerald-100">✓ Completed</span>
                       ) : isExpired ? (
-                        <span className="bg-gray-100 text-gray-500 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-gray-200">{isRescheduled ? (nowTime < new Date(ticket.rescheduledStartTime).getTime() ? 'Awaiting Reschedule' : 'Reschedule Expired') : '❌ Expired'}</span>
+                        <span className="bg-gray-100 text-gray-500 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-gray-200">{isRescheduled ? (nowTime < new Date(ticket.rescheduledStartTime).getTime() ? `Awaiting ${ticket.appealNumber === 2 ? 'Final ' : ''}Reschedule` : `${ticket.appealNumber === 2 ? 'Final ' : ''}Reschedule Expired`) : '❌ Expired'}</span>
                       ) : inProgress ? (
                         <span className="bg-amber-50 text-amber-600 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-amber-100 animate-pulse">⏳ Session Open</span>
                       ) : (
@@ -144,7 +184,7 @@ const StudentOverview = () => {
                       <div className="flex flex-wrap gap-4 md:gap-6">
                         {isRescheduled && ticket.rescheduledStartTime ? (
                           <div className="flex flex-col">
-                            <span className="text-[9px] font-black text-[#ff7b00] uppercase">Rescheduled To</span>
+                            <span className="text-[9px] font-black text-[#ff7b00] uppercase">{ticket.appealNumber === 2 ? 'Final Rescheduled To' : 'Rescheduled To'}</span>
                             <span className="text-xs font-black text-gray-700">{new Date(ticket.rescheduledStartTime).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
                           </div>
                         ) : exam.startTime && (
@@ -171,16 +211,20 @@ const StudentOverview = () => {
                                 <span className="font-black text-[10px] uppercase tracking-widest py-3 px-6 rounded-xl border bg-gray-50 text-gray-400 border-gray-100 animate-pulse">
                                   Fetching...
                                 </span>
-                              ) : ticket ? (
+                              ) : (sub || hasAttempted) ? (
+                                <button disabled className="font-black text-[10px] uppercase tracking-widest py-3 px-6 rounded-xl border bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60">
+                                  ✓ Exam Attempted
+                                </button>
+                              ) : ticket && (!rescheduleEnded || ticket.appealNumber >= 2) ? (
                                 <span className={`font-black text-[10px] uppercase tracking-widest py-3 px-6 rounded-xl border ${ticket.status === 'approved' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : ticket.status === 'rejected' ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
-                                  Appeal: {ticket.status} {ticket.isRescheduled && '(Rescheduled)'}
+                                  {ticket.appealNumber === 2 ? 'Final Appeal' : 'Appeal'}: {ticket.status} {ticket.isRescheduled && '(Rescheduled)'}
                                 </span>
                               ) : (
                                 <button 
                                   onClick={() => setTicketModal({ open: true, examId: examIdSafe, examTitle: exam.title, reason: '' })}
                                   className="font-black text-[10px] uppercase tracking-widest py-3 px-6 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all"
                                 >
-                                  Submit Appeal
+                                  {ticket ? 'Submit Final Appeal' : 'Submit Appeal'}
                                 </button>
                               )}
                             </div>

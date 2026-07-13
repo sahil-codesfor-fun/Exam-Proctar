@@ -243,8 +243,10 @@ export const LiveExamPage = () => {
         const submissionId = s._id || s.id;
         const savedStart = localStorage.getItem(`exam_started_${submissionId}`);
 
-        if (e.endTime) {
-          const endMs = new Date(e.endTime).getTime();
+        const effectiveEndTime = s.rescheduledEndTime || e.endTime;
+
+        if (effectiveEndTime) {
+          const endMs = new Date(effectiveEndTime).getTime();
           const nowMs = Date.now();
           initialTimeLeft = Math.max(0, Math.floor((endMs - nowMs) / 1000));
         } else if (savedStart) {

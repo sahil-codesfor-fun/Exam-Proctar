@@ -74,7 +74,10 @@ export const createExam = async (req, res) => {
       faculty: exam.creator,
       proctoring: proctoring || {},
       randomizeQuestions: exam.settings?.randomizeQuestions,
-      questionsToServe: exam.settings?.questionPoolSize
+      questionsToServe: exam.settings?.questionPoolSize,
+      startTime: exam.schedule?.startDate,
+      endTime: exam.schedule?.endDate,
+      durationMinutes: exam.schedule?.durationMinutes
     };
 
     if (responseData.status === 'published' || responseData.status === 'active') {
@@ -190,7 +193,8 @@ export const getExam = async (req, res) => {
 
     if (req.user.role === 'student') {
       const rescheduleTicket = await prisma.missedExamTicket.findFirst({
-        where: { examId: exam.id, studentId: req.user.id, isRescheduled: true, status: 'approved' }
+        where: { examId: exam.id, studentId: req.user.id, isRescheduled: true, status: 'approved' },
+        orderBy: { createdAt: 'desc' }
       });
       if (rescheduleTicket && rescheduleTicket.rescheduledStartTime && rescheduleTicket.rescheduledEndTime) {
          examCopy.startTime = rescheduleTicket.rescheduledStartTime;

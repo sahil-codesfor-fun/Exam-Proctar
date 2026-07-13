@@ -134,6 +134,9 @@ const TeacherReschedulePanel = ({ examId }) => {
                   <td className="px-6 py-4">
                     <div className="font-bold text-gray-900">{ticket.student?.name}</div>
                     <div className="text-[10px] text-gray-400 font-mono tracking-widest mt-1">{ticket.student?.studentId}</div>
+                    {ticket.appealNumber === 2 && (
+                      <span className="bg-[#ff7b00]/10 text-[#ff7b00] border border-[#ff7b00]/20 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest mt-1">Final Appeal</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-xs text-gray-600 line-clamp-2 max-w-xs">{ticket.reason}</td>
                   <td className="px-6 py-4">

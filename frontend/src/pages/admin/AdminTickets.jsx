@@ -101,7 +101,7 @@ const AdminTickets = () => {
                     <td className="px-6 py-4 text-gray-500">
                       {new Date(ticket.createdAt).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 flex flex-col items-start gap-1">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest ${
                         ticket.status === 'pending' ? 'bg-amber-100 text-amber-700' :
                         ticket.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
@@ -112,6 +112,9 @@ const AdminTickets = () => {
                         {ticket.status === 'rejected' && <XCircle size={12} />}
                         {ticket.status}
                       </span>
+                      {ticket.appealNumber === 2 && (
+                        <span className="bg-[#ff7b00]/10 text-[#ff7b00] border border-[#ff7b00]/20 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest mt-1">Final Appeal</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-right">
                       {ticket.status === 'pending' ? (

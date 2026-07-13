@@ -8,16 +8,50 @@ export const createTicket = async (req, res) => {
     const exam = await prisma.exam.findUnique({ where: { id: examId } });
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
     
-    // Check if a ticket already exists for this exam and student
-    const existingTicket = await prisma.missedExamTicket.findFirst({
+    // Check if student has already attempted the exam
+    const existingSubmission = await prisma.submission.findFirst({
+      where: { examId, studentId: req.user.id }
+    });
+    if (existingSubmission) {
+      return res.status(400).json({ success: false, message: 'You have already attempted this exam and cannot appeal.' });
+    }
+    
+    // Check existing tickets for this exam and student
+    const existingTickets = await prisma.missedExamTicket.findMany({
       where: {
         examId,
         studentId: req.user.id
-      }
+      },
+      orderBy: { createdAt: 'desc' }
     });
     
-    if (existingTicket) {
-      return res.status(400).json({ success: false, message: 'You have already submitted a ticket for this exam' });
+    let appealNumber = 1;
+
+    if (existingTickets.length > 0) {
+      if (existingTickets.length >= 2) {
+        return res.status(400).json({ success: false, message: 'You have reached the maximum number of appeals for this exam.' });
+      }
+
+      const lastTicket = existingTickets[0];
+
+      if (lastTicket.status === 'pending') {
+        return res.status(400).json({ success: false, message: 'You already have a pending appeal for this exam.' });
+      }
+
+      if (lastTicket.status === 'rejected') {
+        return res.status(400).json({ success: false, message: 'Your previous appeal was rejected. You cannot appeal again.' });
+      }
+
+      if (!lastTicket.isRescheduled || !lastTicket.rescheduledEndTime) {
+        return res.status(400).json({ success: false, message: 'Your previous appeal is approved but not rescheduled yet.' });
+      }
+
+      const now = new Date();
+      if (now <= new Date(lastTicket.rescheduledEndTime)) {
+        return res.status(400).json({ success: false, message: 'The rescheduled exam window has not expired yet.' });
+      }
+
+      appealNumber = 2;
     }
     
     // Create the ticket
@@ -25,7 +59,8 @@ export const createTicket = async (req, res) => {
       data: {
         examId,
         studentId: req.user.id,
-        reason
+        reason,
+        appealNumber
       }
     });
     

@@ -565,6 +565,7 @@ model MissedExamTicket {
   isRescheduled        Boolean   @default(false)
   rescheduledStartTime DateTime?
   rescheduledEndTime   DateTime?
+  appealNumber         Int       @default(1)
   createdAt            DateTime  @default(now())
 
   exam                 Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)

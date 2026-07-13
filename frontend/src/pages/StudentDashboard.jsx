@@ -52,7 +52,7 @@ export const StudentDashboard = () => {
         }
 
         try {
-          const sRes = await api.get('/submissions/my');
+          const sRes = await api.get(`/submissions/my?t=${Date.now()}`);
           fetchedSubs = sRes.data?.data || [];
         } catch (e) {
           console.error("Submissions fetch failed, falling back", e);
@@ -99,7 +99,7 @@ export const StudentDashboard = () => {
     };
   }, []);
 
-  const getSub = (examId) => submissions.find(s => (s.exam?._id || s.exam?.id) === examId);
+  const getSub = (examId) => submissions.find(s => (s.exam?._id || s.exam?.id || s.examId) === examId);
 
   const activeExams = exams.filter(e => {
     if (e.status === 'active' || e.status === 'ended') return true; 
