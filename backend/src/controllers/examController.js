@@ -68,7 +68,7 @@ export const createExam = async (req, res) => {
       });
     },{
       maxWait: 10000,
-      timeout: 10000
+      timeout: 30000
     });
 
     const responseData = {
