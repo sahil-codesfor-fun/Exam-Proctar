@@ -104,6 +104,80 @@ export function CompilerPage() {
   
   // 🚀 NUEVO: Array to hold ALL sheets!
   const [practiceSheets, setPracticeSheets] = useState([]);
+
+  // ── ANTI-CHEAT RESTRICTIONS ──
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    // 1. Disable Right Click
+    const handleContextMenu = (e) => e.preventDefault();
+    document.addEventListener('contextmenu', handleContextMenu);
+
+    // 2. Disable Copy/Paste/Cut/Drag
+    const handleCopyPaste = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    // Use capture phase (true) to intercept before Monaco gets it
+    document.addEventListener('copy', handleCopyPaste, true);
+    document.addEventListener('paste', handleCopyPaste, true);
+    document.addEventListener('cut', handleCopyPaste, true);
+    document.addEventListener('dragstart', handleCopyPaste, true);
+    document.addEventListener('drop', handleCopyPaste, true);
+
+    // 3. Track Fullscreen
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+
+    // 4. Disable Text Selection (except in editor)
+    const handleSelectStart = (e) => {
+      if (!e.target.closest('.monaco-editor')) {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('selectstart', handleSelectStart);
+    document.body.style.userSelect = 'none';
+    document.body.style.webkitUserSelect = 'none';
+
+    // Set initial state in case already fullscreen
+    setIsFullscreen(!!document.fullscreenElement);
+
+    return () => {
+      document.body.style.userSelect = '';
+      document.body.style.webkitUserSelect = '';
+      document.removeEventListener('selectstart', handleSelectStart);
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('copy', handleCopyPaste, true);
+      document.removeEventListener('paste', handleCopyPaste, true);
+      document.removeEventListener('cut', handleCopyPaste, true);
+      document.removeEventListener('dragstart', handleCopyPaste, true);
+      document.removeEventListener('drop', handleCopyPaste, true);
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  const enterFullscreen = () => {
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(err => console.error(err));
+    }
+  };
+
+  const handleExit = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(err => console.log(err));
+    }
+    const moduleId = searchParams.get('moduleId');
+    if (user?.role === 'student') {
+      if (moduleId) {
+        navigate(`/student-dashboard/courses/module/${moduleId}`);
+      } else {
+        navigate('/student-dashboard/coding-progress');
+      }
+    }
+    else navigate('/teacher-dashboard/practice-manager');
+  };
   
   useEffect(() => {
     const newSocket = io('http://localhost:5002/practice');
@@ -302,23 +376,35 @@ export function CompilerPage() {
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] bg-gray-950 text-white font-sans overflow-hidden">
       
+      {/* ── FULLSCREEN OVERLAY ── */}
+      {!isFullscreen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-950/95 backdrop-blur-md">
+          <div className="text-center p-8 bg-gray-900 border border-red-500/50 rounded-2xl shadow-2xl max-w-md mx-4">
+            <div className="text-6xl mb-6">⚠️</div>
+            <h2 className="text-2xl font-bold text-red-400 mb-4">Anti-Cheat Active</h2>
+            <p className="text-gray-300 mb-6 font-medium">To maintain the integrity of this coding session, you must use the playground in fullscreen mode. Copy, paste, and right-click are strictly disabled.</p>
+            <div className="flex gap-4 justify-center mt-2">
+              <button 
+                onClick={enterFullscreen}
+                className="px-8 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(220,38,38,0.5)] hover:shadow-[0_0_25px_rgba(220,38,38,0.7)]"
+              >
+                Enter Fullscreen
+              </button>
+              <button 
+                onClick={handleExit}
+                className="px-6 py-3 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold rounded-xl transition-colors border border-gray-700"
+              >
+                Exit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Top Bar ── */}
       <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-6 py-3 bg-gray-900 border-b border-gray-800 flex-shrink-0">
         <div className="flex items-center gap-4">
-            <button onClick={() => {
-                const moduleId = searchParams.get('moduleId');
-                if (user?.role === 'student') {
-                    if (moduleId) {
-                        // We need the courseId to go back to the module correctly.
-                        // Wait, do we have courseId? No. Let's just use navigate(-1) as a fallback if courseId isn't known, or go to student-dashboard/courses?
-                        // Actually, the route is /student-dashboard/courses/module/:moduleId
-                        navigate(`/student-dashboard/courses/module/${moduleId}`);
-                    } else {
-                        navigate('/student-dashboard/coding-progress');
-                    }
-                }
-                else navigate('/teacher-dashboard/practice-manager');
-            }}
+            <button onClick={handleExit}
             className="bg-gray-800 border border-gray-700 hover:bg-gray-700 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors">
               ← Exit
             </button>
@@ -474,6 +560,15 @@ export function CompilerPage() {
               value={code}
               theme="vs-dark"
               onChange={v => setCode(v || '')}
+              onMount={(editor, monaco) => {
+                editor.onKeyDown((e) => {
+                  // Block Ctrl+C, Ctrl+V, Ctrl+X, Cmd+C, Cmd+V, Cmd+X
+                  if ((e.ctrlKey || e.metaKey) && (e.keyCode === monaco.KeyCode.KeyC || e.keyCode === monaco.KeyCode.KeyV || e.keyCode === monaco.KeyCode.KeyX)) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }
+                });
+              }}
               options={{ 
                   fontSize, 
                   fontFamily: "'JetBrains Mono','Fira Code',monospace", 
