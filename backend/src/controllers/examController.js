@@ -61,6 +61,7 @@ export const createExam = async (req, res) => {
               aiFaceDetection: proctoring?.enableWebcam || false,
               clipboardDetection: proctoring?.disableCopyPaste !== false, // Defaults to true
               autoTerminateViolations: proctoring?.maxViolations ? parseInt(proctoring.maxViolations, 10) : 5,
+              sessionTimeoutMinutes: proctoring?.restrictionMinutes !== undefined ? parseInt(proctoring.restrictionMinutes, 10) : 30,
               enableTypeDistribution: proctoring?.enableTypeDistribution || false,
               typeDistribution: proctoring?.typeDistribution || null,
             }
@@ -139,6 +140,7 @@ export const getExams = async (req, res) => {
       try {
         const proctoring = {
           maxViolations: exam.settings?.autoTerminateViolations || 3,
+          restrictionMinutes: exam.settings?.sessionTimeoutMinutes === 120 ? 0 : (exam.settings?.sessionTimeoutMinutes || 0),
           requireFullscreen: exam.settings?.fullscreenRequired || false,
           enableWebcam: exam.settings?.aiFaceDetection || false,
           disableCopyPaste: exam.settings?.clipboardDetection !== false,
@@ -189,6 +191,7 @@ export const getExam = async (req, res) => {
 
     const proctoring = {
       maxViolations: exam.settings?.autoTerminateViolations || 3,
+      restrictionMinutes: exam.settings?.sessionTimeoutMinutes === 120 ? 0 : (exam.settings?.sessionTimeoutMinutes || 0),
       requireFullscreen: exam.settings?.fullscreenRequired || false,
       enableWebcam: exam.settings?.aiFaceDetection || false,
       disableCopyPaste: exam.settings?.clipboardDetection !== false,
@@ -296,6 +299,7 @@ export const updateExam = async (req, res) => {
                 aiFaceDetection: proctoring?.enableWebcam || false,
                 clipboardDetection: proctoring?.disableCopyPaste !== false,
                 autoTerminateViolations: proctoring?.maxViolations ? parseInt(proctoring.maxViolations, 10) : 5,
+                sessionTimeoutMinutes: proctoring?.restrictionMinutes !== undefined ? parseInt(proctoring.restrictionMinutes, 10) : 30,
                 enableTypeDistribution: proctoring?.enableTypeDistribution || false,
                 typeDistribution: proctoring?.typeDistribution || null,
               },
@@ -307,6 +311,7 @@ export const updateExam = async (req, res) => {
                 aiFaceDetection: proctoring?.enableWebcam || false,
                 clipboardDetection: proctoring?.disableCopyPaste !== false,
                 autoTerminateViolations: proctoring?.maxViolations ? parseInt(proctoring.maxViolations, 10) : 5,
+                sessionTimeoutMinutes: proctoring?.restrictionMinutes !== undefined ? parseInt(proctoring.restrictionMinutes, 10) : 30,
                 enableTypeDistribution: proctoring?.enableTypeDistribution || false,
                 typeDistribution: proctoring?.typeDistribution || null,
               }

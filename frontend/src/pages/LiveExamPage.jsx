@@ -620,7 +620,7 @@ export const LiveExamPage = () => {
               disabled={submitting || !isSubmissionAllowed}
               className={`${isSubmissionAllowed ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-gray-700 opacity-50 cursor-not-allowed'} text-white font-bold py-2 px-6 rounded-lg text-sm transition-all shadow-lg`}
             >
-              {submitting ? '⏳ Submitting…' : !isSubmissionAllowed ? `🔒 Locked` : '✅ Submit Exam'}
+              {submitting ? '⏳ Submitting…' : !isSubmissionAllowed ? `🔒 Locked (${Math.ceil((restrictionSeconds - actualElapsedSeconds) / 60)}m left)` : '✅ Submit Exam'}
             </button>
           </div>
 
