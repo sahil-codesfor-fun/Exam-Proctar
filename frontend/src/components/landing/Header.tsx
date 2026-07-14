@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import { Menu } from "lucide-react";
 import { Logo } from "@/components/landing/Logo";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/s
 
 const navItems = [
   { to: "/", label: "Home" },
-  { to: "/courses", label: "Courses" },
+  { to: "/about", label: "About" },
   { to: "/contact", label: "Contact" },
 ] as const;
 
@@ -21,21 +21,22 @@ export function Header() {
 
         <nav className="hidden items-center gap-8 md:flex">
           {navItems.map((item) => (
-            <Link
+            <NavLink
               key={item.to}
               to={item.to}
-              className="text-sm font-semibold text-foreground/80 transition-colors hover:text-primary"
-              activeProps={{ className: "text-primary" }}
-              activeOptions={{ exact: item.to === "/" }}
+              end={item.to === "/"}
+              className={({ isActive }) => 
+                `text-sm font-semibold transition-colors hover:text-primary ${isActive ? 'text-primary' : 'text-foreground/80'}`
+              }
             >
               {item.label}
-            </Link>
+            </NavLink>
           ))}
         </nav>
 
         <div className="flex items-center gap-2">
           <Button asChild className="hidden rounded-full px-6 sm:inline-flex">
-            <Link to="/contact">Login</Link>
+            <Link to="/login">Login</Link>
           </Button>
 
           <Sheet open={open} onOpenChange={setOpen}>
@@ -48,19 +49,20 @@ export function Header() {
               <SheetTitle className="sr-only">Navigation</SheetTitle>
               <div className="mt-6 flex flex-col gap-1 px-2">
                 {navItems.map((item) => (
-                  <Link
+                  <NavLink
                     key={item.to}
                     to={item.to}
+                    end={item.to === "/"}
                     onClick={() => setOpen(false)}
-                    className="rounded-lg px-3 py-2.5 text-base font-semibold text-foreground/80 transition-colors hover:bg-secondary hover:text-primary"
-                    activeProps={{ className: "bg-secondary text-primary" }}
-                    activeOptions={{ exact: item.to === "/" }}
+                    className={({ isActive }) => 
+                      `rounded-lg px-3 py-2.5 text-base font-semibold transition-colors hover:bg-secondary hover:text-primary ${isActive ? 'bg-secondary text-primary' : 'text-foreground/80'}`
+                    }
                   >
                     {item.label}
-                  </Link>
+                  </NavLink>
                 ))}
                 <Button asChild className="mt-4 rounded-full">
-                  <Link to="/contact" onClick={() => setOpen(false)}>
+                  <Link to="/login" onClick={() => setOpen(false)}>
                     Login
                   </Link>
                 </Button>

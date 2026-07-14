@@ -78,9 +78,8 @@ function HomePage() {
                 <span className="text-gold">By The World</span>
               </h1>
               <p className="mt-6 max-w-md text-base leading-relaxed text-muted-foreground">
-                Master in-demand tech skills with Midnight Coders — the coding initiative of Geeta
-                Technical Hub, powered by Geeta University. Real projects, expert mentors and 100%
-                placement assistance.
+                Master secure assessments with Nexus Proctor — the leading exam integrity platform
+                powered by Geeta University. Advanced proctoring, live verification and reliable results.
               </p>
               <div className="mt-8 flex flex-wrap gap-4">
                 <Button asChild size="lg" className="rounded-full px-7">
@@ -98,7 +97,7 @@ function HomePage() {
               <div className="absolute inset-x-6 top-10 -z-0 aspect-square rounded-full bg-gradient-to-tr from-sky/20 to-primary/10 blur-2xl" />
               <img
                 src={heroStudents}
-                alt="Midnight Coders trainees learning to code together"
+                alt="Nexus Proctor users collaborating together"
                 width={960}
                 height={960}
                 fetchPriority="high"
@@ -167,7 +166,7 @@ function HomePage() {
             <div className="relative">
               <img
                 src={about1}
-                alt="Students collaborating in a Midnight Coders classroom"
+                alt="Students taking a proctored exam"
                 loading="lazy"
                 width={768}
                 height={896}
@@ -175,7 +174,7 @@ function HomePage() {
               />
               <img
                 src={about2}
-                alt="Instructor mentoring a trainee at Geeta Technical Hub"
+                alt="Instructor mentoring a student"
                 loading="lazy"
                 width={640}
                 height={768}
@@ -193,10 +192,10 @@ function HomePage() {
                 eyebrow="About Us"
                 title={
                   <>
-                    Learn &amp; Grow with <span className="text-primary">Geeta Technical Hub</span>
+                    Secure Exams with <span className="text-primary">Nexus Proctor</span>
                   </>
                 }
-                description="Unlock new horizons and enhance your expertise with Midnight Coders. Dive into a treasure trove of resources, tutorials and courses curated to help you learn and grow. Whether you're a beginner or a seasoned professional, our platform helps you stay ahead in your field."
+                description="Unlock secure and reliable evaluations with Nexus Proctor. Dive into a advanced suite of anti-cheating mechanism features, secure browser environments, and live tracking curated to help educators verify assessments."
               />
               <ul className="mt-8 space-y-4">
                 {[
@@ -255,7 +254,7 @@ function HomePage() {
           <SectionHeading
             eyebrow="Testimonials"
             title="What Our Trainees Have To Say"
-            description="Discover how Midnight Coders has transformed learning experiences — firsthand accounts of skill development, career growth and confidence."
+            description="Discover how Nexus Proctor has transformed online examination experiences — firsthand accounts of testing ease, reliability and secure verification."
           />
           <div className="mt-12 grid gap-6 md:grid-cols-3">
             {testimonials.map((t) => (
@@ -292,7 +291,7 @@ function HomePage() {
             <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-sky px-8 py-14 text-center shadow-xl">
               <Trophy className="mx-auto h-12 w-12 text-primary-foreground/90" />
               <h2 className="mx-auto mt-5 max-w-2xl font-display text-3xl font-extrabold text-primary-foreground sm:text-4xl">
-                Get Your Quality Skills Certificate Through Geeta Technical Hub
+                Secure Your Academic Integrity Through Nexus Proctor
               </h2>
               <Button
                 asChild

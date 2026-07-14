@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
-import { LayoutGrid, Code, User as UserIcon, LogOut, Terminal, BookOpen } from 'lucide-react';
+import { LayoutGrid, Code, User as UserIcon, LogOut, Terminal, BookOpen, Menu, X } from 'lucide-react';
 
 export const StudentDashboard = () => {
   const navigate = useNavigate();
@@ -14,6 +14,7 @@ export const StudentDashboard = () => {
   const [loading, setLoading] = useState(true);
   
   const [nowTime, setNowTime] = useState(Date.now());
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Timer interval for real-time exam status updates
   useEffect(() => {
@@ -120,31 +121,43 @@ export const StudentDashboard = () => {
   });
 
   return (
-    <div className="flex h-[calc(100vh-80px)] -mt-4 md:-mt-8 -mx-4 md:-mx-8 bg-gray-50/50 overflow-hidden font-sans">
+    <div className="flex h-screen bg-gray-50/50 overflow-hidden font-sans relative">
       
+      {isSidebarOpen && <div className="fixed inset-0 bg-gray-900/50 z-40 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
+      <button onClick={() => setIsSidebarOpen(true)} className="md:hidden absolute top-4 left-4 z-30 p-2 bg-white rounded-lg shadow-md border border-gray-200 text-gray-700">
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+      </button>
+
       {/* 🚀 THE NEW LEFT SIDEBAR NAVIGATION */}
-      <div className="w-64 bg-white border-r border-gray-200 flex flex-col justify-between p-6 shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10">
+      <div className={`w-64 bg-white border-r border-gray-200 flex flex-col justify-between p-6 shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-50 fixed inset-y-0 left-0 md:relative h-full transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+        <button onClick={() => setIsSidebarOpen(false)} className="md:hidden absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-900">
+          <X size={20} />
+        </button>
         <div className="space-y-6">
+          <div className="flex items-center gap-3 mb-6 mt-2">
+            <span className="text-3xl ml-1">🛡️</span>
+            <span className="text-xl font-extrabold text-gray-900 tracking-tight">Nexus Proctor</span>
+          </div>
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2">Main Menu</p>
           
           <nav className="space-y-2">
-            <NavLink to="overview" className={({ isActive }) => `flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-200 ${isActive ? 'bg-[#1A5F53] text-white shadow-lg shadow-emerald-900/20' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'}`}>
+            <NavLink to="overview" onClick={() => setIsSidebarOpen(false)} className={({ isActive }) => `flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-200 ${isActive ? 'bg-[#1A5F53] text-white shadow-lg shadow-emerald-900/20' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'}`}>
               <LayoutGrid size={16} /> Dashboard
             </NavLink>
 
-            <NavLink to="coding-progress" className={({ isActive }) => `flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider  transition-all duration-200 ${isActive ? 'bg-[#1A5F53] text-white shadow-lg shadow-emerald-900/20' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'}`}>
+            <NavLink to="coding-progress" onClick={() => setIsSidebarOpen(false)} className={({ isActive }) => `flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider  transition-all duration-200 ${isActive ? 'bg-[#1A5F53] text-white shadow-lg shadow-emerald-900/20' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'}`}>
               <Code size={16} /> Coding Progress
             </NavLink>
 
-            <button onClick={() => navigate('/compiler')} className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-200">
+            <button onClick={() => { setIsSidebarOpen(false); navigate('/compiler'); }} className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200">
               <Terminal size={16} /> Code Playground
             </button>
             
-            <NavLink to="courses" className={({ isActive }) => `flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-emerald-100 transition-all duration-200 ${isActive ? 'bg-[#1A5F53] text-white shadow-lg shadow-emerald-900/20' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'}`}>
+            <NavLink to="courses" onClick={() => setIsSidebarOpen(false)} className={({ isActive }) => `flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-emerald-100 transition-all duration-200 ${isActive ? 'bg-[#1A5F53] text-white shadow-lg shadow-emerald-900/20' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'}`}>
               <BookOpen size={16} /> Courses
             </NavLink>
 
-            <NavLink to="profile" className={({ isActive }) => `flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-emerald-100 transition-all duration-200 ${isActive ? 'bg-[#1A5F53] text-white shadow-lg shadow-emerald-900/20' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'}`}>
+            <NavLink to="profile" onClick={() => setIsSidebarOpen(false)} className={({ isActive }) => `flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-emerald-100 transition-all duration-200 ${isActive ? 'bg-[#1A5F53] text-white shadow-lg shadow-emerald-900/20' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'}`}>
               <UserIcon size={16} /> Profile
             </NavLink>
           </nav>
@@ -156,7 +169,7 @@ export const StudentDashboard = () => {
       </div>
 
       {/* 🚀 THE MAIN CONTENT AREA */}
-      <div className="flex-1 h-full overflow-y-auto p-6 md:p-10 relative">
+      <div className="flex-1 min-w-0 h-full overflow-y-auto p-6 pt-16 md:pt-10 relative">
         <div className="max-w-6xl mx-auto w-full">
           
           {/* Your Original Welcome Banner */}

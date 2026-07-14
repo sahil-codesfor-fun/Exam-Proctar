@@ -2,12 +2,88 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body, #root {
-  height: 100%;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  background-color: white !important;
+@layer base {
+  :root {
+    --radius: 0.75rem;
+
+    --background: 0.99 0.005 95;
+    --foreground: 0.21 0.03 265;
+
+    --card: 1 0 0;
+    --card-foreground: 0.21 0.03 265;
+    --popover: 1 0 0;
+    --popover-foreground: 0.21 0.03 265;
+
+    --primary: 0.35 0.10 250;
+    --primary-foreground: 0.99 0.01 95;
+
+    --secondary: 0.95 0.02 250;
+    --secondary-foreground: 0.30 0.06 250;
+
+    --muted: 0.96 0.008 95;
+    --muted-foreground: 0.5 0.02 265;
+
+    --accent: 0.95 0.02 250;
+    --accent-foreground: 0.30 0.06 250;
+
+    --sky: 0.60 0.12 230;
+    --sky-foreground: 0.99 0.01 95;
+    --gold: 0.78 0.16 75;
+    --gold-foreground: 0.28 0.06 75;
+
+    --destructive: 0.58 0.22 27;
+    --destructive-foreground: 0.99 0.01 95;
+
+    --border: 0.91 0.01 95;
+    --input: 0.91 0.01 95;
+    --ring: 0.35 0.10 250;
+  }
+
+  .dark {
+    --background: 0.18 0.02 265;
+    --foreground: 0.98 0.003 95;
+    --card: 0.23 0.025 265;
+    --card-foreground: 0.98 0.003 95;
+    --popover: 0.23 0.025 265;
+    --popover-foreground: 0.98 0.003 95;
+    --primary: 0.60 0.12 250;
+    --primary-foreground: 0.18 0.02 265;
+    --secondary: 0.3 0.03 265;
+    --secondary-foreground: 0.98 0.003 95;
+    --muted: 0.3 0.03 265;
+    --muted-foreground: 0.72 0.02 265;
+    --accent: 0.3 0.03 265;
+    --accent-foreground: 0.98 0.003 95;
+    --sky: 0.70 0.12 230;
+    --sky-foreground: 0.18 0.02 265;
+    --gold: 0.8 0.16 75;
+    --gold-foreground: 0.22 0.05 75;
+    --destructive: 0.7 0.19 22;
+    --destructive-foreground: 0.98 0.003 95;
+    --border: 1 0 0 / 12%;
+    --input: 1 0 0 / 15%;
+    --ring: 0.60 0.12 250;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html, body, #root {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: white !important;
+  }
+}
+
+.dotted-grid {
+  background-image: radial-gradient(
+    oklch(var(--primary)) 1.5px,
+    transparent 1.5px
+  );
+  background-size: 16px 16px;
 }
 
 body {
@@ -84,4 +160,15 @@ body {
 
 .report-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #d1d5db;
+}
+
+/* Hide scrollbar for Chrome, Safari, Opera and all other webkit browsers */
+::-webkit-scrollbar {
+  display: none !important;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+html, body, #root, * {
+  -ms-overflow-style: none !important;  /* IE and Edge */
+  scrollbar-width: none !important;  /* Firefox */
 }

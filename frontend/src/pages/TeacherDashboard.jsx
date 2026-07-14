@@ -535,7 +535,7 @@ export const TeacherDashboard = () => {
   };
 
   return (
-    <div className="flex h-[calc(100vh-8.5rem)] bg-gray-50 overflow-hidden font-sans relative rounded-xl border border-gray-100 shadow-sm">
+    <div className="flex h-screen w-full bg-gray-50 overflow-hidden font-sans relative">
       {modal && renderModal()}
 
       {toast && (
@@ -567,7 +567,7 @@ export const TeacherDashboard = () => {
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
       </button>
 
-      <div className={`w-64 bg-white border-r flex flex-col p-5 overflow-y-auto z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)] fixed md:relative h-full transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+      <div className={`w-64 bg-white border-r flex flex-col p-5 overflow-y-auto z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)] fixed inset-y-0 left-0 md:relative h-full transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         <button onClick={() => setIsSidebarOpen(false)} className="md:hidden absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-900"><X size={20} /></button>
         <div className="flex items-center gap-3 mb-10 mt-4 cursor-pointer hover:scale-[1.02] transition-transform">
           <span className="text-3xl ml-2">🛡️</span>
@@ -603,7 +603,7 @@ export const TeacherDashboard = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto bg-gray-50/50 p-4 pt-16 md:p-8 lg:p-12 pb-24 relative w-full md:w-auto">
+      <div className="flex-1 min-w-0 overflow-y-auto bg-gray-50/50 p-4 pt-16 md:p-8 lg:p-12 pb-24 relative w-full md:w-auto">
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none transform translate-x-1/3 -translate-y-1/3"></div>
         <Outlet context={{ exams, subs, loadSubs, loading, setModal, openEditModal, toggleStatus, deleteExam, showConfirm }} />
       </div>

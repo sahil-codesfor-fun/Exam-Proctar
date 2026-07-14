@@ -11,16 +11,16 @@ export function Footer() {
           <div className="md:col-span-2">
             <Logo />
             <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">
-              Midnight Coders is the coding-training initiative of Geeta Technical Hub, powered by
-              Geeta University. We build industry-ready developers through practical training, global
-              certifications and 100% placement assistance.
+              Nexus Proctor is the academic integrity and online exam platform, powered by
+              Geeta University. We ensure secure testing environments through advanced proctoring
+              solutions.
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
               <span className="rounded-full bg-background px-3 py-1 text-xs font-semibold text-foreground shadow-sm">
                 Geeta University
               </span>
               <span className="rounded-full bg-background px-3 py-1 text-xs font-semibold text-foreground shadow-sm">
-                Geeta Technical Hub
+                Nexus Proctor
               </span>
             </div>
           </div>
@@ -34,8 +34,8 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link to="/courses" className="transition-colors hover:text-primary">
-                  Courses
+                <Link to="/about" className="transition-colors hover:text-primary">
+                  About
                 </Link>
               </li>
               <li>
@@ -70,7 +70,7 @@ export function Footer() {
         </div>
 
         <div className="mt-12 border-t border-border pt-6 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} Midnight Coders · Geeta Technical Hub. All rights reserved.
+          © {new Date().getFullYear()} Nexus Proctor. All rights reserved.
         </div>
       </div>
     </footer>

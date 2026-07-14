@@ -135,7 +135,7 @@ export const testimonials: Testimonial[] = [
     role: "Trainee",
     image: testi2,
     quote:
-      "Midnight Coders has been a game-changer for me. The practical approach to learning has made all the difference and significantly boosted my confidence and skills. I highly recommend it to anyone looking to become a proficient developer.",
+      "Nexus Proctor has been a game-changer for me. The practical approach to learning has made all the difference and significantly boosted my confidence and skills. I highly recommend it to anyone looking to become a proficient developer.",
   },
   {
     name: "Sankar",
@@ -156,6 +156,6 @@ export const counters = [
 export const partners = ["Pega", "CompTIA", "Mile2", "Automation Anywhere", "AWS", "Google", "Microsoft", "Geeta University"];
 
 export const contact = {
-  email: "support@midnightcoders.io",
+  email: "support@nexusproctor.com",
   phone: "+ (91) 83 43 81 81 81",
 };

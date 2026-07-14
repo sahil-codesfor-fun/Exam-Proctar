@@ -2,7 +2,10 @@ import React, { Suspense, lazy } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
-const LandingPage = lazy(() => import('./pages/LandingPage').then(module => ({ default: module.LandingPage })));
+const LandingPage = lazy(() => import('./pages/landing/LandingHome'));
+const LandingAbout = lazy(() => import('./pages/landing/LandingAbout'));
+const LandingContact = lazy(() => import('./pages/landing/LandingContact'));
+const StudentLogin = lazy(() => import('./pages/StudentLogin').then(module => ({ default: module.LandingPage })));
 const FacultyLogin = lazy(() => import('./pages/FacultyLogin').then(module => ({ default: module.FacultyLogin })));
 const AdminLogin = lazy(() => import('./pages/AdminLogin').then(module => ({ default: module.AdminLogin })));
 const StudentDashboard = lazy(() => import('./pages/StudentDashboard').then(module => ({ default: module.StudentDashboard })));
@@ -30,7 +33,7 @@ const Departments = lazy(() => import('./pages/superadmin/Departments'));
 const DepartmentHeads = lazy(() => import('./pages/superadmin/DepartmentHeads'));
 const SuperAdminTeachers = lazy(() => import('./pages/superadmin/Teachers'));
 const Settings = lazy(() => import('./pages/superadmin/Settings'));
-const SuperAdminLogin = lazy(() => import('./pages/superadmin/Login'));
+const SuperAdminLogin = lazy(() => import('./pages/SuperAdminLogin'));
 const AdminSubjects = lazy(() => import('./pages/admin/Subjects'));
 const AdminTickets = lazy(() => import('./pages/admin/AdminTickets'));
 const AdminStudents = lazy(() => import('./pages/admin/AdminStudents'));
@@ -82,13 +85,14 @@ function App() {
   const isSuperAdmin = location.pathname.startsWith('/superadmin');
   const isChangePass = location.pathname === '/change-password';
   
-  const isAuthPage = ['/', '/fac', '/adm'].includes(location.pathname);
+  const isAuthPage = ['/', '/about', '/contact', '/login', '/fac', '/adm'].includes(location.pathname);
+  const isDashboard = location.pathname.startsWith('/student-dashboard') || location.pathname.startsWith('/teacher-dashboard');
 
   return (
     <AuthProvider>
       <div className={`min-h-screen font-sans flex flex-col ${isLiveExam || isCompiler ? 'bg-gray-950 text-white' : 'bg-gray-50 text-gray-900'}`}>
         
-        {!isLiveExam && !isCompiler && !isAuthPage && !isAdmin && !isChangePass && !isSuperAdmin && (
+        {!isLiveExam && !isCompiler && !isAuthPage && !isAdmin && !isChangePass && !isSuperAdmin && !isDashboard && (
           <header className="px-4 md:px-6 py-4 bg-white border-b border-gray-200 flex justify-between items-center sticky top-0 z-50">
             <div className="flex items-center gap-3 cursor-pointer group" onClick={() => window.location.href = '/'}>
               <span className="text-3xl">🛡️</span>
@@ -97,7 +101,7 @@ function App() {
           </header>
         )}
 
-        <main className={`flex-grow ${isLiveExam || isCompiler || isAuthPage || isAdmin || isChangePass || isSuperAdmin ? '' : 'p-4 md:p-8'}`}>
+        <main className={`flex-grow ${isLiveExam || isCompiler || isAuthPage || isAdmin || isChangePass || isSuperAdmin || isDashboard ? '' : 'p-4 md:p-8'}`}>
           <Suspense fallback={
             <div className="h-screen flex items-center justify-center bg-gray-50 text-gray-900">
               <div className="flex flex-col items-center gap-3">
@@ -109,6 +113,9 @@ function App() {
             <Routes>
               {/* ── Public Auth Pages ─────────────────────────────── */}
               <Route path="/" element={<LandingPage />} />
+              <Route path="/about" element={<LandingAbout />} />
+              <Route path="/contact" element={<LandingContact />} />
+              <Route path="/login" element={<StudentLogin />} />
               <Route path="/fac" element={<FacultyLogin />} />
               <Route path="/adm" element={<AdminLogin />} />
 
