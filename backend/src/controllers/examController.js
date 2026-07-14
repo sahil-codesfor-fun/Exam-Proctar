@@ -31,8 +31,9 @@ export const createExam = async (req, res) => {
 
     const examCode = `EXAM-TCH-${Math.floor(1000 + Math.random() * 9000)}-${Date.now().toString().slice(-4)}`;
 
-    const exam = await prisma.$transaction(async (tx) => {
-      return tx.exam.create({
+    // 🚀 OPTIMIZATION: Switched to a Sequential Transaction Array for faster execution
+    const [exam] = await prisma.$transaction([
+      prisma.exam.create({
         data: {
           title: examData.title,
           examCode,
@@ -66,11 +67,16 @@ export const createExam = async (req, res) => {
           },
           questions: { create: formattedQuestions || [] }
         },
-        include: { questions: { include: { options: true, testCases: true, matchingPairs: true } }, creator: { select: { name: true, email: true } }, settings: true, schedule: true }
-      });
-    },{
+        include: {
+          questions: { include: { options: true, testCases: true, matchingPairs: true } },
+          creator: { select: { name: true, email: true } },
+          settings: true,
+          schedule: true
+        }
+      })
+    ], {
       maxWait: 10000,
-      timeout: 30000
+      timeout: 30000 // Safely gives the cloud DB 30 seconds to parse the giant nested tree
     });
 
     const responseData = {
@@ -208,9 +214,9 @@ export const getExam = async (req, res) => {
         orderBy: { createdAt: 'desc' }
       });
       if (rescheduleTicket && rescheduleTicket.rescheduledStartTime && rescheduleTicket.rescheduledEndTime) {
-         examCopy.startTime = rescheduleTicket.rescheduledStartTime;
-         examCopy.endTime = rescheduleTicket.rescheduledEndTime;
-         examCopy.durationMinutes = Math.round((new Date(rescheduleTicket.rescheduledEndTime) - new Date(rescheduleTicket.rescheduledStartTime)) / 60000);
+        examCopy.startTime = rescheduleTicket.rescheduledStartTime;
+        examCopy.endTime = rescheduleTicket.rescheduledEndTime;
+        examCopy.durationMinutes = Math.round((new Date(rescheduleTicket.rescheduledEndTime) - new Date(rescheduleTicket.rescheduledStartTime)) / 60000);
       }
 
       const marksOverride = examCopy.randomizeQuestions && examCopy.proctoring?.marksPerNode ? parseInt(examCopy.proctoring.marksPerNode, 10) : null;
@@ -257,10 +263,9 @@ export const updateExam = async (req, res) => {
       matchingPairs: q.matchingPairs && q.matchingPairs.length > 0 ? { create: q.matchingPairs.map(mp => ({ leftItem: mp.leftItem, rightItem: mp.rightItem })) } : undefined
     }));
 
-    const updatedExam = await prisma.$transaction(async (tx) => {
-      await tx.question.deleteMany({ where: { examId: examId } });
-
-      return tx.exam.update({
+    const [updatedExam] = await prisma.$transaction([
+      prisma.question.deleteMany({ where: { examId: examId } }),
+      prisma.exam.update({
         where: { id: examId },
         data: {
           title: examData.title, description: examData.description, course: examData.course,
@@ -310,7 +315,10 @@ export const updateExam = async (req, res) => {
           questions: { create: formattedQuestions || [] }
         },
         include: { questions: { include: { options: true, testCases: true, matchingPairs: true } }, creator: true, settings: true, schedule: true }
-      });
+      })
+    ], {
+      maxWait: 10000,
+      timeout: 30000
     });
 
     const responseData = {

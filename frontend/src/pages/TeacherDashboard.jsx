@@ -81,6 +81,28 @@ export const TeacherDashboard = () => {
   useEffect(() => {
     load();
     loadDepartments();
+    
+    let socket;
+    import('../services/socket').then(({ connectSocket }) => {
+      socket = connectSocket();
+      socket.on('exam_status_changed', () => {
+        load();
+      });
+      socket.on('exam_published', () => {
+        load();
+      });
+      socket.on('exam_deleted', () => {
+        load();
+      });
+    });
+
+    return () => {
+      if (socket) {
+        socket.off('exam_status_changed');
+        socket.off('exam_published');
+        socket.off('exam_deleted');
+      }
+    };
   }, [user]);
 
   useEffect(() => {

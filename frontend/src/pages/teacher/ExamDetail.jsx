@@ -107,7 +107,7 @@ const ExamDetail = () => {
         </div>
       </div>
 
-      {exam.status === 'active' && (
+      {(exam.status === 'active' || liveStudents.length > 0) && (
         <div className="bg-gray-900 text-white rounded-3xl p-8 border border-gray-800 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none transform translate-x-1/2 -translate-y-1/2"></div>
           
