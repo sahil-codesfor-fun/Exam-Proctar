@@ -4,7 +4,7 @@ import { Plus, Edit, Trash2, BarChart2 } from 'lucide-react';
 
 const TeacherOverview = () => {
   const navigate = useNavigate();
-  const { exams, loading, setModal, openEditModal, toggleStatus, deleteExam } = useOutletContext();
+  const { exams, loading, setModal, openEditModal, toggleStatus, deleteExam, isUpdating } = useOutletContext();
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 relative z-10">
@@ -87,10 +87,11 @@ const TeacherOverview = () => {
                             <Edit size={12}/> Edit
                           </button>
                         )}
-                        {exam.status === 'draft' && <button onClick={() => toggleStatus(exam, 'published')} className="text-[10px] bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-100 px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm transition-all">Publish</button>}
-                        {exam.status === 'published' && <button onClick={() => toggleStatus(exam, 'draft')} className="text-[10px] bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-100 px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm transition-all">Revoke</button>}
-                        {exam.status === 'active' && <button onClick={() => toggleStatus(exam, 'ended')} className="text-[10px] bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm transition-all">End</button>}
-                        <button onClick={() => deleteExam(exam._id)} className="text-gray-300 hover:text-red-500 p-1.5 bg-white border border-transparent hover:border-red-100 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={14}/></button>
+                        {exam.status === 'draft' && <button onClick={() => toggleStatus(exam, 'published')} disabled={isUpdating} className={`text-[10px] bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-100 px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm transition-all ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}>Publish</button>}
+                        {exam.status === 'published' && <button onClick={() => toggleStatus(exam, 'draft')} disabled={isUpdating} className={`text-[10px] bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-100 px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm transition-all ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}>Revoke</button>}
+                        {exam.status === 'active' && <button onClick={() => toggleStatus(exam, 'ended')} disabled={isUpdating} className={`text-[10px] bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 px-3 py-1.5 rounded-lg font-black uppercase tracking-widest shadow-sm transition-all ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}>End</button>}
+                        <button onClick={() => openEditModal(exam)} disabled={isUpdating} className={`p-1.5 bg-indigo-50 text-indigo-600 rounded-md hover:bg-indigo-100 transition-colors ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}><Edit size={14} /></button>
+                        <button onClick={() => deleteExam(exam._id)} disabled={isUpdating} className={`p-1.5 bg-red-50 text-red-600 rounded-md hover:bg-red-100 transition-colors ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}><Trash2 size={14} /></button>
                       </div>
                     </td>
                   </tr>

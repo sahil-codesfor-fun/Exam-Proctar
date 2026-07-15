@@ -4,16 +4,17 @@ import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import { connectSocket, disconnectSocket, getSocket } from '../services/socket';
 import useProctoring from '../hooks/useProctoring';
+import useDebounce from '../hooks/useDebounce';
 import Editor from '@monaco-editor/react';
 
 const LANGS = [
-  { id:'javascript', name:'JavaScript', m:'javascript' },{ id:'typescript', name:'TypeScript', m:'typescript' },
-  { id:'python', name:'Python', m:'python' },{ id:'java', name:'Java', m:'java' },
-  { id:'c', name:'C', m:'c' },{ id:'cpp', name:'C++', m:'cpp' },{ id:'csharp', name:'C#', m:'csharp' },
-  { id:'go', name:'Go', m:'go' },{ id:'rust', name:'Rust', m:'rust' },{ id:'php', name:'PHP', m:'php' },
-  { id:'ruby', name:'Ruby', m:'ruby' },{ id:'kotlin', name:'Kotlin', m:'kotlin' },{ id:'swift', name:'Swift', m:'swift' },
-  { id:'perl', name:'Perl', m:'perl' },{ id:'bash', name:'Bash', m:'shell' },{ id:'r', name:'R', m:'r' },
-  { id:'dart', name:'Dart', m:'dart' },{ id:'lua', name:'Lua', m:'lua' },{ id:'scala', name:'Scala', m:'scala' },
+  { id: 'javascript', name: 'JavaScript', m: 'javascript' }, { id: 'typescript', name: 'TypeScript', m: 'typescript' },
+  { id: 'python', name: 'Python', m: 'python' }, { id: 'java', name: 'Java', m: 'java' },
+  { id: 'c', name: 'C', m: 'c' }, { id: 'cpp', name: 'C++', m: 'cpp' }, { id: 'csharp', name: 'C#', m: 'csharp' },
+  { id: 'go', name: 'Go', m: 'go' }, { id: 'rust', name: 'Rust', m: 'rust' }, { id: 'php', name: 'PHP', m: 'php' },
+  { id: 'ruby', name: 'Ruby', m: 'ruby' }, { id: 'kotlin', name: 'Kotlin', m: 'kotlin' }, { id: 'swift', name: 'Swift', m: 'swift' },
+  { id: 'perl', name: 'Perl', m: 'perl' }, { id: 'bash', name: 'Bash', m: 'shell' }, { id: 'r', name: 'R', m: 'r' },
+  { id: 'dart', name: 'Dart', m: 'dart' }, { id: 'lua', name: 'Lua', m: 'lua' }, { id: 'scala', name: 'Scala', m: 'scala' },
 ];
 
 export const LiveExamPage = () => {
@@ -21,21 +22,22 @@ export const LiveExamPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [phase, setPhase] = useState('loading'); 
+  const [phase, setPhase] = useState('loading');
   const [exam, setExam] = useState(null);
   const [submission, setSubmission] = useState(null);
   const [answers, setAnswers] = useState([]);
   const [currentQ, setCurrentQ] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [isForceSaving, setIsForceSaving] = useState(false); // 🚀 NEW: Emergency save lock state
   const [error, setError] = useState('');
-  
+
   const [runResult, setRunResult] = useState(null);
   const [running, setRunning] = useState(false);
   const [judgeResult, setJudgeResult] = useState(null);
   const [judging, setJudging] = useState(false);
   const [codeStdin, setCodeStdin] = useState('');
-  
+
   const timerRef = useRef(null);
   const submittedRef = useRef(false);
   const initFiredRef = useRef(false);
@@ -48,10 +50,10 @@ export const LiveExamPage = () => {
   useEffect(() => { answersRef.current = answers; }, [answers]);
 
   const [toast, setToast] = useState(null);
-  const [confirmModal, setConfirmModal] = useState(null); 
+  const [confirmModal, setConfirmModal] = useState(null);
 
   const [activeDraw, setActiveDraw] = useState(null);
-  const [hoveredRight, setHoveredRight] = useState(null); 
+  const [hoveredRight, setHoveredRight] = useState(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [drawnLines, setDrawnLines] = useState([]);
   const matchingContainerRef = useRef(null);
@@ -78,12 +80,12 @@ export const LiveExamPage = () => {
 
   const handleRestricted = useCallback((msg) => { setPhase('restricted'); setError(msg); }, []);
   const handleAutoSubmit = useCallback((reason) => { doSubmit(true, reason); }, []);
-  
+
   const proctoring = useProctoring({
-    examId, 
+    examId,
     enabled: ['exam', 'fullscreen'].includes(phase) && proctorReady && !submittedRef.current,
-    maxViolations: 99, 
-    onRestricted: handleRestricted, 
+    maxViolations: 99,
+    onRestricted: handleRestricted,
     onAutoSubmit: handleAutoSubmit,
   });
 
@@ -105,9 +107,9 @@ export const LiveExamPage = () => {
         }
       } catch (err) {
         if (err.response?.status === 404) {
-          document.exitFullscreen?.().catch(()=>{});
+          document.exitFullscreen?.().catch(() => { });
           alert("🚨 EXAM DELETED BY PROCTOR. You are being disconnected.");
-          window.location.href = '/student-dashboard'; 
+          window.location.href = '/student-dashboard';
         }
       }
     }, 15000);
@@ -146,7 +148,7 @@ export const LiveExamPage = () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
-  }, []); 
+  }, []);
 
   useEffect(() => {
     if (phase !== 'exam' || submittedRef.current) return;
@@ -205,27 +207,27 @@ export const LiveExamPage = () => {
         if (e.status !== 'active' && e.startTime && new Date(e.startTime) <= new Date()) {
           try {
             await api.patch(`/exams/${examId}/status`, { status: 'active' });
-            e.status = 'active'; 
-          } catch (patchErr) {}
+            e.status = 'active';
+          } catch (patchErr) { }
         }
 
         const subRes = await api.post(`/submissions/start/${examId}`);
         const s = subRes.data.data;
-        
+
         if (s.answers && s.answers.length > 0) {
           const dealtQuestions = s.answers.map(ans => {
             const originalQ = e.questions.find(q => (q._id || q.id) === ans.questionId);
             if (!originalQ) return null;
-            return { 
-                ...originalQ, 
-                options: ans.options || originalQ.options,
-                matchingLeft: ans.matchingLeft,
-                matchingRight: ans.matchingRight
+            return {
+              ...originalQ,
+              options: ans.options || originalQ.options,
+              matchingLeft: ans.matchingLeft,
+              matchingRight: ans.matchingRight
             };
           }).filter(Boolean);
 
           e.questions = dealtQuestions;
-          
+
           setAnswers(s.answers.map(ans => ({
             ...ans,
             studentMatches: ans.studentMatches || {}
@@ -239,7 +241,7 @@ export const LiveExamPage = () => {
           })));
         }
 
-        let initialTimeLeft = e.durationMinutes * 60; 
+        let initialTimeLeft = e.durationMinutes * 60;
         const submissionId = s._id || s.id;
         const savedStart = localStorage.getItem(`exam_started_${submissionId}`);
 
@@ -256,7 +258,7 @@ export const LiveExamPage = () => {
         } else {
           initialTimeLeft = e.durationMinutes * 60;
         }
-        
+
         setTimeLeft(initialTimeLeft);
         setExam(e);
         setSubmission(s);
@@ -270,9 +272,9 @@ export const LiveExamPage = () => {
 
         socket.on('exam_deleted', (data) => {
           if (String(data.examId) === String(examId)) {
-             document.exitFullscreen?.().catch(()=>{});
-             alert('This exam has been deleted by the instructor.');
-             window.location.href = '/student-dashboard'; 
+            document.exitFullscreen?.().catch(() => { });
+            alert('This exam has been deleted by the instructor.');
+            window.location.href = '/student-dashboard';
           }
         });
 
@@ -290,15 +292,15 @@ export const LiveExamPage = () => {
         setPhase('error');
       }
     })();
-    return () => { 
+    return () => {
       const socket = getSocket();
       if (socket) {
         socket.off('force_submit');
         socket.off('exam_deleted');
         socket.off('exam_status_changed');
       }
-      disconnectSocket(); 
-      if (timerRef.current) clearInterval(timerRef.current); 
+      disconnectSocket();
+      if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [examId, user]);
 
@@ -313,39 +315,74 @@ export const LiveExamPage = () => {
     return () => clearInterval(timerRef.current);
   }, [phase]);
 
+  const debouncedAnswers = useDebounce(answers, 2000);
+
   useEffect(() => {
     if (phase !== 'exam' || !submission) return;
     const submissionId = submission._id || submission.id;
-    const iv = setInterval(() => {
-      api.put(`/submissions/${submissionId}/save`, { answers }).catch(() => {});
-    }, 30000);
-    return () => clearInterval(iv);
-  }, [phase, answers, submission]);
+    // Only save if answers actually have content and are not initial empty states
+    if (debouncedAnswers && debouncedAnswers.length > 0) {
+      api.put(`/submissions/${submissionId}/save`, { answers: debouncedAnswers }).catch((err) => {
+        showToast('Auto-save failed: ' + (err.response?.data?.message || err.message), 'error');
+      });
+    }
+  }, [phase, debouncedAnswers, submission]);
+
+  // 🚀 NEW: Imperative Flush / Emergency Save logic
+  const forceSaveAllAnswers = async () => {
+    const sub = submissionRef.current || submission;
+    if (!sub) return;
+
+    setIsForceSaving(true);
+    try {
+      const submissionId = sub._id || sub.id;
+      // Sends the absolute current state of answersRef, bypassing the debounce timer completely
+      await api.put(`/submissions/${submissionId}/save`, { answers: answersRef.current });
+    } catch (error) {
+      console.error("Emergency save failed", error);
+    } finally {
+      setIsForceSaving(false);
+    }
+  };
+
+  const handlePrev = async () => {
+    await forceSaveAllAnswers();
+    setCurrentQ(p => Math.max(0, p - 1));
+    setRunResult(null);
+    setJudgeResult(null);
+  };
+
+  const handleNext = async () => {
+    await forceSaveAllAnswers();
+    setCurrentQ(p => Math.min((exam?.questions?.length || 1) - 1, p + 1));
+    setRunResult(null);
+    setJudgeResult(null);
+  };
 
   const performForceSubmit = async (reason) => {
     submittedRef.current = true;
     setSubmitting(true);
-    
+
     const sub = submissionRef.current;
     if (!sub) {
-       document.exitFullscreen?.().catch(() => {});
-       window.location.href = '/student-dashboard';
-       return;
+      document.exitFullscreen?.().catch(() => { });
+      window.location.href = '/student-dashboard';
+      return;
     }
-    
+
     const submissionId = sub._id || sub.id;
-    
+
     try {
-      await api.put(`/submissions/${submissionId}/submit`, { 
-         answers: answersRef.current, 
-         autoSubmit: true, 
-         reason 
+      await api.put(`/submissions/${submissionId}/submit`, {
+        answers: answersRef.current,
+        autoSubmit: true,
+        reason
       });
-      document.exitFullscreen?.().catch(() => {});      
+      document.exitFullscreen?.().catch(() => { });
       setPhase('restricted');
       setError(`Your session was violently terminated by the Proctor. Reason: ${reason}`);
     } catch (err) {
-      document.exitFullscreen?.().catch(() => {});
+      document.exitFullscreen?.().catch(() => { });
       window.location.href = '/student-dashboard';
     }
   };
@@ -355,29 +392,29 @@ export const LiveExamPage = () => {
     const rect = matchingContainerRef.current.getBoundingClientRect();
     const newLines = [];
     const q = exam?.questions?.[currentQ];
-    
+
     if (!q || q.type !== 'matching') {
       setDrawnLines([]);
       return;
     }
-    
+
     const ans = answers.find(a => a.questionId === (q._id || q.id)) || {};
     const matches = ans.studentMatches || {};
 
     Object.entries(matches).forEach(([lId, rId]) => {
-       const lDot = leftDots.current[lId];
-       const rDot = rightDots.current[rId];
-       if (lDot && rDot) {
-          const lRect = lDot.getBoundingClientRect();
-          const rRect = rDot.getBoundingClientRect();
-          newLines.push({
-             key: lId + rId,
-             x1: lRect.left + lRect.width/2 - rect.left,
-             y1: lRect.top + lRect.height/2 - rect.top,
-             x2: rRect.left + rRect.width/2 - rect.left,
-             y2: rRect.top + rRect.height/2 - rect.top
-          });
-       }
+      const lDot = leftDots.current[lId];
+      const rDot = rightDots.current[rId];
+      if (lDot && rDot) {
+        const lRect = lDot.getBoundingClientRect();
+        const rRect = rDot.getBoundingClientRect();
+        newLines.push({
+          key: lId + rId,
+          x1: lRect.left + lRect.width / 2 - rect.left,
+          y1: lRect.top + lRect.height / 2 - rect.top,
+          x2: rRect.left + rRect.width / 2 - rect.left,
+          y2: rRect.top + rRect.height / 2 - rect.top
+        });
+      }
     });
     setDrawnLines(newLines);
   }, [answers, currentQ, exam]);
@@ -385,21 +422,20 @@ export const LiveExamPage = () => {
   useEffect(() => {
     updateLines();
     window.addEventListener('resize', updateLines);
-    window.addEventListener('scroll', updateLines, true); 
-    const timeout = setTimeout(updateLines, 50); 
+    window.addEventListener('scroll', updateLines, true);
+    const timeout = setTimeout(updateLines, 50);
     return () => {
-       window.removeEventListener('resize', updateLines);
-       window.removeEventListener('scroll', updateLines, true);
-       clearTimeout(timeout);
+      window.removeEventListener('resize', updateLines);
+      window.removeEventListener('scroll', updateLines, true);
+      clearTimeout(timeout);
     };
   }, [updateLines, phase, answers]);
-
 
   const enterFullscreen = () => {
     const handleSuccess = () => {
       const subId = submissionRef.current?._id || submissionRef.current?.id;
       if (subId && !localStorage.getItem(`exam_started_${subId}`)) {
-         localStorage.setItem(`exam_started_${subId}`, Date.now().toString());
+        localStorage.setItem(`exam_started_${subId}`, Date.now().toString());
       }
       setPhase('exam');
     };
@@ -415,7 +451,9 @@ export const LiveExamPage = () => {
 
   const doSubmit = async (auto = false, reason = '') => {
     if (submittedRef.current) return;
-    
+
+    await forceSaveAllAnswers(); // 🚀 NEW: Ensures the final keystrokes are flushed before asking for confirmation
+
     if (!auto) {
       showConfirm('Are you sure you want to submit this exam? This action cannot be undone.', () => {
         performSubmit(auto, reason);
@@ -430,8 +468,10 @@ export const LiveExamPage = () => {
     setSubmitting(true);
     const submissionId = submissionRef.current?._id || submissionRef.current?.id || submission?._id || submission?.id;
     try {
+      // Final flush to ensure no pending answers are missed
+      await api.put(`/submissions/${submissionId}/save`, { answers: answersRef.current || answers });
       await api.put(`/submissions/${submissionId}/submit`, { answers: answersRef.current || answers, autoSubmit: auto, reason });
-      document.exitFullscreen?.().catch(() => {});      
+      document.exitFullscreen?.().catch(() => { });
       setPhase('submitted');
     } catch (err) {
       showToast('Submit failed: ' + (err.response?.data?.message || err.message), 'error');
@@ -444,9 +484,9 @@ export const LiveExamPage = () => {
   const handleRunCode = async () => {
     const ans = answers[currentQ];
     if (!ans?.code) return;
-    
-    setRunning(true); 
-    setRunResult(null); 
+
+    setRunning(true);
+    setRunResult(null);
     setJudgeResult(null); // Clear judge panel so they don't overlap
 
     try {
@@ -458,10 +498,10 @@ export const LiveExamPage = () => {
       } else {
         setRunResult({ error: resData.stderr, output: '', errorType: resData.errorType, success: false });
       }
-    } catch (e) { 
-      setRunResult({ error: e.response?.data?.message || e.message || 'Execution failed', output: '' }); 
-    } finally { 
-      setRunning(false); 
+    } catch (e) {
+      setRunResult({ error: e.response?.data?.message || e.message || 'Execution failed', output: '' });
+    } finally {
+      setRunning(false);
     }
   };
 
@@ -470,9 +510,9 @@ export const LiveExamPage = () => {
     const ans = answers[currentQ];
     const q = exam?.questions?.[currentQ];
     if (!ans?.code || !q?.testCases?.length) return;
-    
-    setJudging(true); 
-    setJudgeResult(null); 
+
+    setJudging(true);
+    setJudgeResult(null);
     setRunResult(null); // Clear terminal panel so they don't overlap
 
     try {
@@ -480,23 +520,23 @@ export const LiveExamPage = () => {
         language: ans.language, code: ans.code,
         testCases: q.testCases, timeLimitSec: q.timeLimitSeconds || 5,
       });
-      
+
       const d = r.data.data;
       setJudgeResult(d);
-      
+
       const score = d.verdict === 'accepted' ? q.points : Math.round((d.passed / d.total) * q.points);
       updateAnswer(ans.questionId, 'score', score);
       updateAnswer(ans.questionId, 'verdict', d.verdict);
       updateAnswer(ans.questionId, 'passedTests', d.passed);
       updateAnswer(ans.questionId, 'totalTests', d.total);
-    } catch (e) { 
+    } catch (e) {
       console.error("Judge failed:", e);
-    } finally { 
-      setJudging(false); 
+    } finally {
+      setJudging(false);
     }
   };
 
-  const fmtTime = (s) => `${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+  const fmtTime = (s) => `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
   const isLow = timeLeft < 300;
 
   const restrictionMinutes = exam?.proctoring?.restrictionMinutes || exam?.proctoringRules?.restrictionMinutes || 0;
@@ -515,16 +555,16 @@ export const LiveExamPage = () => {
   useEffect(() => {
     const maxV = exam?.proctoring?.maxViolations || exam?.proctoringRules?.maxViolations || 3;
     const penaltyThreshold = Math.floor(maxV / 2);
-    
+
     if (vCount > penaltyThreshold && vCount > lastPenalizedRef.current && phase === 'exam') {
       lastPenalizedRef.current = vCount;
-      setTimeLeft(prev => Math.max(0, Math.floor(prev * 0.75))); 
+      setTimeLeft(prev => Math.max(0, Math.floor(prev * 0.75)));
     }
   }, [vCount, phase, exam]);
-  
+
   useEffect(() => {
     const maxV = exam?.proctoring?.maxViolations || exam?.proctoringRules?.maxViolations || 3;
-    
+
     if (vCount >= maxV && !submittedRef.current && phase === 'exam') {
       doSubmit(true, `Exceeded maximum fullscreen exit violations (${maxV})`);
     }
@@ -576,7 +616,7 @@ export const LiveExamPage = () => {
 
       {phase === 'exam' && exam && answers.length > 0 && q && (
         <div className="h-screen flex flex-col bg-gray-950 text-white overflow-hidden select-none transition-all duration-700" style={{ fontFamily: "'Inter', sans-serif" }}>
-          
+
           {!document.fullscreenElement && !submittedRef.current && (
             <div className="fixed inset-0 z-[500] bg-gray-950 flex items-center justify-center p-6 text-center animate-in fade-in duration-300">
               <div className="max-w-md">
@@ -585,8 +625,8 @@ export const LiveExamPage = () => {
                 <p className="text-gray-400 mb-10 font-medium leading-relaxed">
                   Fullscreen exit detected. Please return to fullscreen immediately to resume your session.
                 </p>
-                <button 
-                  onClick={() => document.documentElement.requestFullscreen().catch(() => {})}
+                <button
+                  onClick={() => document.documentElement.requestFullscreen().catch(() => { })}
                   className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-5 rounded-2xl shadow-2xl shadow-emerald-900/40 transition-all transform active:scale-95 text-lg"
                 >
                   RETURN TO FULLSCREEN
@@ -599,7 +639,7 @@ export const LiveExamPage = () => {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-6 py-3 bg-gray-900 border-b border-gray-800 flex-shrink-0">
             <div className="flex items-center gap-4">
               <span className="text-lg font-bold flex items-center gap-2"><span className="text-2xl">🛡️</span> {exam?.title || 'Exam Terminal'}</span>
-              
+
               {proctoring?.violationCount > 0 ? (
                 <span className="text-xs font-black px-3 py-1 rounded-lg bg-red-500/20 text-red-400 animate-pulse border border-red-500/40">
                   ⚠️ WARNING: {proctoring.violationCount}/{exam?.proctoring?.maxViolations || exam?.proctoringRules?.maxViolations || 3} Infractions Registered
@@ -610,17 +650,17 @@ export const LiveExamPage = () => {
                 </span>
               )}
             </div>
-            
+
             <div className={`font-mono text-xl font-bold px-6 py-2 rounded-lg border ${isLow ? 'bg-red-500/20 border-red-500 text-red-400 animate-pulse' : 'bg-gray-800 border-gray-700 text-white'}`}>
               {fmtTime(timeLeft)}
             </div>
-            
-            <button 
-              onClick={() => doSubmit(false)} 
+
+            <button
+              onClick={() => doSubmit(false)}
               disabled={submitting || !isSubmissionAllowed}
               className={`${isSubmissionAllowed ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-gray-700 opacity-50 cursor-not-allowed'} text-white font-bold py-2 px-6 rounded-lg text-sm transition-all shadow-lg`}
             >
-              {submitting ? '⏳ Submitting…' : !isSubmissionAllowed ? `🔒 Locked` : '✅ Submit Exam'}
+              {submitting ? '⏳ Submitting…' : !isSubmissionAllowed ? `🔒 Locked (${Math.ceil((restrictionSeconds - actualElapsedSeconds) / 60)}m left)` : '✅ Submit Exam'}
             </button>
           </div>
 
@@ -631,7 +671,7 @@ export const LiveExamPage = () => {
                 {exam?.questions?.map((qq, idx) => {
                   const qqIdSafe = qq._id || qq.id;
                   const a = answers.find(x => x.questionId === qqIdSafe);
-                  
+
                   let done = false;
                   if (a) {
                     if (qq.type === 'mcq') done = (a.selectedOptionId !== null || a.selectedOption >= 0);
@@ -639,18 +679,17 @@ export const LiveExamPage = () => {
                     else if (qq.type === 'subjective') done = (a.textAnswer && a.textAnswer.trim().length > 0);
                     else if (qq.type === 'matching') done = (a.studentMatches && Object.keys(a.studentMatches).length > 0);
                   }
-                  
+
                   return (
                     <button key={qqIdSafe} onClick={() => { setCurrentQ(idx); setRunResult(null); setJudgeResult(null); }}
-                      className={`min-w-[2.25rem] h-9 rounded-lg text-xs font-bold border transition-all ${
-                        currentQ === idx ? 'bg-blue-600 border-blue-500 text-white' :
-                        done ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300' :
-                        'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600'
-                      }`}>{idx + 1}</button>
+                      className={`min-w-[2.25rem] h-9 rounded-lg text-xs font-bold border transition-all ${currentQ === idx ? 'bg-blue-600 border-blue-500 text-white' :
+                          done ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300' :
+                            'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600'
+                        }`}>{idx + 1}</button>
                   );
                 })}
               </div>
-              
+
               {proctoring.violations.length > 0 && (
                 <div className="mt-4">
                   <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">⚠️ Violations</h3>
@@ -683,15 +722,14 @@ export const LiveExamPage = () => {
                         const isSelected = optId ? ans.selectedOptionId === optId : ans.selectedOption === oi;
 
                         return (
-                          <label key={optId || oi} className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all ${
-                            isSelected ? 'border-blue-500 bg-blue-500/10' : 'border-gray-700 bg-gray-800/50 hover:border-gray-600'
-                          }`}>
+                          <label key={optId || oi} className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all ${isSelected ? 'border-blue-500 bg-blue-500/10' : 'border-gray-700 bg-gray-800/50 hover:border-gray-600'
+                            }`}>
                             <input type="radio" name={`q-${qIdSafe}`} className="w-5 h-5 accent-blue-500"
                               checked={isSelected}
                               onChange={() => {
-                                setAnswers(prev => prev.map(a => 
-                                  a.questionId === qIdSafe 
-                                    ? { ...a, selectedOptionId: optId, selectedOption: oi } 
+                                setAnswers(prev => prev.map(a =>
+                                  a.questionId === qIdSafe
+                                    ? { ...a, selectedOptionId: optId, selectedOption: oi }
                                     : a
                                 ));
                               }} />
@@ -704,7 +742,7 @@ export const LiveExamPage = () => {
                 </div>
 
               ) : q.type === 'matching' ? (
-                 <div className="flex-1 overflow-auto p-8">
+                <div className="flex-1 overflow-auto p-8">
                   <div className="max-w-4xl mx-auto">
                     <div className="flex items-center gap-3 mb-2">
                       <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-3 py-1 rounded-lg">Q{currentQ + 1}</span>
@@ -713,102 +751,102 @@ export const LiveExamPage = () => {
                     </div>
                     <h2 className="text-xl font-bold mb-2">{q.title}</h2>
                     {q.description && <p className="text-gray-400 mb-6 whitespace-pre-wrap">{q.description}</p>}
-                    
-                    <div 
-                      ref={matchingContainerRef} 
+
+                    <div
+                      ref={matchingContainerRef}
                       className="relative mt-10 p-6 bg-gray-900/30 rounded-[2rem] border border-gray-800 select-none overflow-hidden touch-none"
                       onPointerMove={(e) => {
-                         if (activeDraw && matchingContainerRef.current) {
-                            const rect = matchingContainerRef.current.getBoundingClientRect();
-                            setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-                         }
+                        if (activeDraw && matchingContainerRef.current) {
+                          const rect = matchingContainerRef.current.getBoundingClientRect();
+                          setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+                        }
                       }}
                       onPointerUp={(e) => {
-                         if (activeDraw && hoveredRight) {
-                            const newMatches = {...(ans.studentMatches || {})};
-                            Object.keys(newMatches).forEach(k => {
-                               if (newMatches[k] === hoveredRight) delete newMatches[k];
-                            });
-                            newMatches[activeDraw] = hoveredRight;
-                            updateAnswer(qIdSafe, 'studentMatches', newMatches);
-                         }
-                         setActiveDraw(null);
+                        if (activeDraw && hoveredRight) {
+                          const newMatches = { ...(ans.studentMatches || {}) };
+                          Object.keys(newMatches).forEach(k => {
+                            if (newMatches[k] === hoveredRight) delete newMatches[k];
+                          });
+                          newMatches[activeDraw] = hoveredRight;
+                          updateAnswer(qIdSafe, 'studentMatches', newMatches);
+                        }
+                        setActiveDraw(null);
                       }}
                       onPointerLeave={() => setActiveDraw(null)}
                     >
-                       <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
-                          {drawnLines.map(line => (
-                             <line key={line.key} x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} stroke="#10b981" strokeWidth="4" strokeLinecap="round" className="drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                      <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
+                        {drawnLines.map(line => (
+                          <line key={line.key} x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} stroke="#10b981" strokeWidth="4" strokeLinecap="round" className="drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                        ))}
+
+                        {activeDraw && leftDots.current[activeDraw] && matchingContainerRef.current && (() => {
+                          const lRect = leftDots.current[activeDraw].getBoundingClientRect();
+                          const cRect = matchingContainerRef.current.getBoundingClientRect();
+                          const x1 = lRect.left + lRect.width / 2 - cRect.left;
+                          const y1 = lRect.top + lRect.height / 2 - cRect.top;
+                          return (
+                            <line
+                              x1={x1} y1={y1}
+                              x2={mousePos.x} y2={mousePos.y}
+                              stroke="#3b82f6" strokeWidth="4" strokeDasharray="8,8" strokeLinecap="round" className="animate-pulse drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]"
+                            />
+                          );
+                        })()}
+                      </svg>
+
+                      <div className="flex justify-between items-stretch gap-20 relative z-20">
+                        <div className="flex-1 flex flex-col justify-around space-y-6">
+                          {q.matchingLeft?.map(item => (
+                            <div
+                              key={item.id}
+                              className={`relative bg-gray-800/80 p-5 rounded-2xl border flex justify-between items-center shadow-lg cursor-pointer transition-all ${activeDraw === item.id ? 'border-blue-500 scale-[1.02]' : 'border-gray-700'}`}
+                              onPointerDown={(e) => {
+                                e.preventDefault();
+                                const newMatches = { ...(ans.studentMatches || {}) };
+                                delete newMatches[item.id];
+                                updateAnswer(qIdSafe, 'studentMatches', newMatches);
+
+                                setActiveDraw(item.id);
+                                const rect = matchingContainerRef.current.getBoundingClientRect();
+                                setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+                              }}
+                            >
+                              <span className="font-bold text-gray-200 text-sm pointer-events-none">{item.text}</span>
+                              <div
+                                ref={el => leftDots.current[item.id] = el}
+                                className={`w-6 h-6 rounded-full border-4 transition-all z-30 flex-shrink-0 -mr-8 shadow-xl ${ans.studentMatches?.[item.id] ? 'bg-emerald-500 border-emerald-400' : 'bg-gray-900 border-gray-500'}`}
+                              ></div>
+                            </div>
                           ))}
-                          
-                          {activeDraw && leftDots.current[activeDraw] && matchingContainerRef.current && (() => {
-                             const lRect = leftDots.current[activeDraw].getBoundingClientRect();
-                             const cRect = matchingContainerRef.current.getBoundingClientRect();
-                             const x1 = lRect.left + lRect.width / 2 - cRect.left;
-                             const y1 = lRect.top + lRect.height / 2 - cRect.top;
-                             return (
-                               <line 
-                                 x1={x1} y1={y1} 
-                                 x2={mousePos.x} y2={mousePos.y} 
-                                 stroke="#3b82f6" strokeWidth="4" strokeDasharray="8,8" strokeLinecap="round" className="animate-pulse drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]"
-                               />
-                             );
-                          })()}
-                       </svg>
+                        </div>
 
-                       <div className="flex justify-between items-stretch gap-20 relative z-20">
-                          <div className="flex-1 flex flex-col justify-around space-y-6">
-                             {q.matchingLeft?.map(item => (
-                                <div 
-                                  key={item.id} 
-                                  className={`relative bg-gray-800/80 p-5 rounded-2xl border flex justify-between items-center shadow-lg cursor-pointer transition-all ${activeDraw === item.id ? 'border-blue-500 scale-[1.02]' : 'border-gray-700'}`}
-                                  onPointerDown={(e) => {
-                                    e.preventDefault(); 
-                                    const newMatches = {...(ans.studentMatches || {})};
-                                    delete newMatches[item.id];
-                                    updateAnswer(qIdSafe, 'studentMatches', newMatches);
-                                    
-                                    setActiveDraw(item.id);
-                                    const rect = matchingContainerRef.current.getBoundingClientRect();
-                                    setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-                                  }}
-                                >
-                                   <span className="font-bold text-gray-200 text-sm pointer-events-none">{item.text}</span>
-                                   <div 
-                                     ref={el => leftDots.current[item.id] = el}
-                                     className={`w-6 h-6 rounded-full border-4 transition-all z-30 flex-shrink-0 -mr-8 shadow-xl ${ans.studentMatches?.[item.id] ? 'bg-emerald-500 border-emerald-400' : 'bg-gray-900 border-gray-500'}`}
-                                   ></div>
-                                </div>
-                             ))}
-                          </div>
-
-                          <div className="flex-1 flex flex-col justify-around space-y-6">
-                             {q.matchingRight?.map(item => (
-                                <div 
-                                  key={item.id} 
-                                  className={`relative bg-gray-800/80 p-5 rounded-2xl border flex justify-between items-center flex-row-reverse shadow-lg cursor-pointer transition-all ${hoveredRight === item.id && activeDraw ? 'border-emerald-500 scale-[1.02] bg-gray-800' : 'border-gray-700'}`}
-                                  onPointerEnter={() => setHoveredRight(item.id)}
-                                  onPointerLeave={() => setHoveredRight(null)}
-                                  onClick={() => {
-                                     if (!activeDraw) {
-                                        const newMatches = {...(ans.studentMatches || {})};
-                                        let found = false;
-                                        Object.keys(newMatches).forEach(k => {
-                                           if (newMatches[k] === item.id) { delete newMatches[k]; found = true; }
-                                        });
-                                        if (found) updateAnswer(qIdSafe, 'studentMatches', newMatches);
-                                     }
-                                  }}
-                                >
-                                   <span className="font-bold text-gray-200 text-sm text-right pointer-events-none">{item.text}</span>
-                                   <div 
-                                     ref={el => rightDots.current[item.id] = el}
-                                     className={`w-6 h-6 rounded-full border-4 transition-all z-30 flex-shrink-0 -ml-8 shadow-xl ${Object.values(ans.studentMatches || {}).includes(item.id) ? 'bg-emerald-500 border-emerald-400' : 'bg-gray-900 border-gray-500'}`}
-                                   ></div>
-                                </div>
-                             ))}
-                          </div>
-                       </div>
+                        <div className="flex-1 flex flex-col justify-around space-y-6">
+                          {q.matchingRight?.map(item => (
+                            <div
+                              key={item.id}
+                              className={`relative bg-gray-800/80 p-5 rounded-2xl border flex justify-between items-center flex-row-reverse shadow-lg cursor-pointer transition-all ${hoveredRight === item.id && activeDraw ? 'border-emerald-500 scale-[1.02] bg-gray-800' : 'border-gray-700'}`}
+                              onPointerEnter={() => setHoveredRight(item.id)}
+                              onPointerLeave={() => setHoveredRight(null)}
+                              onClick={() => {
+                                if (!activeDraw) {
+                                  const newMatches = { ...(ans.studentMatches || {}) };
+                                  let found = false;
+                                  Object.keys(newMatches).forEach(k => {
+                                    if (newMatches[k] === item.id) { delete newMatches[k]; found = true; }
+                                  });
+                                  if (found) updateAnswer(qIdSafe, 'studentMatches', newMatches);
+                                }
+                              }}
+                            >
+                              <span className="font-bold text-gray-200 text-sm text-right pointer-events-none">{item.text}</span>
+                              <div
+                                ref={el => rightDots.current[item.id] = el}
+                                className={`w-6 h-6 rounded-full border-4 transition-all z-30 flex-shrink-0 -ml-8 shadow-xl ${Object.values(ans.studentMatches || {}).includes(item.id) ? 'bg-emerald-500 border-emerald-400' : 'bg-gray-900 border-gray-500'}`}
+                              ></div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
 
                   </div>
@@ -873,14 +911,15 @@ export const LiveExamPage = () => {
                             if (ctrl && ['c', 'v', 'x', 'a'].includes(key)) {
                               e.preventDefault();
                               e.stopPropagation();
-                              
+
                               const type = key === 'v' ? 'PASTE' : key === 'c' ? 'COPY' : key === 'x' ? 'CUT' : 'SELECT_ALL';
                               showToast(`${type} shortcut is disabled.`, 'error');
                               proctoring.logViolation(`${type}_SHORTCUT`, 'medium', `Attempted ${type} via keyboard shortcut.`);
                             }
                           });
                         }}
-                        options={{ fontSize: 14, fontFamily: "'JetBrains Mono',monospace", minimap: { enabled: false },
+                        options={{
+                          fontSize: 14, fontFamily: "'JetBrains Mono',monospace", minimap: { enabled: false },
                           scrollBeyondLastLine: false, automaticLayout: true, padding: { top: 12 },
                           lineNumbers: 'on', wordWrap: 'on', tabSize: 2, cursorBlinking: 'smooth', smoothScrolling: true,
                           contextmenu: false, dragAndDrop: false, copyWithSyntaxHighlighting: false,
@@ -888,7 +927,7 @@ export const LiveExamPage = () => {
                     </div>
 
                     <div className="h-48 border-t border-gray-800 bg-[#0d1117] overflow-auto p-4 flex-shrink-0">
-                      
+
                       {/* TERMINAL OUTPUT PANE (Only visible during raw execution) */}
                       {!judgeResult && (
                         <>
@@ -915,7 +954,7 @@ export const LiveExamPage = () => {
                           <div className={`text-sm font-bold mb-3 pb-2 border-b ${judgeResult.verdict === 'accepted' ? 'text-emerald-400 border-emerald-500/20' : 'text-red-400 border-red-500/20'}`}>
                             {judgeResult.verdict === 'accepted' ? '✅ All Test Cases Passed Successfully' : `❌ Passed ${judgeResult.passed} out of ${judgeResult.total} Test Cases`}
                           </div>
-                          
+
                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                             {judgeResult.results?.map((r, i) => (
                               <div key={i} className={`p-3 border rounded-xl flex-1 ${r.passed ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
@@ -952,14 +991,16 @@ export const LiveExamPage = () => {
 
               {/* Bottom nav */}
               <div className="flex items-center justify-between px-6 py-3 bg-gray-900 border-t border-gray-800 flex-shrink-0">
-                <button onClick={() => { setCurrentQ(p => Math.max(0, p - 1)); setRunResult(null); setJudgeResult(null); }}
-                  disabled={currentQ === 0} className="bg-gray-800 hover:bg-gray-700 disabled:opacity-30 text-white font-bold py-2 px-6 rounded-lg text-sm">
-                  ← Previous
+                <button onClick={handlePrev}
+                  disabled={currentQ === 0 || isForceSaving}
+                  className="bg-gray-800 hover:bg-gray-700 disabled:opacity-30 text-white font-bold py-2 px-6 rounded-lg text-sm transition-all min-w-[120px]">
+                  {isForceSaving ? '⏳ Saving...' : '← Previous'}
                 </button>
                 <span className="text-gray-500 text-sm">{currentQ + 1} / {exam?.questions?.length || 0}</span>
-                <button onClick={() => { setCurrentQ(p => Math.min((exam?.questions?.length || 1) - 1, p + 1)); setRunResult(null); setJudgeResult(null); }}
-                  disabled={currentQ === (exam?.questions?.length || 1) - 1} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-30 text-white font-bold py-2 px-6 rounded-lg text-sm">
-                  Next →
+                <button onClick={handleNext}
+                  disabled={currentQ === (exam?.questions?.length || 1) - 1 || isForceSaving}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-30 text-white font-bold py-2 px-6 rounded-lg text-sm transition-all min-w-[120px]">
+                  {isForceSaving ? '⏳ Saving...' : 'Next →'}
                 </button>
               </div>
             </div>
@@ -985,11 +1026,10 @@ export const LiveExamPage = () => {
       {/* Custom Toast Notification */}
       {toast && (
         <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[300] animate-in slide-in-from-top-10 duration-500">
-          <div className={`px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-4 border backdrop-blur-md ${
-            toast.type === 'error' ? 'bg-red-600/90 border-red-400 text-white' : 
-            toast.type === 'success' ? 'bg-emerald-600/90 border-emerald-400 text-white' : 
-            'bg-gray-900/90 border-gray-700 text-white'
-          }`}>
+          <div className={`px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-4 border backdrop-blur-md ${toast.type === 'error' ? 'bg-red-600/90 border-red-400 text-white' :
+              toast.type === 'success' ? 'bg-emerald-600/90 border-emerald-400 text-white' :
+                'bg-gray-900/90 border-gray-700 text-white'
+            }`}>
             <span className="font-bold text-sm">{toast.message}</span>
             <button onClick={() => setToast(null)} className="hover:opacity-70 transition-opacity font-bold">×</button>
           </div>

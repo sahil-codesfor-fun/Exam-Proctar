@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import rateLimit from 'express-rate-limit';
+import { globalLimiter, compilerLimiter } from './middlewares/rateLimiter.js';
 import authRoutes from './routes/auth.routes.js';
 import compilerRoutes from './routes/compiler.routes.js';
 import examRoutes from './routes/exam.routes.js';
@@ -23,22 +23,7 @@ const app = express();
 // Trust reverse proxy for rate limiting (e.g. Render, Heroku)
 app.set('trust proxy', 1);
 
-// ── Rate Limiters ─────────────────────────────────────────────
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 300,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, message: 'Too many requests, please try again later.' }
-});
-
-const compilerLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 15,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, message: 'Code execution rate limit exceeded. Please wait before trying again.' }
-});
+// ── Rate Limiters (Imported from middlewares/rateLimiter.js) ─────────────────
 
 // 🚨 THE REAL VIP LIST 🚨
 const allowedOrigins = [

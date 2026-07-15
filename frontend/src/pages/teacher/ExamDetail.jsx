@@ -9,7 +9,7 @@ import api from '../../services/api';
 const ExamDetail = () => {
   const { examId } = useParams();
   const navigate = useNavigate();
-  const { exams, subs, loadSubs, toggleStatus, deleteExam, showConfirm, openEditModal } = useOutletContext();
+  const { exams, subs, loadSubs, toggleStatus, deleteExam, showConfirm, openEditModal, isUpdating } = useOutletContext();
   
   const [liveStudents, setLiveStudents] = useState([]);
   const [activeTab, setActiveTab] = useState('submissions');
@@ -99,15 +99,15 @@ const ExamDetail = () => {
                <Edit size={14}/> Edit Details
              </button>
           )}
-          {exam.status === 'draft' && <button onClick={() => toggleStatus(exam, 'published')} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-600/20">Publish Network</button>}
-          {exam.status === 'published' && <button onClick={() => toggleStatus(exam, 'draft')} className="bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200 px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">Revoke</button>}
-          {(exam.status === 'published' || exam.status === 'draft') && <button onClick={() => toggleStatus(exam, 'active')} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-600/20">FORCE START NOW</button>}
-          {exam.status === 'active' && <button onClick={() => toggleStatus(exam, 'ended')} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-red-600/20 animate-pulse">TERMINATE SESSION</button>}
+          {exam.status === 'draft' && <button onClick={() => toggleStatus(exam, 'published')} disabled={isUpdating} className={`bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-600/20 ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}>Publish Network</button>}
+          {exam.status === 'published' && <button onClick={() => toggleStatus(exam, 'draft')} disabled={isUpdating} className={`bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200 px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}>Revoke</button>}
+          {(exam.status === 'published' || exam.status === 'draft') && <button onClick={() => toggleStatus(exam, 'active')} disabled={isUpdating} className={`bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-600/20 ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}>FORCE START NOW</button>}
+          {exam.status === 'active' && <button onClick={() => toggleStatus(exam, 'ended')} disabled={isUpdating} className={`bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-red-600/20 animate-pulse ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}>TERMINATE SESSION</button>}
           <button onClick={() => { deleteExam(exam._id); navigate('/teacher-dashboard/overview'); }} className="bg-white text-red-500 hover:bg-red-50 border border-gray-200 hover:border-red-200 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1"><Trash2 size={14}/> Dump</button>
         </div>
       </div>
 
-      {exam.status === 'active' && (
+      {(exam.status === 'active' || liveStudents.length > 0) && (
         <div className="bg-gray-900 text-white rounded-3xl p-8 border border-gray-800 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none transform translate-x-1/2 -translate-y-1/2"></div>
           

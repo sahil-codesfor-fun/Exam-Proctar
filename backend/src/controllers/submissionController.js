@@ -47,7 +47,15 @@ export const startSubmission = async (req, res) => {
       if (exam.status !== 'active' && !isAutoStarted) return res.status(400).json({ success: false, message: 'Exam is not active yet.' });
     }
     
-    if (isAutoStarted && exam.status !== 'active') await prisma.exam.update({ where: { id: examId }, data: { status: 'active' } });
+    if (isAutoStarted && exam.status !== 'active') {
+      await prisma.exam.update({ where: { id: examId }, data: { status: 'active' } });
+      try {
+        const { getIO } = await import('../sockets/proctorSocket.js');
+        getIO().emit('exam_status_changed', { examId: examId, status: 'active' });
+      } catch (e) {
+        console.error('Socket emission failed on auto-start:', e);
+      }
+    }
 
     let sub = await prisma.submission.findFirst({ where: { examId: examId, studentId: req.user.id } });
     if (sub && (sub.status === 'submitted' || sub.status === 'auto_submitted')) return res.status(400).json({ success: false, message: 'Exam already submitted' });

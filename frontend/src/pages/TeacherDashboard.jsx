@@ -34,6 +34,7 @@ export const TeacherDashboard = () => {
   const [subs, setSubs] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [toast, setToast] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null); 
   const [editingId, setEditingId] = useState(null);
@@ -81,6 +82,28 @@ export const TeacherDashboard = () => {
   useEffect(() => {
     load();
     loadDepartments();
+    
+    let socket;
+    import('../services/socket').then(({ connectSocket }) => {
+      socket = connectSocket();
+      socket.on('exam_status_changed', () => {
+        load();
+      });
+      socket.on('exam_published', () => {
+        load();
+      });
+      socket.on('exam_deleted', () => {
+        load();
+      });
+    });
+
+    return () => {
+      if (socket) {
+        socket.off('exam_status_changed');
+        socket.off('exam_published');
+        socket.off('exam_deleted');
+      }
+    };
   }, [user]);
 
   useEffect(() => {
@@ -246,16 +269,34 @@ export const TeacherDashboard = () => {
   };
 
   const toggleStatus = async (exam, status) => {
-    await api.patch(`/exams/${exam._id}/status`, { status }).catch(() => {});
-    import('../services/socket').then(({ getSocket }) => { const socket = getSocket(); if (socket) socket.emit('exam_status_changed', { examId: exam._id, status }); });
-    load();
+    if (isUpdating) return;
+    setIsUpdating(true);
+    try {
+      await api.patch(`/exams/${exam._id}/status`, { status });
+      import('../services/socket').then(({ getSocket }) => { const socket = getSocket(); if (socket) socket.emit('exam_status_changed', { examId: exam._id, status }); });
+      showToast(`✅ Status updated to ${status}`, 'success');
+      load();
+    } catch (err) {
+      showToast('❌ Failed to update status', 'error');
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const deleteExam = async (id) => {
     showConfirm('Are you sure you want to dump this exam?', async () => {
-      await api.delete(`/exams/${id}`).catch(() => {});
-      import('../services/socket').then(({ getSocket }) => { const socket = getSocket(); if (socket) socket.emit('exam_deleted', { examId: id }); });
-      load();
+      if (isUpdating) return;
+      setIsUpdating(true);
+      try {
+        await api.delete(`/exams/${id}`);
+        import('../services/socket').then(({ getSocket }) => { const socket = getSocket(); if (socket) socket.emit('exam_deleted', { examId: id }); });
+        showToast('✅ Exam deleted successfully', 'success');
+        load();
+      } catch (err) {
+        showToast('❌ Failed to delete exam', 'error');
+      } finally {
+        setIsUpdating(false);
+      }
     });
   };
 
@@ -605,7 +646,7 @@ export const TeacherDashboard = () => {
 
       <div className="flex-1 min-w-0 overflow-y-auto bg-gray-50/50 p-4 pt-16 md:p-8 lg:p-12 pb-24 relative w-full md:w-auto">
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none transform translate-x-1/3 -translate-y-1/3"></div>
-        <Outlet context={{ exams, subs, loadSubs, loading, setModal, openEditModal, toggleStatus, deleteExam, showConfirm }} />
+        <Outlet context={{ exams, subs, loadSubs, loading, setModal, openEditModal, toggleStatus, deleteExam, showConfirm, isUpdating }} />
       </div>
     </div>
   );
