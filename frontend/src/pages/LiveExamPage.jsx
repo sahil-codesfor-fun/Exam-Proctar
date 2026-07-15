@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import { connectSocket, disconnectSocket, getSocket } from '../services/socket';
 import useProctoring from '../hooks/useProctoring';
+import useDebounce from '../hooks/useDebounce';
 import Editor from '@monaco-editor/react';
 
 const LANGS = [
@@ -313,14 +314,18 @@ export const LiveExamPage = () => {
     return () => clearInterval(timerRef.current);
   }, [phase]);
 
+  const debouncedAnswers = useDebounce(answers, 2000);
+
   useEffect(() => {
     if (phase !== 'exam' || !submission) return;
     const submissionId = submission._id || submission.id;
-    const iv = setInterval(() => {
-      api.put(`/submissions/${submissionId}/save`, { answers }).catch(() => {});
-    }, 30000);
-    return () => clearInterval(iv);
-  }, [phase, answers, submission]);
+    // Only save if answers actually have content and are not initial empty states
+    if (debouncedAnswers && debouncedAnswers.length > 0) {
+      api.put(`/submissions/${submissionId}/save`, { answers: debouncedAnswers }).catch((err) => {
+        showToast('Auto-save failed: ' + (err.response?.data?.message || err.message), 'error');
+      });
+    }
+  }, [phase, debouncedAnswers, submission]);
 
   const performForceSubmit = async (reason) => {
     submittedRef.current = true;
@@ -430,6 +435,8 @@ export const LiveExamPage = () => {
     setSubmitting(true);
     const submissionId = submissionRef.current?._id || submissionRef.current?.id || submission?._id || submission?.id;
     try {
+      // Final flush to ensure no pending answers are missed
+      await api.put(`/submissions/${submissionId}/save`, { answers: answersRef.current || answers });
       await api.put(`/submissions/${submissionId}/submit`, { answers: answersRef.current || answers, autoSubmit: auto, reason });
       document.exitFullscreen?.().catch(() => {});      
       setPhase('submitted');

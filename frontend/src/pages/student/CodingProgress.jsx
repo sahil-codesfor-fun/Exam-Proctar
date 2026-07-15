@@ -26,6 +26,7 @@ const PLATFORM_CONFIG = {
 const NexusContributionGraph = ({ activityMap }) => {
   const [days, setDays] = useState([]);
 
+
   useEffect(() => {
     const temp = [];
     const today = new Date();
@@ -135,6 +136,8 @@ export const CodingProgress = () => {
   const [selectedPlatform, setSelectedPlatform] = useState(null);
   const [usernameInput, setUsernameInput] = useState('');
   const [verifying, setVerifying] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [verifyError, setVerifyError] = useState('');
   const [previewProfile, setPreviewProfile] = useState(null);
 
@@ -183,22 +186,30 @@ export const CodingProgress = () => {
   };
 
   const handleConnect = async () => {
+    if (isConnecting) return;
+    setIsConnecting(true);
     try {
       await api.post(`/integrations/${selectedPlatform}/connect`, { username: usernameInput });
       setModalOpen(false);
       fetchData();
     } catch (err) {
       setVerifyError(err.response?.data?.message || 'Connection failed.');
+    } finally {
+      setIsConnecting(false);
     }
   };
 
   const handleDisconnect = async (platform) => {
+    if (isDisconnecting) return;
     if (!window.confirm(`Are you sure you want to disconnect ${PLATFORM_CONFIG[platform]?.name}?`)) return;
+    setIsDisconnecting(true);
     try {
       await api.delete(`/integrations/${platform}`);
       fetchData();
     } catch (err) {
       alert('Disconnect failed');
+    } finally {
+      setIsDisconnecting(false);
     }
   };
 
@@ -333,8 +344,9 @@ export const CodingProgress = () => {
                  <div className="flex justify-end mt-auto">
                    <button 
                      onClick={() => handleDisconnect(platformKey)}
-                     className="w-full py-2 bg-red-50 border border-red-100 rounded-lg text-xs font-bold uppercase tracking-widest text-red-600 hover:bg-red-100 transition-colors">
-                     Disconnect Platform
+                     disabled={isDisconnecting}
+                     className="w-full py-2 bg-red-50 border border-red-100 rounded-lg text-xs font-bold uppercase tracking-widest text-red-600 hover:bg-red-100 transition-colors disabled:opacity-50">
+                     {isDisconnecting ? 'Disconnecting...' : 'Disconnect Platform'}
                    </button>
                  </div>
                )}
@@ -542,8 +554,9 @@ export const CodingProgress = () => {
 
                   <button 
                     onClick={handleConnect}
-                    className="w-full bg-[#1A5F53] hover:bg-[#13493f] text-white rounded-xl px-4 py-3 font-bold uppercase tracking-widest text-sm transition-colors shadow-lg shadow-emerald-900/20">
-                    Yes, Connect This Account
+                    disabled={isConnecting}
+                    className="w-full bg-[#1A5F53] hover:bg-[#13493f] text-white rounded-xl px-4 py-3 font-bold uppercase tracking-widest text-sm transition-colors shadow-lg shadow-emerald-900/20 disabled:opacity-50">
+                    {isConnecting ? 'Connecting...' : 'Yes, Connect This Account'}
                   </button>
                   <button 
                     onClick={() => setModalStep(1)}
