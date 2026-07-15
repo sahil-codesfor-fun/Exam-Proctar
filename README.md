@@ -53,7 +53,7 @@ Our routing architecture is strictly separated by Role-Based Access Control (RBA
 | `/public` (or `/`) | *Public* | The main public landing page and general entry point for students. |
 | `/fac` | **Faculty** | Faculty login portal and dashboard for managing courses, students, and exams. |
 | `/adm` | **Admin** | Department-level administration. Admins can oversee faculty, review department stats, and manage schedules. |
-| `/superadminlogin` | **Super Admin** | The God-mode terminal. Full platform oversight, global configuration, and root-level access. |
+| `/superadmin/login` | **Super Admin** | The God-mode terminal. Full platform oversight, global configuration, and root-level access. |
 
 *(Note: Internal application routes are protected and dynamically served post-authentication).*
 
