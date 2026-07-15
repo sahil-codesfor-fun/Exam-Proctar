@@ -130,20 +130,24 @@ const SuperAdminLogin = () => {
           </div>
 
           {/* Building Image with Banner */}
-          <div className="mt-4 lg:mt-6 flex justify-center lg:justify-start relative">
-            <img 
-              src={about1} 
-              alt="Institution building" 
-              className="max-h-[28vh] lg:max-h-[30vh] w-auto rounded-2xl border border-slate-100 shadow-md object-contain" 
-            />
-            {/* Overlay Banner like in mockup */}
-            <div className="absolute bottom-2 left-2 sm:bottom-4 sm:left-4 bg-[#0F172A] text-white p-3 sm:p-4 rounded-xl shadow-xl flex items-center gap-3 border border-slate-700/50 max-w-[280px]">
-              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0 border border-primary/30">
-                <Star className="w-5 h-5 text-[#F59E0B]" fill="currentColor" />
+          <div className="mt-8 lg:mt-12 relative max-w-sm mx-auto lg:mx-0 mb-8">
+            <div className="relative rounded-3xl overflow-hidden shadow-2xl ring-1 ring-slate-900/10 aspect-[4/3] bg-slate-100">
+              <img 
+                src={about1} 
+                alt="Institution building" 
+                className="absolute inset-0 w-full h-full object-cover transform hover:scale-105 transition-transform duration-700 ease-out" 
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/20 to-transparent"></div>
+            </div>
+            
+            {/* Overlay Banner */}
+            <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-[#0F172A] text-white p-4 sm:p-5 rounded-2xl shadow-2xl flex items-center gap-4 border border-slate-700/80 w-[92%] max-w-[340px] backdrop-blur-xl hover:-translate-y-1 transition-transform duration-300 group cursor-default">
+              <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center shrink-0 border border-primary/30 shadow-inner group-hover:scale-110 transition-transform duration-300">
+                <Star className="w-6 h-6 text-[#F59E0B]" fill="currentColor" />
               </div>
-              <div>
-                <div className="text-xs font-bold mb-0.5">Secure. Scalable. Smart.</div>
-                <div className="text-[9px] text-slate-300">Built for excellence. Designed for leaders.</div>
+              <div className="flex flex-col justify-center">
+                <div className="text-sm font-bold text-white mb-0.5 tracking-wide">Secure. Scalable. Smart.</div>
+                <div className="text-[11px] text-slate-300 font-medium">Built for excellence. Designed for leaders.</div>
               </div>
             </div>
           </div>

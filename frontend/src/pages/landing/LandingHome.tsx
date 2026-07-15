@@ -21,6 +21,7 @@ import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { CourseCard } from "@/components/landing/CourseCard";
 import { SectionHeading } from "@/components/landing/SectionHeading";
+import { CourseOverview } from "@/components/landing/CourseOverview";
 import { Button } from "@/components/ui/button";
 import {
   courses,
@@ -134,6 +135,9 @@ function HomePage() {
             </div>
           </div>
         </section>
+
+        {/* Course Overview */}
+        <CourseOverview />
 
         {/* Top Categories */}
         <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
