@@ -79,6 +79,8 @@ model User {
   dailyGoals            DailyGoal[]
   practiceCompletions   PracticeSheetCompletion[]
   integrations          PlatformIntegration[]
+
+  @@index([departmentId])
 }
 
 model Department {
@@ -205,6 +207,9 @@ model Exam {
   analytics          ExamAnalytics?
   reports            ExamReport[]
   missedExamTickets  MissedExamTicket[]
+
+  @@index([creatorId])
+  @@index([departmentId])
 }
 
 model ExamSchedule {
@@ -295,6 +300,8 @@ model ExamSettings {
   autoTerminateViolations   Int       @default(5)
 
   exam                      Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  @@index([examId])
 }
 
 model QuestionBank {
@@ -365,6 +372,8 @@ model Question {
   practiceSheetQuestions PracticeSheetQuestion[]
   versions         QuestionVersion[]
   drafts           CodeDraft[]
+
+  @@index([examId])
 }
 
 // Renamed Option to QuestionOption as per requirements
@@ -426,6 +435,9 @@ model ExamAssignment {
   exam         Exam        @relation(fields: [examId], references: [id], onDelete: Cascade)
   student      User?       @relation(fields: [studentId], references: [id], onDelete: Cascade)
   department   Department? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@index([examId])
+  @@index([studentId])
 }
 
 model ExamAttempt {
@@ -441,6 +453,9 @@ model ExamAttempt {
   student     User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
   
   results     ExamResult?
+
+  @@index([examId])
+  @@index([studentId])
 }
 
 // Old Submission kept for backwards compatibility / existing code, or could be replaced by ExamAttempt+ExamResult.
@@ -459,6 +474,9 @@ model Submission {
   createdAt      DateTime  @default(now())
   exam           Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
   student        User      @relation(fields: [studentId], references: [id])
+
+  @@index([examId])
+  @@index([studentId])
 }
 
 model ExamResult {
@@ -483,6 +501,9 @@ model ExamResult {
   exam           Exam        @relation(fields: [examId], references: [id], onDelete: Cascade)
   student        User        @relation(fields: [studentId], references: [id], onDelete: Cascade)
   attempt        ExamAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@index([examId])
+  @@index([studentId])
 }
 
 model Violation {
@@ -495,6 +516,9 @@ model Violation {
   timestamp DateTime @default(now())
   exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
   student   User     @relation(fields: [studentId], references: [id])
+
+  @@index([examId])
+  @@index([studentId])
 }
 
 model LiveSession {

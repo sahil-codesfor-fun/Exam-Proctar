@@ -1,5 +1,8 @@
 import prisma from '../config/prisma.js';
 import { getIO } from '../sockets/proctorSocket.js';
+import { redisClient, isRedisConnected } from '../config/redis.js';
+import { v4 as uuidv4 } from 'uuid';
+import { jobQueue } from '../services/backgroundJobs.js';
 
 export const createExam = async (req, res) => {
   try {
@@ -29,76 +32,17 @@ export const createExam = async (req, res) => {
       matchingPairs: q.matchingPairs && q.matchingPairs.length > 0 ? { create: q.matchingPairs.map(mp => ({ leftItem: mp.leftItem, rightItem: mp.rightItem })) } : undefined
     }));
 
+    const examId = uuidv4();
     const examCode = `EXAM-TCH-${Math.floor(1000 + Math.random() * 9000)}-${Date.now().toString().slice(-4)}`;
 
-    // 🚀 OPTIMIZATION: Switched to a Sequential Transaction Array for faster execution
-    const [exam] = await prisma.$transaction([
-      prisma.exam.create({
-        data: {
-          title: examData.title,
-          examCode,
-          description: examData.description,
-          course: examData.course,
-          targetBatch: targetBatch || null,
-          targetSection: targetSection || null,
-          departmentId: departmentId,
-          subjectId: subjectId || null,
-          status: examData.status || 'draft',
-          creatorId: req.user.id,
-          schedule: {
-            create: {
-              startDate: examData.startTime ? new Date(examData.startTime) : new Date(),
-              endDate: examData.endTime ? new Date(examData.endTime) : new Date(Date.now() + (examData.durationMinutes || 60) * 60000),
-              durationMinutes: examData.durationMinutes || 60,
-            }
-          },
-          settings: {
-            create: {
-              randomizeQuestions: isRand,
-              questionPoolSize: serveNum,
-              browserLock: proctoring?.requireFullscreen || false,
-              fullscreenRequired: proctoring?.requireFullscreen || false,
-              aiFaceDetection: proctoring?.enableWebcam || false,
-              clipboardDetection: proctoring?.disableCopyPaste !== false, // Defaults to true
-              autoTerminateViolations: proctoring?.maxViolations ? parseInt(proctoring.maxViolations, 10) : 5,
-              sessionTimeoutMinutes: proctoring?.restrictionMinutes !== undefined ? parseInt(proctoring.restrictionMinutes, 10) : 30,
-              enableTypeDistribution: proctoring?.enableTypeDistribution || false,
-              typeDistribution: proctoring?.typeDistribution || null,
-            }
-          },
-          questions: { create: formattedQuestions || [] }
-        },
-        include: {
-          questions: { include: { options: true, testCases: true, matchingPairs: true } },
-          creator: { select: { name: true, email: true } },
-          settings: true,
-          schedule: true
-        }
-      })
-    ], {
-      maxWait: 10000,
-      timeout: 30000 // Safely gives the cloud DB 30 seconds to parse the giant nested tree
+    // 🚀 OPTIMIZATION: Fire and forget the heavy transaction in the background
+    jobQueue.emit('createExam', {
+      examId, reqUser: req.user, examData, targetBatch, targetSection,
+      departmentId, subjectId, isRand, serveNum, proctoring,
+      formattedQuestions, examCode
     });
 
-    const responseData = {
-      ...exam,
-      _id: exam.id,
-      faculty: exam.creator,
-      proctoring: proctoring || {},
-      randomizeQuestions: exam.settings?.randomizeQuestions,
-      questionsToServe: exam.settings?.questionPoolSize,
-      typeDistribution: exam.settings?.typeDistribution,
-      enableTypeDistribution: exam.settings?.enableTypeDistribution,
-      startTime: exam.schedule?.startDate,
-      endTime: exam.schedule?.endDate,
-      durationMinutes: exam.schedule?.durationMinutes
-    };
-
-    if (responseData.status === 'published' || responseData.status === 'active') {
-      try { const io = getIO(); io.emit('exam_published', responseData); } catch (e) { console.error(e); }
-    }
-
-    res.status(201).json({ success: true, data: responseData, message: "Exam deployed successfully" });
+    res.status(202).json({ success: true, data: { _id: examId }, message: "Exam creation started in background" });
   } catch (err) {
     console.error("Create Exam Error:", err);
     res.status(500).json({ success: false, message: err.message });
@@ -107,6 +51,12 @@ export const createExam = async (req, res) => {
 
 export const getExams = async (req, res) => {
   try {
+    const cacheKey = `exams:user:${req.user.id}:role:${req.user.role}`;
+    if (isRedisConnected) {
+      const cached = await redisClient.get(cacheKey);
+      if (cached) return res.json({ success: true, data: JSON.parse(cached) });
+    }
+    
     let filter = {};
     if (['teacher', 'faculty', 'admin', 'superadmin'].includes(req.user.role)) {
       filter = { creatorId: req.user.id };
@@ -173,6 +123,10 @@ export const getExams = async (req, res) => {
       } catch (mappingError) { return exam; }
     });
 
+    if (isRedisConnected) {
+      await redisClient.setEx(cacheKey, 300, JSON.stringify(formattedExams)); // 5 mins TTL
+    }
+
     res.json({ success: true, data: formattedExams });
   } catch (err) {
     console.error("Get Exams Error:", err);
@@ -182,6 +136,12 @@ export const getExams = async (req, res) => {
 
 export const getExam = async (req, res) => {
   try {
+    const cacheKey = `exam:${req.params.id}:user:${req.user.id}:role:${req.user.role}`;
+    if (isRedisConnected) {
+      const cached = await redisClient.get(cacheKey);
+      if (cached) return res.json({ success: true, data: JSON.parse(cached) });
+    }
+
     const exam = await prisma.exam.findUnique({
       where: { id: req.params.id },
       include: { creator: { select: { id: true, name: true, email: true } }, department: { select: { id: true, name: true } }, subject: { select: { id: true, name: true } }, questions: { include: { options: true, testCases: true, matchingPairs: true } }, settings: true, schedule: true }
@@ -231,6 +191,11 @@ export const getExam = async (req, res) => {
         return qCopy;
       });
     }
+
+    if (isRedisConnected) {
+      await redisClient.setEx(cacheKey, 300, JSON.stringify(examCopy));
+    }
+
     res.json({ success: true, data: examCopy });
   } catch (err) {
     console.error("Get Exam Error:", err);
@@ -337,6 +302,12 @@ export const updateExam = async (req, res) => {
     if (responseData.status === 'published' || responseData.status === 'active') {
       try { const io = getIO(); io.emit('exam_published', responseData); } catch (e) { console.error(e); }
     }
+    
+    if (isRedisConnected) {
+      const keys = await redisClient.keys('exam*');
+      if (keys.length > 0) await redisClient.del(keys);
+    }
+
     res.json({ success: true, data: responseData, message: "Exam updated successfully" });
   } catch (err) {
     console.error("Update Exam Error:", err);
@@ -352,6 +323,12 @@ export const deleteExam = async (req, res) => {
 
     await prisma.exam.delete({ where: { id: req.params.id } });
     try { const io = getIO(); io.emit('exam_deleted', { examId: req.params.id }); } catch (e) { }
+    
+    if (isRedisConnected) {
+      const keys = await redisClient.keys('exam*');
+      if (keys.length > 0) await redisClient.del(keys);
+    }
+
     res.json({ success: true, message: 'Exam deleted' });
   } catch (err) {
     console.error("Delete Exam Error:", err);
@@ -370,6 +347,12 @@ export const updateExamStatus = async (req, res) => {
     const responseData = { ...updatedExam, _id: updatedExam.id };
 
     try { const io = getIO(); io.emit('exam_status_changed', { examId: updatedExam.id, status }); io.emit('exam_published', responseData); } catch (e) { }
+    
+    if (isRedisConnected) {
+      const keys = await redisClient.keys('exam*');
+      if (keys.length > 0) await redisClient.del(keys);
+    }
+
     res.json({ success: true, data: responseData, message: "Status updated successfully" });
   } catch (err) {
     console.error("Update Exam Status Error:", err);
