@@ -5,6 +5,9 @@ const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 const redisClient = createClient({
   url: redisUrl,
   socket: {
+    // 🚀 NEW: Production TLS options for Upstash (rediss://) cloud connections
+    tls: redisUrl.startsWith('rediss://'),
+    rejectUnauthorized: false, 
     reconnectStrategy: (retries) => {
       // Retry connection every 5 seconds, up to 10 times, then stop to prevent memory leak
       if (retries > 10) return new Error('Redis max retries reached');
