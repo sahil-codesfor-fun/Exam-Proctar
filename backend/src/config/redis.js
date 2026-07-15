@@ -1,16 +1,18 @@
 import { createClient } from 'redis';
 
+// 🚀 DIAGNOSTIC 1: Did Render actually load the URL?
+console.log("🔍 REDIS_URL Status:", process.env.REDIS_URL ? "✅ VIP Pass Loaded" : "❌ MISSING! (Falling back to localhost)");
+
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
 const redisClient = createClient({
   url: redisUrl,
   socket: {
-    // 🚀 NEW: Production TLS options for Upstash (rediss://) cloud connections
+    family: 4, // 🚀 DIAGNOSTIC 2: FORCE IPv4! (Stops Render from using incompatible IPv6)
     tls: redisUrl.startsWith('rediss://'),
     rejectUnauthorized: false, 
     reconnectStrategy: (retries) => {
-      // Retry connection every 5 seconds, up to 10 times, then stop to prevent memory leak
-      if (retries > 10) return new Error('Redis max retries reached');
+      if (retries > 5) return new Error('Redis max retries reached');
       return 5000;
     }
   }
@@ -19,12 +21,13 @@ const redisClient = createClient({
 let isRedisConnected = false;
 
 redisClient.on('error', (err) => {
-  console.warn('⚠️ Redis Client Error: Make sure Redis is running. Cache will be disabled.', err.message);
+  // 🚀 DIAGNOSTIC 3: Print the exact internal crash code!
+  console.error('🚨 REDIS CRASH REASON:', err.code, err.message);
   isRedisConnected = false;
 });
 
 redisClient.on('connect', () => {
-  console.log('✅ Connected to Redis cache');
+  console.log('✅ Connected to Redis cache VIP Room');
   isRedisConnected = true;
 });
 
@@ -32,9 +35,8 @@ redisClient.on('end', () => {
   isRedisConnected = false;
 });
 
-// Connect without blocking the main event loop
 redisClient.connect().catch((err) => {
-  console.warn('⚠️ Failed to connect to Redis initially. Running without cache.');
+  console.error('⚠️ Initial connect failed. Reason:', err.code, err.message);
 });
 
 export { redisClient, isRedisConnected };
