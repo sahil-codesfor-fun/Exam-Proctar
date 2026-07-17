@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../services/api'; 
+import api from '../../services/api';
 import { Code2, Terminal, Flame, RefreshCw, X, Plus, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -29,49 +29,67 @@ const NexusContributionGraph = ({ activityMap }) => {
 
   useEffect(() => {
     const temp = [];
-    const today = new Date();
-    
-    // Determine the start date (364 days ago)
-    const startDate = new Date(today);
-    startDate.setDate(today.getDate() - 364);
-    
-    // Get the day of the week for the start date (0 = Sunday, 6 = Saturday)
-    const startDayOfWeek = startDate.getDay();
-    
+    // Determine the calendar year (Jan 1 to Dec 31)
+    const currentYear = new Date().getUTCFullYear();
+    const startDate = new Date(Date.UTC(currentYear, 0, 1));
+    const endDate = new Date(Date.UTC(currentYear, 11, 31));
+
+    // Get the day of the week for Jan 1 (0 = Sunday, 6 = Saturday)
+    const startDayOfWeek = startDate.getUTCDay();
+
     // Pad the beginning with null to align the first date to its correct weekday
     for (let i = 0; i < startDayOfWeek; i++) {
       temp.push({ date: null, count: 0, isPadding: true });
     }
-    
-    // Generate 365 days
-    for (let i = 364; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
+
+    // Generate days from startDate to endDate
+    const iterDate = new Date(startDate);
+    while (iterDate <= endDate) {
+      const d = new Date(iterDate);
       const dateStr = d.toISOString().split('T')[0];
-      
       const count = activityMap?.[dateStr] || 0;
-      
+
       temp.push({ date: d, count, isPadding: false });
+      
+      // Move to next day
+      iterDate.setUTCDate(iterDate.getUTCDate() + 1);
     }
     setDays(temp);
 
-    // Calculate dynamic month labels based on exact columns
+    // Calculate dynamic month labels with colSpan
     const monthsName = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const totalColumns = Math.ceil(temp.length / 7);
     const labels = [];
-    let lastMonth = -1;
+    
+    let currentMonthStr = null;
+    let currentSpan = 0;
 
-    for (let i = 0; i < temp.length; i += 7) {
-      const columnDays = temp.slice(i, i + 7);
+    for (let col = 0; col < totalColumns; col++) {
+      const columnDays = temp.slice(col * 7, col * 7 + 7);
       const firstValidDay = columnDays.find(d => !d.isPadding);
+      
       if (firstValidDay) {
-        const currentMonth = firstValidDay.date.getMonth();
-        if (currentMonth !== lastMonth) {
-          labels.push({ label: monthsName[currentMonth], colIndex: i / 7 });
-          lastMonth = currentMonth;
+        const monthIndex = firstValidDay.date.getMonth();
+        const monthName = monthsName[monthIndex];
+        
+        if (currentMonthStr !== monthName) {
+          if (currentMonthStr !== null) {
+            labels.push({ label: currentMonthStr, colSpan: currentSpan });
+          }
+          currentMonthStr = monthName;
+          currentSpan = 1;
+        } else {
+          currentSpan++;
         }
+      } else {
+        currentSpan++;
       }
     }
-    setMonthLabels(labels);
+    if (currentMonthStr !== null) {
+      labels.push({ label: currentMonthStr, colSpan: currentSpan });
+    }
+    
+    setMonthLabels({ labels, totalColumns });
   }, [activityMap]);
 
   const getLevelClass = (count) => {
@@ -87,40 +105,44 @@ const NexusContributionGraph = ({ activityMap }) => {
       <h4 className="text-gray-300 font-bold mb-4 uppercase tracking-widest text-xs flex items-center gap-2">
         <Code2 size={16} className="text-[#39d353]" /> Nexus Activity Heatmap
       </h4>
-      
+
       <div className="w-full overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-[#0d1117]">
         <div className="min-w-[750px]">
-          
+
           <div className="flex gap-2">
             {/* Days of Week Labels */}
-            <div className="flex flex-col gap-[3px] text-[10px] text-gray-400 font-medium pr-2 mt-6">
-              <span className="h-[12px]"></span>
-              <span className="h-[12px] leading-3">Mon</span>
-              <span className="h-[12px]"></span>
-              <span className="h-[12px] leading-3">Wed</span>
-              <span className="h-[12px]"></span>
-              <span className="h-[12px] leading-3">Fri</span>
-              <span className="h-[12px]"></span>
+            <div className="flex flex-col gap-[3px] text-[9px] text-gray-400 font-medium pr-2 mt-5">
+              <span className="h-[10px]"></span>
+              <span className="h-[10px] leading-[10px]">Mon</span>
+              <span className="h-[10px]"></span>
+              <span className="h-[10px] leading-[10px]">Wed</span>
+              <span className="h-[10px]"></span>
+              <span className="h-[10px] leading-[10px]">Fri</span>
+              <span className="h-[10px]"></span>
             </div>
             
             {/* Grid Squares and Months */}
             <div className="flex flex-col w-full">
-               {/* Months Header - absolutely positioned relative to the grid width */}
-               <div className="relative h-4 mb-2 w-full">
-                  {monthLabels.map((m, i) => (
-                    <span key={i} className="absolute text-[10px] text-gray-400 font-medium" style={{ left: `${m.colIndex * 16}px` }}>
+               {/* Months Header - EXACT ALIGNMENT USING FLEX PERCENTAGES */}
+               <div className="flex mb-1 w-full text-[10px] text-gray-400 font-medium">
+                  {monthLabels.labels?.map((m, i) => (
+                    <span 
+                      key={i} 
+                      style={{ width: `${(m.colSpan / monthLabels.totalColumns) * 100}%` }}
+                      className="inline-block text-left"
+                    >
                       {m.label}
                     </span>
                   ))}
                </div>
                
                {/* Grid Squares */}
-               <div className="grid grid-flow-col grid-rows-7 gap-1">
+               <div className="grid grid-flow-col grid-rows-7 gap-[3px] w-full">
                  {days.map((day, i) => (
                    <div 
                      key={i} 
-                     className={`w-3 h-3 rounded-sm transition-colors duration-300 ${day.isPadding ? 'bg-transparent' : getLevelClass(day.count)} ${!day.isPadding ? 'hover:ring-1 hover:ring-white/50 cursor-pointer' : ''}`} 
-                     title={day.isPadding ? '' : `${day.count} contributions on ${day.date.toDateString()}`}
+                     className={`w-[10px] h-[10px] rounded-[2px] transition-colors duration-300 ${day.isPadding ? 'bg-transparent' : getLevelClass(day.count)} ${!day.isPadding ? 'hover:ring-1 hover:ring-white/50 cursor-pointer' : ''}`} 
+                     title={day.isPadding ? '' : `${day.count} contributions on ${day.date?.toDateString()}`}
                    ></div>
                  ))}
                </div>
@@ -128,16 +150,21 @@ const NexusContributionGraph = ({ activityMap }) => {
           </div>
 
           {/* Footer Legend */}
-          <div className="flex justify-end items-center gap-2 mt-4 text-[10px] text-gray-400 font-medium pr-4">
-            <span>Less</span>
-            <div className="flex gap-1">
-              <div className="w-3 h-3 rounded-sm bg-[#161b22]"></div>
-              <div className="w-3 h-3 rounded-sm bg-[#0e4429]"></div>
-              <div className="w-3 h-3 rounded-sm bg-[#006d32]"></div>
-              <div className="w-3 h-3 rounded-sm bg-[#26a641]"></div>
-              <div className="w-3 h-3 rounded-sm bg-[#39d353]"></div>
+          <div className="flex justify-between items-center mt-3 pt-2">
+            <span className="text-[10px] text-gray-500 font-medium hover:text-blue-400 cursor-pointer transition-colors pl-8">
+              Learn how we count contributions
+            </span>
+            <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium pr-4">
+              <span>Less</span>
+              <div className="flex gap-[3px]">
+                <div className="w-[10px] h-[10px] rounded-[2px] bg-[#161b22]"></div>
+                <div className="w-[10px] h-[10px] rounded-[2px] bg-[#0e4429]"></div>
+                <div className="w-[10px] h-[10px] rounded-[2px] bg-[#006d32]"></div>
+                <div className="w-[10px] h-[10px] rounded-[2px] bg-[#26a641]"></div>
+                <div className="w-[10px] h-[10px] rounded-[2px] bg-[#39d353]"></div>
+              </div>
+              <span>More</span>
             </div>
-            <span>More</span>
           </div>
         </div>
       </div>
@@ -262,12 +289,12 @@ export const CodingProgress = () => {
   const sheetQuestionsCount = practiceSheets.reduce((acc, sheet) => {
     return acc + (sheet.questions?.length || sheet.problems?.length || sheet.totalQuestions || 0);
   }, 0);
-  
+
   const calculatedUploaded = sheetQuestionsCount;
 
   // Use the newly added backend metric specifically for Practice Sheets
   const nexusSolved = internalStats?.practiceSolvedCount || 0;
-  const nexusUploaded = internalStats?.progress?.totalUploaded || calculatedUploaded || Math.max(nexusSolved, 1); 
+  const nexusUploaded = internalStats?.progress?.totalUploaded || calculatedUploaded || Math.max(nexusSolved, 1);
   const nexusProgressPercent = nexusUploaded > 0 ? Math.round((nexusSolved / nexusUploaded) * 100) : 0;
 
   if (loading) {
@@ -284,7 +311,7 @@ export const CodingProgress = () => {
     const Logo = config.logo;
     const integration = integrations.find(i => i.platform === platformKey);
     const isConnected = integration && integration.syncStatus !== 'DISCONNECTED';
-    
+
     const isPendingInitialSync = isConnected && !integration.lastSuccessfulSync;
 
     return (
@@ -339,7 +366,7 @@ export const CodingProgress = () => {
                   medium: { text: 'text-[#FFC01E]', bg: 'bg-[#FFC01E]' },
                   hard: { text: 'text-[#EF4743]', bg: 'bg-[#EF4743]' }
                 };
-                
+
                 if (integration.statistics.problemStats[diff] === undefined) return null;
 
                 return (
@@ -359,27 +386,27 @@ export const CodingProgress = () => {
 
           {isConnected ? (
             <div className="mt-auto pt-4 border-t border-gray-100">
-               {integration.syncStatus === 'ERROR' && (
-                 <div className="mb-4 bg-red-50 text-red-600 text-xs p-3 rounded-lg flex items-center gap-2 font-bold">
-                   <AlertCircle size={14} /> Sync Failed: {integration.syncErrorMessage || 'Unknown error'}
-                 </div>
-               )}
-               {isOwner && (
-                 <div className="flex justify-end mt-auto">
-                   <button 
-                     onClick={() => handleDisconnect(platformKey)}
-                     disabled={isDisconnecting}
-                     className="w-full py-2 bg-red-50 border border-red-100 rounded-lg text-xs font-bold uppercase tracking-widest text-red-600 hover:bg-red-100 transition-colors disabled:opacity-50">
-                     {isDisconnecting ? 'Disconnecting...' : 'Disconnect Platform'}
-                   </button>
-                 </div>
-               )}
+              {integration.syncStatus === 'ERROR' && (
+                <div className="mb-4 bg-red-50 text-red-600 text-xs p-3 rounded-lg flex items-center gap-2 font-bold">
+                  <AlertCircle size={14} /> Sync Failed: {integration.syncErrorMessage || 'Unknown error'}
+                </div>
+              )}
+              {isOwner && (
+                <div className="flex justify-end mt-auto">
+                  <button
+                    onClick={() => handleDisconnect(platformKey)}
+                    disabled={isDisconnecting}
+                    className="w-full py-2 bg-red-50 border border-red-100 rounded-lg text-xs font-bold uppercase tracking-widest text-red-600 hover:bg-red-100 transition-colors disabled:opacity-50">
+                    {isDisconnecting ? 'Disconnecting...' : 'Disconnect Platform'}
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
               <p className="text-sm font-medium mb-4 text-center">Connect your {config.name} account to sync progress.</p>
               {isOwner && (
-                <button 
+                <button
                   onClick={() => openConnectModal(platformKey)}
                   className="px-6 py-2.5 bg-gray-900 text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-gray-800 transition-colors flex items-center gap-2 shadow-lg shadow-gray-900/20">
                   <Plus size={16} /> Connect Account
@@ -394,12 +421,12 @@ export const CodingProgress = () => {
 
   return (
     <div className="w-full animate-in fade-in duration-700 font-sans pb-12 relative">
-      
+
       {/* 🚀 SECTION 1: Platform Summary (Kept at Top) */}
       <div className="mb-12 px-2">
         <h3 className="text-2xl font-black text-gray-900 tracking-tight uppercase mb-6">Platform Summary</h3>
         <div className="bg-white rounded-[2rem] border border-gray-100 p-8 shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-col gap-8">
-          
+
           {/* Top Row: Overall Stats & Breakdown */}
           <div className="flex flex-col md:flex-row gap-8 items-center justify-between">
             <div className="w-full md:w-1/2">
@@ -411,7 +438,7 @@ export const CodingProgress = () => {
               <p className="text-sm text-gray-400 font-medium mt-2 max-w-sm">
                 This metric represents your total output across all connected platforms, including the Nexus Playground.
               </p>
-              
+
               {/* THE SMART PROGRESS BAR */}
               <div className="mt-8 border-t border-gray-100 pt-6 pr-4">
                 <div className="flex justify-between items-end mb-2">
@@ -422,8 +449,8 @@ export const CodingProgress = () => {
                   <span className="text-xl font-black text-[#1A5F53]">{nexusProgressPercent}%</span>
                 </div>
                 <div className="w-full bg-gray-100 h-3.5 rounded-full overflow-hidden shadow-inner">
-                  <div 
-                    className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-1000 ease-out" 
+                  <div
+                    className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-1000 ease-out"
                     style={{ width: `${nexusProgressPercent}%` }}
                   ></div>
                 </div>
@@ -431,22 +458,22 @@ export const CodingProgress = () => {
             </div>
 
             <div className="flex flex-col gap-4 w-full md:w-1/2 shrink-0">
-               <div className="bg-orange-50 text-orange-600 px-6 py-4 rounded-2xl border border-orange-100 flex flex-col items-center justify-center shadow-sm w-full">
-                 <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-1 flex items-center gap-1"><Flame size={12} strokeWidth={3} /> Current Streak</span>
-                 <span className="text-4xl font-black">{internalStats?.stats?.currentStreak || 0} 🔥</span>
-               </div>
-               <div className="grid grid-cols-2 gap-4 w-full">
-                 <div className="bg-gray-50 px-6 py-4 rounded-2xl flex flex-col justify-center border border-gray-100">
-                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Nexus Output</span>
-                   <span className="text-2xl font-black text-[#1A5F53]">{nexusSolved}</span>
-                 </div>
-                 {integrations.filter(i => i.syncStatus !== 'DISCONNECTED').map(i => (
-                   <div key={i.platform} className="bg-gray-50 px-6 py-4 rounded-2xl flex flex-col justify-center border border-gray-100">
-                     <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">{PLATFORM_CONFIG[i.platform]?.name || i.platform} Output</span>
-                     <span className="text-2xl font-black text-gray-900">{getPrimaryMetric(i)}</span>
-                   </div>
-                 ))}
-               </div>
+              <div className="bg-orange-50 text-orange-600 px-6 py-4 rounded-2xl border border-orange-100 flex flex-col items-center justify-center shadow-sm w-full">
+                <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-1 flex items-center gap-1"><Flame size={12} strokeWidth={3} /> Current Streak</span>
+                <span className="text-4xl font-black">{internalStats?.stats?.currentStreak || 0} 🔥</span>
+              </div>
+              <div className="grid grid-cols-2 gap-4 w-full">
+                <div className="bg-gray-50 px-6 py-4 rounded-2xl flex flex-col justify-center border border-gray-100">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Nexus Output</span>
+                  <span className="text-2xl font-black text-[#1A5F53]">{nexusSolved}</span>
+                </div>
+                {integrations.filter(i => i.syncStatus !== 'DISCONNECTED').map(i => (
+                  <div key={i.platform} className="bg-gray-50 px-6 py-4 rounded-2xl flex flex-col justify-center border border-gray-100">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">{PLATFORM_CONFIG[i.platform]?.name || i.platform} Output</span>
+                    <span className="text-2xl font-black text-gray-900">{getPrimaryMetric(i)}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -459,7 +486,7 @@ export const CodingProgress = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pt-2 px-2 pb-8">
-        
+
         {/* NEXUS Code Playground (Internal) */}
         <div className="w-full bg-white rounded-[2rem] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden transition-transform hover:-translate-y-1 duration-300 flex flex-col">
           <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-500 to-teal-400"></div>
@@ -511,7 +538,7 @@ export const CodingProgress = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="mt-auto pt-5 border-t border-gray-100 flex justify-between items-center text-xs font-bold text-gray-400 uppercase tracking-widest">
               <span>Always Synced</span>
             </div>
@@ -543,16 +570,16 @@ export const CodingProgress = () => {
               {modalStep === 1 && (
                 <div>
                   <label className="block text-xs font-black text-gray-900 uppercase tracking-widest mb-2">Platform Username</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={usernameInput}
                     onChange={(e) => setUsernameInput(e.target.value)}
                     placeholder="Enter your exact username"
                     className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 font-medium focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
                   />
-                  {verifyError && <p className="text-red-500 text-xs font-bold mt-2 flex items-center gap-1"><AlertCircle size={14}/> {verifyError}</p>}
-                  
-                  <button 
+                  {verifyError && <p className="text-red-500 text-xs font-bold mt-2 flex items-center gap-1"><AlertCircle size={14} /> {verifyError}</p>}
+
+                  <button
                     onClick={handleVerify}
                     disabled={!usernameInput.trim() || verifying}
                     className="mt-6 w-full bg-gray-900 hover:bg-gray-800 text-white rounded-xl px-4 py-3 font-bold uppercase tracking-widest text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
@@ -576,13 +603,13 @@ export const CodingProgress = () => {
                     {previewProfile.country && <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-2">{previewProfile.country}</p>}
                   </div>
 
-                  <button 
+                  <button
                     onClick={handleConnect}
                     disabled={isConnecting}
                     className="w-full bg-[#1A5F53] hover:bg-[#13493f] text-white rounded-xl px-4 py-3 font-bold uppercase tracking-widest text-sm transition-colors shadow-lg shadow-emerald-900/20 disabled:opacity-50">
                     {isConnecting ? 'Connecting...' : 'Yes, Connect This Account'}
                   </button>
-                  <button 
+                  <button
                     onClick={() => setModalStep(1)}
                     className="mt-3 w-full bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl px-4 py-3 font-bold uppercase tracking-widest text-sm transition-colors">
                     Wait, go back
