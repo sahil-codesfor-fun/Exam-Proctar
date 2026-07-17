@@ -80,7 +80,40 @@ export const getPracticeSheets = async (req, res) => {
       },
       orderBy: { createdAt: 'desc' }
     });
-    res.status(200).json({ success: true, sheets });
+    // Fetch all submissions for the current user
+    const submissions = await prisma.practiceSubmission.findMany({
+      where: { studentId: req.user.id },
+      select: { questionId: true, verdict: true }
+    });
+
+    const submissionStatusMap = {};
+    submissions.forEach(sub => {
+      const qId = sub.questionId;
+      const verdict = sub.verdict.toLowerCase();
+      if (!submissionStatusMap[qId]) {
+        submissionStatusMap[qId] = verdict;
+      } else {
+        if (submissionStatusMap[qId] !== 'accepted' && verdict === 'accepted') {
+          submissionStatusMap[qId] = verdict;
+        }
+      }
+    });
+
+    // Hydrate each question with the correct userStatus based on historical submissions
+    const enrichedSheets = sheets.map(sheet => {
+      const enrichedQuestions = sheet.questions.map(qLink => {
+        const q = qLink.question;
+        let userStatus = 'unattempted';
+        if (submissionStatusMap[q.id]) {
+          if (submissionStatusMap[q.id] === 'accepted') userStatus = 'passed';
+          else userStatus = 'failed';
+        }
+        return { ...qLink, question: { ...q, userStatus } };
+      });
+      return { ...sheet, questions: enrichedQuestions };
+    });
+
+    res.status(200).json({ success: true, sheets: enrichedSheets });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -207,6 +240,55 @@ export const getPracticeSheetById = async (req, res) => {
     });
 
     if (!sheet) return res.status(404).json({ success: false, message: 'Sheet not found' });
+
+    // Fetch user submissions for this sheet to calculate status
+    const submissions = await prisma.practiceSubmission.findMany({
+      where: {
+        studentId: req.user.id,
+        practiceSheetId: id
+      },
+      select: {
+        questionId: true,
+        verdict: true
+      }
+    });
+
+    const submissionStatusMap = {};
+    submissions.forEach(sub => {
+      const qId = sub.questionId;
+      const verdict = sub.verdict.toLowerCase();
+      if (!submissionStatusMap[qId]) {
+        submissionStatusMap[qId] = verdict;
+      } else {
+        if (submissionStatusMap[qId] !== 'accepted') {
+          if (verdict === 'accepted') {
+            submissionStatusMap[qId] = verdict;
+          }
+        }
+      }
+    });
+
+    const enrichedQuestions = sheet.questions.map(qLink => {
+      const q = qLink.question;
+      let userStatus = 'unattempted';
+      if (submissionStatusMap[q.id]) {
+        if (submissionStatusMap[q.id] === 'accepted') {
+          userStatus = 'passed';
+        } else {
+          userStatus = 'failed';
+        }
+      }
+      return {
+        ...qLink,
+        question: {
+          ...q,
+          userStatus
+        }
+      };
+    });
+
+    sheet.questions = enrichedQuestions;
+
     res.status(200).json({ success: true, sheet });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

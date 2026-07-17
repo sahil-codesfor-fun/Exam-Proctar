@@ -673,19 +673,32 @@ export const LiveExamPage = () => {
                   const a = answers.find(x => x.questionId === qqIdSafe);
 
                   let done = false;
+                  let passed = false;
+                  let failed = false;
                   if (a) {
                     if (qq.type === 'mcq') done = (a.selectedOptionId !== null || a.selectedOption >= 0);
                     else if (qq.type === 'coding') done = (a.code && a.code.trim().length > 0);
                     else if (qq.type === 'subjective') done = (a.textAnswer && a.textAnswer.trim().length > 0);
                     else if (qq.type === 'matching') done = (a.studentMatches && Object.keys(a.studentMatches).length > 0);
+
+                    if (qq.type === 'coding' && a.verdict) {
+                       if (a.verdict === 'accepted') passed = true;
+                       else failed = true;
+                    }
                   }
+
+                  let bgClass = 'bg-[#1e2330] text-gray-300 hover:bg-[#2a3040]';
+                  if (passed) bgClass = 'bg-green-600 text-white hover:bg-green-500';
+                  else if (failed) bgClass = 'bg-red-600 text-white hover:bg-red-500';
+                  else if (done) bgClass = 'bg-green-600 text-white hover:bg-green-500';
+
+                  const activeClass = (currentQ === idx) ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900 border-transparent' : 'border-transparent';
 
                   return (
                     <button key={qqIdSafe} onClick={() => { setCurrentQ(idx); setRunResult(null); setJudgeResult(null); }}
-                      className={`min-w-[2.25rem] h-9 rounded-lg text-xs font-bold border transition-all ${currentQ === idx ? 'bg-blue-600 border-blue-500 text-white' :
-                          done ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300' :
-                            'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600'
-                        }`}>{idx + 1}</button>
+                      className={`min-w-[2.25rem] h-9 rounded-lg text-xs font-bold transition-all ${bgClass} ${activeClass}`}>
+                      {idx + 1}
+                    </button>
                   );
                 })}
               </div>

@@ -341,10 +341,30 @@ export function CompilerPage() {
       setJudgeResult(r.data.data);
       
       if (questionId) {
+        setPracticeSheets(prev => {
+          const newSheets = [...prev];
+          newSheets.forEach(s => {
+            s.questions?.forEach(q => {
+              if (q.questionId === questionId) {
+                if (q.question) {
+                  if (q.question.userStatus !== 'passed') {
+                    q.question.userStatus = r.data.data.verdict === 'accepted' ? 'passed' : 'failed';
+                  }
+                }
+              }
+            });
+          });
+          return newSheets;
+        });
+
         setQuestionStatuses(prev => {
           const newStatuses = [...prev];
           const idx = newStatuses.findIndex(q => q.questionId === questionId);
-          if (idx !== -1) newStatuses[idx].status = r.data.data.verdict === 'accepted' ? 'Accepted' : 'Attempted';
+          if (idx !== -1) {
+            if (newStatuses[idx].status !== 'Accepted') {
+              newStatuses[idx].status = r.data.data.verdict === 'accepted' ? 'Accepted' : 'Attempted';
+            }
+          }
           return newStatuses;
         });
       }
@@ -445,19 +465,23 @@ export function CompilerPage() {
                       <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-4 gap-2 px-4">
                           {sheet.questions?.map((q, idx) => {
                               const qs = questionStatuses.find(status => status.questionId === q.questionId);
-                              const isSolved = qs?.status === 'Accepted';
-                              const isAttempted = qs && qs.status !== 'Not Started' && !isSolved;
+                              
+                              let finalStatus = 'unattempted';
+                              if (q.question?.userStatus === 'passed' || qs?.status === 'Accepted') finalStatus = 'passed';
+                              else if (q.question?.userStatus === 'failed' || (qs?.status && qs.status !== 'Not Started' && qs.status !== 'Accepted')) finalStatus = 'failed';
+
                               const isActive = questionId === q.questionId;
   
+                              let bgClass = 'bg-[#1e2330] text-gray-300 hover:bg-[#2a3040]';
+                              if (finalStatus === 'passed') bgClass = 'bg-green-600 text-white hover:bg-green-500';
+                              else if (finalStatus === 'failed') bgClass = 'bg-red-600 text-white hover:bg-red-500';
+
+                              const activeClass = isActive ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900' : 'border-transparent';
+
                               return (
                                   <button key={q.questionId} 
                                       onClick={() => setSearchParams(prev => { prev.set('questionId', q.questionId); return prev; })}
-                                      className={`w-full aspect-square flex items-center justify-center rounded-lg text-xs font-bold border transition-all ${
-                                          isActive ? 'bg-blue-600 border-blue-500 text-white shadow-[0_0_10px_rgba(37,99,235,0.4)]' :
-                                          isSolved ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' :
-                                          isAttempted ? 'bg-amber-500/20 border-amber-500/50 text-amber-400' :
-                                          'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500 hover:bg-gray-700'
-                                      }`}>
+                                      className={`w-full aspect-square flex items-center justify-center rounded-lg text-xs font-bold transition-all ${bgClass} ${activeClass}`}>
                                       {idx + 1}
                                   </button>
                               );
