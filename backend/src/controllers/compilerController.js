@@ -281,6 +281,43 @@ export const judgeCode = async (req, res) => {
       }
 
       // Update Statistics
+      const todayStart = new Date();
+      todayStart.setUTCHours(0,0,0,0);
+      const yesterdayStart = new Date(todayStart);
+      yesterdayStart.setUTCDate(yesterdayStart.getUTCDate() - 1);
+      
+      const previousSubmissionsCount = await prisma.practiceSubmission.count({
+        where: {
+          studentId,
+          createdAt: {
+            gte: todayStart,
+            lt: new Date(todayStart.getTime() + 86400000)
+          },
+          id: { not: submission.id }
+        }
+      });
+      
+      let streakUpdate = {};
+      if (previousSubmissionsCount === 0) {
+        // First submission today! Was there one yesterday?
+        const yesterdaySubmissionsCount = await prisma.practiceSubmission.count({
+          where: {
+            studentId,
+            createdAt: {
+              gte: yesterdayStart,
+              lt: todayStart
+            }
+          }
+        });
+        
+        if (yesterdaySubmissionsCount > 0) {
+          streakUpdate = { currentStreak: { increment: 1 } };
+        } else {
+          // Streak broken or starting new!
+          streakUpdate = { currentStreak: 1 };
+        }
+      }
+
       const stats = await prisma.studentCodingStatistics.upsert({
         where: { studentId },
         create: {
@@ -288,11 +325,13 @@ export const judgeCode = async (req, res) => {
           totalAttempts: 1,
           wrongAttempts: finalVerdict !== 'accepted' ? 1 : 0,
           solvedOnFirstAttempt: finalVerdict === 'accepted' ? 1 : 0,
+          currentStreak: 1
         },
         update: {
           totalAttempts: { increment: 1 },
           wrongAttempts: finalVerdict !== 'accepted' ? { increment: 1 } : { increment: 0 },
-          solvedOnFirstAttempt: (isFirstAttempt && finalVerdict === 'accepted') ? { increment: 1 } : { increment: 0 }
+          solvedOnFirstAttempt: (isFirstAttempt && finalVerdict === 'accepted') ? { increment: 1 } : { increment: 0 },
+          ...streakUpdate
         }
       });
 

@@ -35,15 +35,55 @@ export const getUnifiedDashboard = async (req, res) => {
       select: { createdAt: true }
     });
 
+    const practiceSubmissionsHeat = await prisma.practiceSubmission.findMany({
+      where: { studentId: studentId },
+      select: { createdAt: true }
+    });
+
     // Build the date map (e.g., { "2026-07-07": 1 })
     const activityMap = {};
-    submissions.forEach(sub => {
+    const allActivity = [...submissions, ...practiceSubmissionsHeat];
+    
+    allActivity.forEach(sub => {
       if (sub.createdAt) {
         // Ensure we handle Date objects properly
         const dateStr = new Date(sub.createdAt).toISOString().split('T')[0];
         activityMap[dateStr] = (activityMap[dateStr] || 0) + 1;
       }
     });
+
+    // Compute Streak dynamically based on accurate Activity Map
+    let computedStreak = 0;
+    const todayObj = new Date();
+    const todayStr = todayObj.toISOString().split('T')[0];
+    todayObj.setUTCDate(todayObj.getUTCDate() - 1);
+    const yesterdayStr = todayObj.toISOString().split('T')[0];
+    
+    let streakDate = new Date(); 
+    
+    if (activityMap[todayStr]) {
+      computedStreak = 1;
+      streakDate.setUTCDate(streakDate.getUTCDate() - 1);
+    } else if (activityMap[yesterdayStr]) {
+      computedStreak = 1;
+      streakDate.setUTCDate(streakDate.getUTCDate() - 2);
+    }
+    
+    if (computedStreak > 0) {
+      while(true) {
+        const sStr = streakDate.toISOString().split('T')[0];
+        if (activityMap[sStr]) {
+          computedStreak++;
+          streakDate.setUTCDate(streakDate.getUTCDate() - 1);
+        } else {
+          break;
+        }
+      }
+    }
+    
+    if (stats) {
+      stats.currentStreak = computedStreak;
+    }
 
     // 🚀 NEW: Calculate ONLY Practice Sheet questions solved for the Code Playground progress bar
     const practiceSubmissions = await prisma.practiceSubmission.findMany({

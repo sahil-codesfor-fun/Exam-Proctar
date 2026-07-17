@@ -25,7 +25,7 @@ const PLATFORM_CONFIG = {
 // 🌑 THE DARK MODE HEATMAP COMPONENT (Now 100% authentic, no fake data!)
 const NexusContributionGraph = ({ activityMap }) => {
   const [days, setDays] = useState([]);
-
+  const [monthLabels, setMonthLabels] = useState([]);
 
   useEffect(() => {
     const temp = [];
@@ -54,6 +54,24 @@ const NexusContributionGraph = ({ activityMap }) => {
       temp.push({ date: d, count, isPadding: false });
     }
     setDays(temp);
+
+    // Calculate dynamic month labels based on exact columns
+    const monthsName = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const labels = [];
+    let lastMonth = -1;
+
+    for (let i = 0; i < temp.length; i += 7) {
+      const columnDays = temp.slice(i, i + 7);
+      const firstValidDay = columnDays.find(d => !d.isPadding);
+      if (firstValidDay) {
+        const currentMonth = firstValidDay.date.getMonth();
+        if (currentMonth !== lastMonth) {
+          labels.push({ label: monthsName[currentMonth], colIndex: i / 7 });
+          lastMonth = currentMonth;
+        }
+      }
+    }
+    setMonthLabels(labels);
   }, [activityMap]);
 
   const getLevelClass = (count) => {
@@ -64,8 +82,6 @@ const NexusContributionGraph = ({ activityMap }) => {
     return 'bg-[#39d353]'; // Super bright green
   };
 
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
   return (
     <div className="bg-[#0d1117] border border-gray-800 rounded-2xl p-6 mt-8 shadow-2xl overflow-hidden w-full">
       <h4 className="text-gray-300 font-bold mb-4 uppercase tracking-widest text-xs flex items-center gap-2">
@@ -74,14 +90,10 @@ const NexusContributionGraph = ({ activityMap }) => {
       
       <div className="w-full overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-[#0d1117]">
         <div className="min-w-[750px]">
-          {/* Months Header */}
-          <div className="flex text-[10px] text-gray-400 font-medium mb-2 pl-8 justify-between pr-4">
-            {months.map((m, i) => <span key={i}>{m}</span>)}
-          </div>
           
           <div className="flex gap-2">
             {/* Days of Week Labels */}
-            <div className="flex flex-col gap-[3px] text-[10px] text-gray-400 font-medium pr-2 pt-[2px]">
+            <div className="flex flex-col gap-[3px] text-[10px] text-gray-400 font-medium pr-2 mt-6">
               <span className="h-[12px]"></span>
               <span className="h-[12px] leading-3">Mon</span>
               <span className="h-[12px]"></span>
@@ -91,15 +103,27 @@ const NexusContributionGraph = ({ activityMap }) => {
               <span className="h-[12px]"></span>
             </div>
             
-            {/* Grid Squares */}
-            <div className="grid grid-flow-col grid-rows-7 gap-1">
-              {days.map((day, i) => (
-                <div 
-                  key={i} 
-                  className={`w-3 h-3 rounded-sm transition-colors duration-300 ${day.isPadding ? 'bg-transparent' : getLevelClass(day.count)} ${!day.isPadding ? 'hover:ring-1 hover:ring-white/50 cursor-pointer' : ''}`} 
-                  title={day.isPadding ? '' : `${day.count} contributions on ${day.date.toDateString()}`}
-                ></div>
-              ))}
+            {/* Grid Squares and Months */}
+            <div className="flex flex-col w-full">
+               {/* Months Header - absolutely positioned relative to the grid width */}
+               <div className="relative h-4 mb-2 w-full">
+                  {monthLabels.map((m, i) => (
+                    <span key={i} className="absolute text-[10px] text-gray-400 font-medium" style={{ left: `${m.colIndex * 16}px` }}>
+                      {m.label}
+                    </span>
+                  ))}
+               </div>
+               
+               {/* Grid Squares */}
+               <div className="grid grid-flow-col grid-rows-7 gap-1">
+                 {days.map((day, i) => (
+                   <div 
+                     key={i} 
+                     className={`w-3 h-3 rounded-sm transition-colors duration-300 ${day.isPadding ? 'bg-transparent' : getLevelClass(day.count)} ${!day.isPadding ? 'hover:ring-1 hover:ring-white/50 cursor-pointer' : ''}`} 
+                     title={day.isPadding ? '' : `${day.count} contributions on ${day.date.toDateString()}`}
+                   ></div>
+                 ))}
+               </div>
             </div>
           </div>
 
