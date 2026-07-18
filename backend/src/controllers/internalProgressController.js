@@ -85,17 +85,38 @@ export const getUnifiedDashboard = async (req, res) => {
       stats.currentStreak = computedStreak;
     }
 
-    // 🚀 NEW: Calculate ONLY Practice Sheet questions solved for the Code Playground progress bar
-    const practiceSubmissions = await prisma.practiceSubmission.findMany({
+    // 🚀 NEW: SINGLE SOURCE OF TRUTH FOR NEXUS SOLVED
+    const acceptedSubmissions = await prisma.practiceSubmission.findMany({
       where: {
         studentId: studentId,
-        verdict: { in: ['accepted', 'Accepted'] },
-        practiceSheetId: { not: null }
+        verdict: { in: ['accepted', 'Accepted'] }
       },
       select: { questionId: true },
       distinct: ['questionId']
     });
-    const practiceSolvedCount = practiceSubmissions.length;
+
+    const questionIds = acceptedSubmissions.map(s => s.questionId);
+
+    const solvedQuestions = await prisma.question.findMany({
+      where: { id: { in: questionIds } },
+      select: { difficulty: true }
+    });
+
+    let easySolved = 0, mediumSolved = 0, hardSolved = 0;
+    solvedQuestions.forEach(q => {
+      const diff = (q.difficulty || '').toLowerCase();
+      if (diff === 'easy') easySolved++;
+      else if (diff === 'medium') mediumSolved++;
+      else if (diff === 'hard') hardSolved++;
+    });
+
+    const nexusSolvedCount = solvedQuestions.length;
+
+    // Unified Progress State
+    progress.totalSolved = nexusSolvedCount;
+    progress.easySolved = easySolved;
+    progress.mediumSolved = mediumSolved;
+    progress.hardSolved = hardSolved;
 
     res.status(200).json({
       success: true,
@@ -105,7 +126,7 @@ export const getUnifiedDashboard = async (req, res) => {
         topicProgress,
         badges,
         activityMap, // 👈 BOOM! Now the frontend heatmap gets its fuel!
-        practiceSolvedCount
+        nexusSolvedCount
       }
     });
   } catch (error) {

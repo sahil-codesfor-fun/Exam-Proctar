@@ -280,7 +280,9 @@ export const CodingProgress = () => {
   };
 
   // --- Combined Statistics & Progress Calculations ---
-  let combinedTotal = internalStats?.progress?.totalSolved || 0;
+  // Ensure the formula is strictly: totalProblemsSolved = external + unifiedNexusCount
+  const unifiedNexusCount = internalStats?.nexusSolvedCount || internalStats?.progress?.totalSolved || 0;
+  let combinedTotal = unifiedNexusCount;
   integrations.filter(i => i.syncStatus !== 'DISCONNECTED').forEach(i => {
     combinedTotal += getPrimaryMetric(i);
   });
@@ -293,7 +295,7 @@ export const CodingProgress = () => {
   const calculatedUploaded = sheetQuestionsCount;
 
   // Use the newly added backend metric specifically for Practice Sheets
-  const nexusSolved = internalStats?.practiceSolvedCount || 0;
+  const nexusSolved = unifiedNexusCount;
   const nexusUploaded = internalStats?.progress?.totalUploaded || calculatedUploaded || Math.max(nexusSolved, 1);
   const nexusProgressPercent = nexusUploaded > 0 ? Math.round((nexusSolved / nexusUploaded) * 100) : 0;
 
@@ -504,7 +506,7 @@ export const CodingProgress = () => {
                 </div>
               </div>
               <div className="flex flex-col items-end">
-                <span className="text-4xl font-black text-gray-900 leading-none">{internalStats?.progress?.totalSolved || 0}</span>
+                <span className="text-4xl font-black text-gray-900 leading-none">{nexusSolved}</span>
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Solved</span>
               </div>
             </div>
@@ -516,7 +518,7 @@ export const CodingProgress = () => {
                   <span className="text-gray-900">{internalStats?.progress?.easySolved || 0}</span>
                 </div>
                 <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                  <div className="bg-[#00B8A3] h-full rounded-full" style={{ width: `${internalStats?.progress?.totalSolved ? (internalStats?.progress?.easySolved / internalStats?.progress?.totalSolved) * 100 : 0}%` }}></div>
+                  <div className="bg-[#00B8A3] h-full rounded-full" style={{ width: `${nexusSolved ? (internalStats?.progress?.easySolved / nexusSolved) * 100 : 0}%` }}></div>
                 </div>
               </div>
               <div>
@@ -525,7 +527,7 @@ export const CodingProgress = () => {
                   <span className="text-gray-900">{internalStats?.progress?.mediumSolved || 0}</span>
                 </div>
                 <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                  <div className="bg-[#FFC01E] h-full rounded-full" style={{ width: `${internalStats?.progress?.totalSolved ? (internalStats?.progress?.mediumSolved / internalStats?.progress?.totalSolved) * 100 : 0}%` }}></div>
+                  <div className="bg-[#FFC01E] h-full rounded-full" style={{ width: `${nexusSolved ? (internalStats?.progress?.mediumSolved / nexusSolved) * 100 : 0}%` }}></div>
                 </div>
               </div>
               <div>
@@ -534,7 +536,7 @@ export const CodingProgress = () => {
                   <span className="text-gray-900">{internalStats?.progress?.hardSolved || 0}</span>
                 </div>
                 <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden">
-                  <div className="bg-[#EF4743] h-full rounded-full" style={{ width: `${internalStats?.progress?.totalSolved ? (internalStats?.progress?.hardSolved / internalStats?.progress?.totalSolved) * 100 : 0}%` }}></div>
+                  <div className="bg-[#EF4743] h-full rounded-full" style={{ width: `${nexusSolved ? (internalStats?.progress?.hardSolved / nexusSolved) * 100 : 0}%` }}></div>
                 </div>
               </div>
             </div>
