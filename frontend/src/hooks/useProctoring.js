@@ -11,6 +11,8 @@ export default function useProctoring({ examId, enabled = false, maxViolations =
   const [violationCount, setViolationCount] = useState(0);
   const [restricted, setRestricted] = useState(false);
   const countRef = useRef(0);
+  const lastKeypressTimeRef = useRef(0);
+  const rapidKeystrokeCountRef = useRef(0);
 
   const logViolation = useCallback(async (type, severity = 'medium', details = '') => {
     if (!enabled || restricted) return;
@@ -61,6 +63,20 @@ export default function useProctoring({ examId, enabled = false, maxViolations =
 
     // ── Keyboard shortcuts ──
     const handleKeydown = (e) => {
+      // ── Anti-Ghosting / Keystroke Velocity Tracking ──
+      const now = Date.now();
+      if (now - lastKeypressTimeRef.current < 20) {
+        rapidKeystrokeCountRef.current += 1;
+        if (rapidKeystrokeCountRef.current > 10) {
+          e.preventDefault();
+          logViolation('programmatic_injection', 'critical', 'Impossibly fast typing detected (Ghosting)');
+          return;
+        }
+      } else {
+        rapidKeystrokeCountRef.current = 0;
+      }
+      lastKeypressTimeRef.current = now;
+
       // F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U (DevTools / Source)
       if (
         e.key === 'F12' || 
@@ -80,15 +96,10 @@ export default function useProctoring({ examId, enabled = false, maxViolations =
         logViolation('keyboard_shortcut', 'high', 'Alt+Tab detected');
         return;
       }
-      // Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+A in exam (outside editor)
+      // Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+A globally prevented
       if (e.ctrlKey && ['c', 'v', 'x', 'a', 'C', 'V', 'X', 'A'].includes(e.key)) {
-        // Allow inside Monaco editor
-        const target = e.target;
-        const isEditor = target.closest('.monaco-editor');
-        if (!isEditor) { 
-          e.preventDefault(); 
-          logViolation('copy_paste', 'medium', `Ctrl+${e.key.toUpperCase()} outside editor`); 
-        }
+        e.preventDefault(); 
+        logViolation('copy_paste', 'medium', `Ctrl+${e.key.toUpperCase()} detected`); 
       }
     };
 
@@ -109,13 +120,34 @@ export default function useProctoring({ examId, enabled = false, maxViolations =
       Object.defineProperty(el, 'id', { get: () => { /* triggered by devtools */ } });
     }, 5000);
 
-    // ── Disable text selection ──
+    // ── Disable text selection globally ──
     const preventSelection = (e) => {
-      const target = e.target;
-      if (!target.closest('.monaco-editor')) {
-        e.preventDefault();
-      }
+      e.preventDefault();
     };
+
+    // ── Anti-Extension Shield (MutationObserver) ──
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType === 1) { // ELEMENT_NODE
+            const nodeName = node.nodeName.toUpperCase();
+            const outerHTML = node.outerHTML ? node.outerHTML.toLowerCase() : '';
+            const zIndex = window.getComputedStyle(node).zIndex;
+            
+            if (
+              nodeName === 'IFRAME' ||
+              outerHTML.includes('grammarly') ||
+              outerHTML.includes('chatgpt') ||
+              outerHTML.includes('solver') ||
+              (zIndex && zIndex !== 'auto' && parseInt(zIndex, 10) > 9999)
+            ) {
+              logViolation('unauthorized_extension', 'high', 'Suspicious DOM injection detected');
+            }
+          }
+        }
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
 
     document.body.style.userSelect = 'none';
     document.body.style.webkitUserSelect = 'none';
@@ -148,6 +180,7 @@ export default function useProctoring({ examId, enabled = false, maxViolations =
       document.removeEventListener('selectstart', preventSelection);
       window.removeEventListener('resize', handleResize);
       clearInterval(devtoolsInterval);
+      observer.disconnect();
       document.body.style.userSelect = '';
       document.body.style.webkitUserSelect = '';
     };
