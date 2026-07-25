@@ -8,17 +8,9 @@ import { seedSuperAdmin } from './prisma/seedSuperAdmin.js';
 import { setupProctorSockets } from './src/sockets/proctorSocket.js';
 import { setupPracticeSockets, setPracticeIO } from './src/sockets/practiceSocket.js';
 import { sendEmail } from './src/services/emailService.js';
-import leetcodeRoutes from './src/routes/leetcodeRoutes.js';
-import codingMetricsRoutes from './src/routes/codingMetricsRoutes.js';
-import { startCodingTracker } from './src/services/codingTracker.js';
-startCodingTracker();
 
 console.log("EMAIL_USER:", process.env.EMAIL_USER);
 console.log("EMAIL_PASS:", process.env.EMAIL_PASS);
-app.use('/api/leetcode', leetcodeRoutes);
-app.use('/api/metrics', codingMetricsRoutes);
-
-
 const startServer = async () => {
   // 1. Validate ENV 
   if (!process.env.JWT_SECRET) {

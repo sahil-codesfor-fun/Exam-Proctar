@@ -13,11 +13,12 @@ import settingsRoutes from './routes/settingsRoutes.js';
 import metadataRoutes from './routes/metadataRoutes.js';
 import practiceRoutes from './routes/practice.routes.js';
 import internalProgressRoutes from './routes/internalProgress.routes.js';
-import integrationRoutes from './routes/integration.routes.js';
 import ticketRoutes from './routes/ticket.routes.js';
 import hubCourseRoutes from './routes/hubCourseRoutes.js';
+import platformRoutes from './routes/platform.routes.js';
 import { sendTestEmail } from './services/emailService.js';
-import { initDelayedSyncEngine } from './services/delayedSyncEngine.js';
+import { initMasterCron } from './workers/masterCron.js';
+import { initPiggybackWorker } from './workers/piggybackWorker.js';
 const app = express();
 
 // Trust reverse proxy for rate limiting (e.g. Render, Heroku)
@@ -63,12 +64,13 @@ app.use('/api/settings',    settingsRoutes);
 app.use('/api/metadata',    metadataRoutes);
 app.use('/api/practice',    practiceRoutes);
 app.use('/api/progress',    internalProgressRoutes);
-app.use('/api/integrations', integrationRoutes);
 app.use('/api/tickets',     ticketRoutes);
 app.use('/api/hub-courses', hubCourseRoutes);
+app.use('/api/platforms', platformRoutes);
 
 // ── Initialize Background Services ─────────────────────────────
-initDelayedSyncEngine();
+initMasterCron();
+initPiggybackWorker();
 
 // ── Health check ──────────────────────────────────────────────
 app.get('/api/test', (_req, res) => {

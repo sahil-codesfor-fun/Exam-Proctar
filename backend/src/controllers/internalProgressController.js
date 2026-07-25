@@ -8,6 +8,17 @@ export const getUnifiedDashboard = async (req, res) => {
     const studentId = req.user.id;
 
     // Get basic stats
+    const user = await prisma.user.findUnique({ 
+      where: { id: studentId },
+      select: { 
+        codechefUsername: true, codechefTotalSolved: true, codechefStars: true,
+        leetcodeUsername: true, leetcodeTotalSolved: true,
+        leetcodeEasySolved: true, leetcodeMediumSolved: true, leetcodeHardSolved: true,
+        hackerrankUsername: true, hackerrankTotalSolved: true,
+        platformsLastSyncedAt: true
+      }
+    });
+
     const progress = await prisma.studentCodingProgress.findUnique({ where: { studentId } }) || {
       totalAssigned: 0, totalSolved: 0, easySolved: 0, mediumSolved: 0, hardSolved: 0
     };
@@ -121,6 +132,7 @@ export const getUnifiedDashboard = async (req, res) => {
     res.status(200).json({
       success: true,
       data: {
+        user,
         progress,
         stats,
         topicProgress,
