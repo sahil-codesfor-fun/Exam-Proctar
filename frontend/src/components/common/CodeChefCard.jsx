@@ -66,7 +66,7 @@ const CodeChefCard = ({
       {/* Top Gradient Border */}
       <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#5B3922] to-[#8C5A35]"></div>
       
-      <div className="p-8 h-full flex flex-col flex-grow">
+      <div className="p-5 h-full flex flex-col flex-grow">
         <div className="flex justify-between items-start mb-6">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-[#5B3922]/10 text-[#5B3922]">

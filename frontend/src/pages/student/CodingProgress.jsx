@@ -315,7 +315,7 @@ export const CodingProgress = () => {
     return (
       <div key={platformKey} className="w-full bg-white rounded-[2rem] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden transition-transform hover:-translate-y-1 duration-300 flex flex-col">
         <div className={`absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r ${config.color}`}></div>
-        <div className="p-8 h-full flex flex-col flex-grow">
+        <div className="p-5 h-full flex flex-col flex-grow">
           <div className="flex justify-between items-start mb-6">
             <div className="flex items-center gap-4">
               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${config.bgColor} ${config.iconColor}`}>
@@ -490,12 +490,12 @@ export const CodingProgress = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pt-2 px-2 pb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 pt-2 px-2 pb-8">
 
         {/* NEXUS Code Playground (Internal) */}
         <div className="w-full bg-white rounded-[2rem] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden transition-transform hover:-translate-y-1 duration-300 flex flex-col">
           <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-500 to-teal-400"></div>
-          <div className="p-8 flex flex-col flex-grow">
+          <div className="p-5 flex flex-col flex-grow">
             <div className="flex justify-between items-start mb-8">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600">
