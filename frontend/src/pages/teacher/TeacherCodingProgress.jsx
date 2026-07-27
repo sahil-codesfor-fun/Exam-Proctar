@@ -392,7 +392,11 @@ export const TeacherCodingProgress = () => {
                             </div>
                             <div className="flex flex-col">
                               <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">{pInfo.name}</span>
-                              <span className="text-[9px] font-bold text-gray-400 uppercase">#{m.ranking?.toLocaleString() || '0'} Rank</span>
+                              {m.platform !== 'CODECHEF' && (
+                                <span className="text-[9px] font-bold text-gray-400 uppercase">
+                                  #{m.ranking?.toLocaleString() || '0'} Rank
+                                </span>
+                              )}
                             </div>
                           </div>
 
@@ -404,11 +408,21 @@ export const TeacherCodingProgress = () => {
 
                           {}
                           <div className="w-1/4 flex items-center gap-3 text-xs font-black">
-                            <span className={pInfo.easy}>{m.easySolved || 0}</span>
-                            <span className="text-gray-200">/</span>
-                            <span className={pInfo.medium}>{m.mediumSolved || 0}</span>
-                            <span className="text-gray-200">/</span>
-                            <span className={pInfo.hard}>{m.hardSolved || 0}</span>
+                            {m.platform === 'HACKERRANK' ? (
+                              <span className="text-gray-400 font-medium">Difficulty breakdown N/A</span>
+                            ) : m.platform === 'CODECHEF' ? (
+                              <span className="text-[#FFC01E] flex items-center gap-1">
+                                {m.ranking || 0} <span className="text-xl leading-none">★</span>
+                              </span>
+                            ) : (
+                              <>
+                                <span className={pInfo.easy}>{m.easySolved || 0}</span>
+                                <span className="text-gray-200">/</span>
+                                <span className={pInfo.medium}>{m.mediumSolved || 0}</span>
+                                <span className="text-gray-200">/</span>
+                                <span className={pInfo.hard}>{m.hardSolved || 0}</span>
+                              </>
+                            )}
                           </div>
 
                           {}
