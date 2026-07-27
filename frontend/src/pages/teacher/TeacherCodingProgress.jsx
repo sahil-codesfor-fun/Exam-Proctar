@@ -145,22 +145,35 @@ export const TeacherCodingProgress = () => {
   };
 
   const handleUniversalSync = async () => {
-    // 🛡️ COOLDOWN: 24-hour rate limit for the whole class
-    const lastSync = localStorage.getItem('global_sync_time');
-    if (lastSync && (Date.now() - parseInt(lastSync) < 86400000)) {
-        setSyncWarning('¡Cálmate! Universal sync is limited to once every 24 hours to protect our servers.');
+    // 🛡️ COOLDOWN: Twice per 24 hours
+    const syncDataStr = localStorage.getItem('global_sync_data');
+    let syncData = syncDataStr ? JSON.parse(syncDataStr) : { count: 0, timestamp: Date.now() };
+    
+    if (Date.now() - syncData.timestamp > 86400000) {
+      syncData = { count: 0, timestamp: Date.now() };
+    }
+
+    if (syncData.count >= 2) {
+        setSyncWarning('¡Cálmate! Universal sync is limited to twice every 24 hours to protect our servers.');
         setTimeout(() => setSyncWarning(''), 4000);
         return;
     }
 
     setIsSyncingAll(true);
     try {
-      await api.post('/platforms/faculty/sync-all').catch(() => console.log('Mass sync route not found, refreshing data instead.'));
+      await api.post('/platforms/faculty/sync-all');
       
-      localStorage.setItem('global_sync_time', Date.now().toString());
+      syncData.count += 1;
+      localStorage.setItem('global_sync_data', JSON.stringify(syncData));
+      
       await fetchAllStats();
     } catch (err) {
-      console.error('Universal sync failed', err);
+      if (err.response?.status === 429) {
+         setSyncWarning(err.response.data.message || 'Universal sync is limited to twice every 24 hours.');
+         setTimeout(() => setSyncWarning(''), 4000);
+      } else {
+         console.error('Universal sync failed', err);
+      }
     } finally {
       setIsSyncingAll(false);
     }

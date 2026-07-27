@@ -242,8 +242,21 @@ export const getFacultyStudentMetrics = async (req, res) => {
 export const syncAllFacultyStudents = async (req, res) => {
   try {
     const departmentId = req.user?.departmentId;
+    const facultyId = req.user?.id;
     if (!departmentId) {
       return res.status(403).json({ error: 'You are not assigned to a department.' });
+    }
+
+    const redisKey = `mass_sync:${facultyId}`;
+
+    if (isRedisConnected) {
+      const syncCount = await redisClient.get(redisKey);
+      if (syncCount && parseInt(syncCount) >= 2) {
+        return res.status(429).json({ 
+          success: false, 
+          message: 'Universal sync is limited to twice every 24 hours to protect our servers.' 
+        });
+      }
     }
 
     const students = await prisma.user.findMany({
@@ -265,6 +278,15 @@ export const syncAllFacultyStudents = async (req, res) => {
         { userId: student.id }, 
         { priority: 2, jobId: `sync_${student.id}_mass`, removeOnComplete: true }
       );
+    }
+
+    if (isRedisConnected) {
+      const syncCount = await redisClient.get(redisKey);
+      if (!syncCount) {
+        await redisClient.setEx(redisKey, 86400, '1');
+      } else {
+        await redisClient.incr(redisKey);
+      }
     }
 
     return res.status(200).json({ success: true, message: `Queued sync for ${students.length} students.` });
