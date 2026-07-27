@@ -48,7 +48,7 @@ const StudentCourseDetails = () => {
 
   return (
     <div className="space-y-8 mt-6 max-w-5xl mx-auto">
-      {/* Header */}
+      {}
       <div className="mb-6">
         <button 
           onClick={() => navigate('/student-dashboard/courses')}
@@ -74,7 +74,7 @@ const StudentCourseDetails = () => {
         </div>
       </div>
 
-      {/* Modules List */}
+      {}
       <div className="space-y-4">
         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2 border-b pb-2">
           <Layers className="text-blue-500" /> Course Modules

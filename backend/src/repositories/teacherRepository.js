@@ -67,7 +67,6 @@ class TeacherRepository {
   }
 
   async updateTeacher(id, departmentId, data) {
-    // Ensure the teacher exists and belongs to the department before updating
     const existing = await this.findByIdAndDepartment(id, departmentId);
     if (!existing) throw new Error('Teacher not found in your department');
 
@@ -85,7 +84,6 @@ class TeacherRepository {
       throw new Error('Cannot permanently delete a teacher who has created exams. Please archive them instead.');
     }
 
-    // Since ActivityLog does not cascade delete when the user is deleted, we must remove it first.
     await prisma.activityLog.deleteMany({
       where: { OR: [{ userId: id }, { entityId: id, entity: 'User' }] }
     });

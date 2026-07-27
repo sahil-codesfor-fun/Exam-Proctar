@@ -35,7 +35,6 @@ class UserService {
       prisma.user.count({ where })
     ]);
 
-    // Remove passwords before returning
     users.forEach(u => delete u.password);
 
     return {
@@ -48,7 +47,6 @@ class UserService {
   async provisionDepartmentHead(data, superAdminId) {
     const { name, email, employeeId, phone, departmentId, passwordMode = 'auto', manualPassword } = data;
 
-    // Validate unique email and employeeId
     const existing = await prisma.user.findFirst({
       where: {
         OR: [{ email }, { facultyId: employeeId }]
@@ -59,12 +57,10 @@ class UserService {
       throw new Error(existing.email === email ? 'Email already in use' : 'Employee ID already in use');
     }
 
-    // Validate department exists and doesn't already have a head
     const department = await prisma.department.findUnique({ where: { id: departmentId } });
     if (!department) throw new Error('Department not found');
     if (department.headId) throw new Error('Department already has a Head assigned');
 
-    // Handle Password Mode
     let tempPassword = null;
     let plainPasswordToHash = '';
 
@@ -79,7 +75,6 @@ class UserService {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(plainPasswordToHash, salt);
 
-    // Transaction
     const user = await prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: {
@@ -134,9 +129,7 @@ class UserService {
       throw new Error('User is not a department head');
     }
 
-    // Transaction to clear headId from department if any, and then delete user
     await prisma.$transaction(async (tx) => {
-      // Find departments where this user is the head
       const depts = await tx.department.findMany({ where: { headId: id } });
       for (const dept of depts) {
         await tx.department.update({

@@ -124,7 +124,6 @@ export const assignExam = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Exam not found or access denied' });
     }
     
-    // Force the assignment to be scoped to the admin's department
     const payload = {
       ...req.body,
       departmentId: req.user.departmentId

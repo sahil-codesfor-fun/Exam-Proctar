@@ -22,7 +22,6 @@ const StudentAccordionTable = ({ results, examId, examTitle }) => {
   const reportCache = useRef({});
 
   const fetchReport = useCallback(async (submissionId) => {
-    // Check cache first
     if (reportCache.current[submissionId]) {
       setReportData(prev => ({ ...prev, [submissionId]: reportCache.current[submissionId] }));
       return;
@@ -67,7 +66,7 @@ const StudentAccordionTable = ({ results, examId, examTitle }) => {
 
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200">
-      {/* Table Header */}
+      {}
       <div className="bg-gray-50/80 border-b border-gray-200 hidden lg:block">
         <div className={`grid ${TABLE_GRID_CLASS} gap-0 text-[9px] font-black text-gray-400 uppercase tracking-widest py-3 px-4`}>
           <div></div>
@@ -81,7 +80,7 @@ const StudentAccordionTable = ({ results, examId, examTitle }) => {
         </div>
       </div>
 
-      {/* Student Rows */}
+      {}
       <div className="divide-y divide-gray-100">
         {results.map((r) => {
           const isExpanded = expandedId === r.submissionId;
@@ -95,7 +94,7 @@ const StudentAccordionTable = ({ results, examId, examTitle }) => {
                 onClick={() => toggleExpand(r.submissionId)}
                 className={`hidden lg:grid ${TABLE_GRID_CLASS} gap-0 items-center py-4 px-4 cursor-pointer transition-all duration-200 ${isExpanded ? 'bg-gray-50 border-l-2 border-l-[#4B775E]' : 'hover:bg-gray-50/50 border-l-2 border-l-transparent'}`}
               >
-                {/* Chevron */}
+                {}
                 <div>
                   <ChevronDown
                     size={14}
@@ -103,40 +102,40 @@ const StudentAccordionTable = ({ results, examId, examTitle }) => {
                   />
                 </div>
 
-                {/* Student */}
+                {}
                 <div className="px-2 min-w-0">
                   <p className="font-bold text-sm text-gray-900 truncate">{r.studentName}</p>
                   <p className="text-[10px] text-gray-400 font-mono truncate">{r.studentEmail}</p>
                 </div>
 
-                {/* Roll No */}
+                {}
                 <div className="px-2 text-xs font-bold text-gray-500 truncate">{r.studentRollNo}</div>
 
-                {/* Exam */}
+                {}
                 <div className="px-2 text-xs font-medium text-gray-500 truncate">{r.examTitle}</div>
 
-                {/* Marks */}
+                {}
                 <div className="px-2 text-center">
                   <span className="font-black text-sm text-gray-700">{r.totalScore}</span>
                   <span className="text-gray-300 mx-0.5">/</span>
                   <span className="text-xs text-gray-400">{r.maxScore}</span>
                 </div>
 
-                {/* Percentage */}
+                {}
                 <div className="px-2 text-center">
                   <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${r.percentage >= 33.33 ? 'text-emerald-600' : 'text-red-500'}`}>
                     {r.percentage}%
                   </span>
                 </div>
 
-                {/* Infractions */}
+                {}
                 <div className="px-2 text-center">
                   <span className={`text-[11px] font-black ${r.violationCount > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
                     {r.violationCount}
                   </span>
                 </div>
 
-                {/* Status */}
+                {}
                 <div className="px-2 text-center flex justify-center">
                   <span className={`text-[8px] font-black px-2 py-1 rounded-lg uppercase tracking-wider ${config.bg} ${config.text} border ${config.border}`}>
                     {config.label}

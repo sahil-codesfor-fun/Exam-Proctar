@@ -5,9 +5,6 @@ import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
-/**
- * Controller to handle secure bulk CSV upload of curriculum
- */
 export const uploadCourseCsv = async (req, res) => {
   try {
     const articlesFile = req.files?.articlesCsv?.[0];
@@ -24,7 +21,6 @@ export const uploadCourseCsv = async (req, res) => {
     
     const departmentId = req.user?.departmentId || null;
 
-    // Helper function to parse CSV stream
     const parseCsv = (buffer) => {
       return new Promise((resolve, reject) => {
         const results = [];
@@ -42,7 +38,6 @@ export const uploadCourseCsv = async (req, res) => {
 
     try {
       const result = await prisma.$transaction(async (tx) => {
-        // 1. Create Course
         let course = await tx.hubCourse.findFirst({
           where: { title: courseTitle, departmentId }
         });
@@ -56,14 +51,12 @@ export const uploadCourseCsv = async (req, res) => {
         let moduleCount = 0;
         let articlesCreated = 0;
         let questionsCreated = 0;
-        const createdModules = []; // Store them to attach questions
+        const createdModules = [];
 
-        // 2. Chunk articles into groups of 4 and create modules
         for (let i = 0; i < articlesRaw.length; i += 4) {
           const chunk = articlesRaw.slice(i, i + 4);
           moduleCount++;
           
-          // Extract title from the first article to name the module
           const firstArticle = chunk[0] || {};
           const normalizedFirst = {};
           for (const key in firstArticle) {
@@ -100,7 +93,6 @@ export const uploadCourseCsv = async (req, res) => {
           articlesCreated += articlesData.length;
         }
 
-        // 3. Process Questions and distribute them evenly across modules
         if (createdModules.length === 0) {
           throw new Error("No articles were processed, so modules couldn't be created to attach questions.");
         }
@@ -135,7 +127,6 @@ export const uploadCourseCsv = async (req, res) => {
               let companyTags = [];
               if (companies) companyTags = companies.split(',').map(tag => tag.trim());
 
-              // 1. Explicit Judge Testcases
               const tcInput1 = normalizedData['testcase_input'];
               const tcOutput1 = normalizedData['testcase_output'];
               if (tcInput1 || tcOutput1) {
@@ -148,7 +139,6 @@ export const uploadCourseCsv = async (req, res) => {
                 allTestCases.push({ questionId, input: tcInputHidden || '', expectedOutput: tcOutputHidden || '', isHidden: true, points: 5 });
               }
 
-              // 2. Visible Examples
               const exampleSuffixes = ['', '2', '3', '4'];
               exampleSuffixes.forEach(suffix => {
                 const exInput = normalizedData[`problem_data_input${suffix}`];
@@ -199,8 +189,8 @@ export const uploadCourseCsv = async (req, res) => {
           questionsImported: questionsCreated
         };
       }, {
-        maxWait: 10000, // 10 seconds max wait to connect to prisma
-        timeout: 60000 // 60 seconds max transaction duration (useful for large CSVs in production)
+        maxWait: 10000,
+        timeout: 60000
       });
 
       return res.status(200).json({
@@ -218,16 +208,11 @@ export const uploadCourseCsv = async (req, res) => {
   }
 };
 
-/**
- * Fetch courses scoped to the user's department (for Student Dashboard)
- */
 export const getDepartmentCourses = async (req, res) => {
   try {
     const departmentId = req.user?.departmentId;
     const studentId = req.user?.id;
     
-    // If the student doesn't have a department assigned yet, just return an empty array
-    // instead of throwing an error that breaks the UI
     if (!departmentId) {
       return res.json({ success: true, courses: [] });
     }
@@ -259,7 +244,6 @@ export const getDepartmentCourses = async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    // Calculate progress for each course
     let solvedQuestionIds = new Set();
     if (studentId) {
       const submissions = await prisma.practiceSubmission.findMany({
@@ -313,9 +297,6 @@ export const getDepartmentCourses = async (req, res) => {
   }
 };
 
-/**
- * Admin: Get ALL courses with module counts (for Admin dashboard)
- */
 export const getAllCourses = async (req, res) => {
   try {
     const courses = await prisma.hubCourse.findMany({
@@ -338,9 +319,6 @@ export const getAllCourses = async (req, res) => {
   }
 };
 
-/**
- * Admin: Assign a course to their own department
- */
 export const assignCourseToDepartment = async (req, res) => {
   try {
     const { courseId } = req.body;
@@ -367,9 +345,6 @@ export const assignCourseToDepartment = async (req, res) => {
   }
 };
 
-/**
- * Admin: Create a new course manually
- */
 export const createCourse = async (req, res) => {
   try {
     const { title, description } = req.body;
@@ -388,9 +363,6 @@ export const createCourse = async (req, res) => {
   }
 };
 
-/**
- * Admin: Create a new module under a course
- */
 export const createModule = async (req, res) => {
   try {
     const { courseId, title } = req.body;
@@ -398,7 +370,6 @@ export const createModule = async (req, res) => {
       return res.status(400).json({ error: 'courseId and title are required.' });
     }
 
-    // Get the current highest order
     const lastModule = await prisma.hubModule.findFirst({
       where: { courseId },
       orderBy: { order: 'desc' },
@@ -417,9 +388,6 @@ export const createModule = async (req, res) => {
   }
 };
 
-/**
- * Get the full contents (questions & articles) of a single module
- */
 export const getModuleContent = async (req, res) => {
   try {
     const { moduleId } = req.params;
@@ -452,7 +420,6 @@ export const getModuleContent = async (req, res) => {
       return res.status(404).json({ error: 'Module not found.' });
     }
 
-    // Check solved status for each question
     if (studentId && moduleContent.questions && moduleContent.questions.length > 0) {
       const questionIds = moduleContent.questions.map(q => q.id);
       
@@ -481,14 +448,10 @@ export const getModuleContent = async (req, res) => {
   }
 };
 
-/**
- * Delete a course and all its related modules, articles, and questions
- */
 export const deleteCourse = async (req, res) => {
   try {
     const { courseId } = req.params;
     
-    // Check if course exists
     const course = await prisma.hubCourse.findUnique({
       where: { id: courseId }
     });
@@ -497,9 +460,6 @@ export const deleteCourse = async (req, res) => {
       return res.status(404).json({ error: 'Course not found.' });
     }
 
-    // Since onDelete: Cascade isn't guaranteed depending on DB, we can just let Prisma handle it 
-    // if cascade is setup, or manually delete. The schema seems to have cascades based on standard Prisma.
-    // Let's just delete the course directly.
     await prisma.hubCourse.delete({
       where: { id: courseId }
     });
@@ -511,9 +471,6 @@ export const deleteCourse = async (req, res) => {
   }
 };
 
-/**
- * Fetch student course progress for faculty in the same department
- */
 export const getFacultyStudentProgress = async (req, res) => {
   try {
     const departmentId = req.user?.departmentId;
@@ -521,7 +478,6 @@ export const getFacultyStudentProgress = async (req, res) => {
       return res.status(403).json({ error: 'You are not assigned to a department.' });
     }
 
-    // Fetch all students in the department
     const students = await prisma.user.findMany({
       where: {
         departmentId,
@@ -538,7 +494,6 @@ export const getFacultyStudentProgress = async (req, res) => {
       orderBy: { studentId: 'asc' }
     });
 
-    // Fetch all courses for the department
     const courses = await prisma.hubCourse.findMany({
       where: { departmentId },
       include: {
@@ -553,7 +508,6 @@ export const getFacultyStudentProgress = async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    // Extract all question IDs per course for fast lookup
     const courseQuestionsMap = courses.map(course => {
       let totalQuestions = 0;
       course.modules.forEach(mod => {
@@ -577,7 +531,6 @@ export const getFacultyStudentProgress = async (req, res) => {
       };
     });
 
-    // Fetch all accepted submissions for all students in the department
     const studentIds = students.map(s => s.id);
     const submissions = await prisma.practiceSubmission.findMany({
       where: {
@@ -588,7 +541,6 @@ export const getFacultyStudentProgress = async (req, res) => {
       distinct: ['studentId', 'questionId']
     });
 
-    // Group submissions by studentId for fast lookup
     const studentSubmissionsMap = {};
     submissions.forEach(sub => {
       if (!studentSubmissionsMap[sub.studentId]) {
@@ -597,7 +549,6 @@ export const getFacultyStudentProgress = async (req, res) => {
       studentSubmissionsMap[sub.studentId].add(sub.questionId);
     });
 
-    // Build the final response array
     const result = students.map(student => {
       const studentSolvedSet = studentSubmissionsMap[student.id] || new Set();
       const courseProgress = courseQuestionsMap.map(course => {

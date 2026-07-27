@@ -4,11 +4,9 @@ export const createTicket = async (req, res) => {
   try {
     const { examId, reason } = req.body;
     
-    // Check if the exam exists
     const exam = await prisma.exam.findUnique({ where: { id: examId } });
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
     
-    // Check if student has already attempted the exam
     const existingSubmission = await prisma.submission.findFirst({
       where: { examId, studentId: req.user.id }
     });
@@ -16,7 +14,6 @@ export const createTicket = async (req, res) => {
       return res.status(400).json({ success: false, message: 'You have already attempted this exam and cannot appeal.' });
     }
     
-    // Check existing tickets for this exam and student
     const existingTickets = await prisma.missedExamTicket.findMany({
       where: {
         examId,
@@ -54,7 +51,6 @@ export const createTicket = async (req, res) => {
       appealNumber = 2;
     }
     
-    // Create the ticket
     const ticket = await prisma.missedExamTicket.create({
       data: {
         examId,
@@ -86,11 +82,8 @@ export const getMyTickets = async (req, res) => {
   }
 };
 
-// Admin Routes
 export const getAllTickets = async (req, res) => {
   try {
-    // If admin is department scoped, we might want to filter by department.
-    // For now, let's return tickets for exams created by this admin, or their department
     const query = {};
     if (req.user.role === 'admin' && req.user.departmentId) {
        query.exam = { departmentId: req.user.departmentId };
@@ -115,7 +108,7 @@ export const getAllTickets = async (req, res) => {
 export const resolveTicket = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body; // 'approved' or 'rejected'
+    const { status } = req.body;
     
     if (!['approved', 'rejected'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid status' });
@@ -130,8 +123,6 @@ export const resolveTicket = async (req, res) => {
       }
     });
     
-    // If approved, we might need to reset their submission, or allow them to take it again.
-    // That can be handled later or directly here by deleting their previous attempts if any.
     
     res.json({ success: true, data: ticket });
   } catch (error) {
@@ -139,7 +130,6 @@ export const resolveTicket = async (req, res) => {
   }
 };
 
-// Reschedule logic
 export const getApprovedRescheduleRequests = async (req, res) => {
   try {
     const { examId } = req.params;

@@ -57,7 +57,6 @@ const StudentModule = () => {
   }
 
 
-  // Helper to get category questions
   const getCategoryQuestions = (category) => {
     if (!module?.questions) return [];
     if (category === 'Trainer') return module.questions.filter(q => q.category?.toLowerCase() === 'trainer');
@@ -69,7 +68,7 @@ const StudentModule = () => {
 
   return (
     <div className="space-y-8 mt-6 max-w-5xl mx-auto">
-      {/* Header */}
+      {}
       <div className="flex items-start justify-between">
         <div>
           <button 
@@ -82,7 +81,7 @@ const StudentModule = () => {
         </div>
       </div>
 
-      {/* Tabs */}
+      {}
       <div className="flex items-center gap-6 border-b border-slate-200">
         <button 
           onClick={() => setActiveTab('questions')}
@@ -109,10 +108,10 @@ const StudentModule = () => {
       </div>
 
       <div className="mt-6">
-        {/* Main Content Area - Questions */}
+        {}
         {activeTab === 'questions' && (
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {/* Sub-tabs for Question Categories */}
+            {}
             <div className="flex items-center gap-2 mb-6">
               {['Trainer', 'Practice', 'Labs'].map(cat => (
                 <button
@@ -211,13 +210,13 @@ const StudentModule = () => {
           </div>
         )}
 
-        {/* Main Content Area - Articles */}
+        {}
         {activeTab === 'articles' && (
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
             {module.articles && module.articles.length > 0 ? (
               <div className="flex flex-col md:flex-row gap-6">
                 
-                {/* Left Sidebar - Article List */}
+                {}
                 <div className="w-full md:w-1/3 lg:w-1/4 space-y-2">
                   <h3 className="font-semibold text-slate-700 uppercase tracking-wider text-xs mb-3 pl-2">Topics in this Module</h3>
                   {module.articles.map((article, idx) => (
@@ -243,7 +242,7 @@ const StudentModule = () => {
                   ))}
                 </div>
 
-                {/* Right Area - Article Content */}
+                {}
                 <div className="w-full md:w-2/3 lg:w-3/4">
                   <div className="bg-white p-6 md:p-10 rounded-2xl border border-slate-200 shadow-sm">
                     <h2 className="text-3xl font-bold text-slate-800 mb-6 border-b border-slate-100 pb-4">

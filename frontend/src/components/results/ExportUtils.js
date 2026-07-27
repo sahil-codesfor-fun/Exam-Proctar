@@ -1,8 +1,5 @@
 import * as XLSX from 'xlsx';
 
-/**
- * Export exam results as CSV file and trigger download
- */
 export function exportResultsAsCSV(results, examTitle) {
   const rows = results.map((r, i) => ({
     'Rank': i + 1,
@@ -31,9 +28,6 @@ export function exportResultsAsCSV(results, examTitle) {
   XLSX.writeFile(wb, fileName, { bookType: 'csv' });
 }
 
-/**
- * Export exam results as Excel file and trigger download
- */
 export function exportResultsAsExcel(results, examTitle) {
   const rows = results.map((r, i) => ({
     'Rank': i + 1,
@@ -56,7 +50,6 @@ export function exportResultsAsExcel(results, examTitle) {
 
   const ws = XLSX.utils.json_to_sheet(rows);
 
-  // Auto-size columns
   const colWidths = Object.keys(rows[0] || {}).map(key => ({
     wch: Math.max(key.length, ...rows.map(r => String(r[key] ?? '').length)) + 2
   }));
@@ -69,14 +62,10 @@ export function exportResultsAsExcel(results, examTitle) {
   XLSX.writeFile(wb, fileName);
 }
 
-/**
- * Export a single student's detailed report as Excel
- */
 export function exportStudentReportAsExcel(report) {
   const studentName = report.student?.name || 'Student';
   const examName = report.exam?.name || 'Exam';
 
-  // Summary sheet
   const summaryRows = [
     { 'Field': 'Student Name', 'Value': report.student.name },
     { 'Field': 'Roll Number', 'Value': report.student.rollNumber },
@@ -99,7 +88,6 @@ export function exportStudentReportAsExcel(report) {
     { 'Field': 'Infractions', 'Value': report.performance.infractions },
   ];
 
-  // Questions sheet
   const questionRows = (report.questions || []).map(q => ({
     'Q#': `Q${q.questionNumber}`,
     'Type': q.type?.toUpperCase(),
@@ -125,9 +113,6 @@ export function exportStudentReportAsExcel(report) {
   XLSX.writeFile(wb, fileName);
 }
 
-/**
- * Export a single student's detailed report as CSV
- */
 export function exportStudentReportAsCSV(report) {
   const studentName = report.student?.name || 'Student';
   const examName = report.exam?.name || 'Exam';

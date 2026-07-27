@@ -35,13 +35,11 @@ export const superAdminLogin = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    // Update last login
     await prisma.user.update({
       where: { id: user.id },
       data: { lastLogin: new Date() }
     });
 
-    // Log activity
     await prisma.activityLog.create({
       data: {
         action: 'SUPER_ADMIN_LOGIN',

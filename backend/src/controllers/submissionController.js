@@ -22,7 +22,6 @@ export const startSubmission = async (req, res) => {
 
     const now = new Date();
     
-    // Check for a rescheduled ticket for this specific student
     const rescheduleTicket = await prisma.missedExamTicket.findFirst({
       where: {
         examId: examId,
@@ -169,7 +168,6 @@ export const submitExam = async (req, res) => {
     let finalAnswers = req.body.answers || sub.answers || [];
     let totalScore = 0;
 
-    // Detect if this is a force kill from the proctor
     const isForceKill = req.body.reason && (req.body.reason.toLowerCase().includes('termination') || req.body.reason.toLowerCase().includes('proctor'));
 
     for (let ans of finalAnswers) {
@@ -212,14 +210,12 @@ export const submitExam = async (req, res) => {
           ans.isCorrect = false;
         }
       } else {
-          // Keep coding/subjective scores strictly numeric
           ans.score = Number(ans.score) || 0;
       }
 
       totalScore += ans.score;
     }
 
-    // 🛑 FORCE KILL PENALTY: Wipe their score completely to ZERO if they were terminated!
     if (isForceKill) {
         totalScore = 0;
         finalAnswers = finalAnswers.map(a => ({ ...a, score: 0, isCorrect: false }));
@@ -242,7 +238,6 @@ export const submitExam = async (req, res) => {
 
     res.json({ success: true, data: { ...updatedSub, _id: updatedSub.id } });
 
-    // Asynchronous performance aggregation
     aggregatePerformance(sub.examId).catch(err => console.error("Error in aggregatePerformance:", err));
 
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
@@ -262,7 +257,6 @@ const aggregatePerformance = async (examId) => {
     const highestScore = Math.max(...scores);
     const lowestScore = Math.min(...scores);
     
-    // Pass rate logic - assuming pass is >= 40% for now if not defined
     const passCount = scores.filter(s => s >= 40).length;
     const passRate = (passCount / totalAttendees) * 100;
     

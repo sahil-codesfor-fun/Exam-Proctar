@@ -83,7 +83,7 @@ const CodingDetail = ({ question }) => {
         )}
       </div>
 
-      {/* Language + Code */}
+      {}
       <div className="bg-gray-900 rounded-xl overflow-hidden border border-gray-700">
         <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700">
           <div className="flex items-center gap-2">
@@ -100,7 +100,7 @@ const CodingDetail = ({ question }) => {
         )}
       </div>
 
-      {/* Test Cases */}
+      {}
       {d.testCases && d.testCases.length > 0 && (
         <div className="space-y-2">
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Test Cases ({d.testCases.length})</p>
@@ -127,7 +127,7 @@ const CodingDetail = ({ question }) => {
         </div>
       )}
 
-      {/* Execution Stats */}
+      {}
       <div className="flex items-center gap-4 pt-2 border-t border-gray-100 flex-wrap">
         {d.runtime && <span className="text-[10px] font-bold text-gray-400">Runtime: <span className="text-gray-600">{d.runtime}</span></span>}
         {d.memoryUsage && <span className="text-[10px] font-bold text-gray-400">Memory: <span className="text-gray-600">{d.memoryUsage}</span></span>}
@@ -189,7 +189,7 @@ const MatchingDetail = ({ question }) => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Correct Matching */}
+        {}
         <div className="bg-emerald-50/30 rounded-xl p-4 border border-emerald-100">
           <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-3">Correct Matching</p>
           <div className="space-y-2">
@@ -203,7 +203,7 @@ const MatchingDetail = ({ question }) => {
           </div>
         </div>
 
-        {/* Student Matching */}
+        {}
         <div className="bg-blue-50/30 rounded-xl p-4 border border-blue-100">
           <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-3">Student Matching</p>
           <div className="space-y-2">
@@ -244,7 +244,7 @@ const QuestionAccordion = ({ question }) => {
 
   return (
     <div className={`rounded-xl border ${expanded ? 'border-gray-300 shadow-sm' : 'border-gray-100 hover:border-gray-200'} transition-all duration-200 overflow-hidden`}>
-      {/* Header Row */}
+      {}
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50/50 transition-colors"
@@ -276,7 +276,7 @@ const QuestionAccordion = ({ question }) => {
         </div>
       </button>
 
-      {/* Expanded Content */}
+      {}
       <div
         className={`transition-all duration-300 ease-in-out overflow-hidden ${expanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}
       >

@@ -18,8 +18,6 @@ export const connectPlatform = async (req, res) => {
     const platformKey = platform.toUpperCase();
     const updateData = {};
 
-    // Basic Validation - we don't block the thread with heavy scraping here.
-    // We just save it, and queue a high-priority sync job.
     if (platformKey === 'CODECHEF') {
       updateData.codechefUsername = username;
     } else if (platformKey === 'LEETCODE') {
@@ -30,13 +28,11 @@ export const connectPlatform = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid platform' });
     }
 
-    // Save to Database
     await prisma.user.update({
       where: { id: studentId },
       data: updateData
     });
 
-    // Queue immediate sync (BullMQ will deduplicate if jobId exists and hasn't finished)
     await platformSyncQueue.add('syncUser', { userId: studentId }, { priority: 1, jobId: `sync_${studentId}`, removeOnComplete: true });
 
     return res.status(200).json({
@@ -89,7 +85,6 @@ export const queueGlobalRefresh = async (req, res) => {
     const studentId = req.user.id;
     const redisKey = `platform_sync:${studentId}`;
 
-    // 1. Redis Cooldown Check
     if (isRedisConnected) {
       const isLocked = await redisClient.get(redisKey);
       if (isLocked) {
@@ -100,10 +95,8 @@ export const queueGlobalRefresh = async (req, res) => {
       }
     }
 
-    // 2. Add to BullMQ Queue with Priority and jobId for deduplication
     await platformSyncQueue.add('syncUser', { userId: studentId }, { priority: 1, jobId: `sync_${studentId}`, removeOnComplete: true });
 
-    // 3. Set Redis Lock (86400 seconds = 24 hours)
     if (isRedisConnected) {
       await redisClient.setEx(redisKey, 86400, 'locked');
     }

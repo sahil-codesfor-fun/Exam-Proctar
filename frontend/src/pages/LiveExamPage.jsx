@@ -320,7 +320,6 @@ export const LiveExamPage = () => {
   useEffect(() => {
     if (phase !== 'exam' || !submission) return;
     const submissionId = submission._id || submission.id;
-    // Only save if answers actually have content and are not initial empty states
     if (debouncedAnswers && debouncedAnswers.length > 0) {
       api.put(`/submissions/${submissionId}/save`, { answers: debouncedAnswers }).catch((err) => {
         showToast('Auto-save failed: ' + (err.response?.data?.message || err.message), 'error');
@@ -336,7 +335,6 @@ export const LiveExamPage = () => {
     setIsForceSaving(true);
     try {
       const submissionId = sub._id || sub.id;
-      // Sends the absolute current state of answersRef, bypassing the debounce timer completely
       await api.put(`/submissions/${submissionId}/save`, { answers: answersRef.current });
     } catch (error) {
       console.error("Emergency save failed", error);
@@ -468,7 +466,6 @@ export const LiveExamPage = () => {
     setSubmitting(true);
     const submissionId = submissionRef.current?._id || submissionRef.current?.id || submission?._id || submission?.id;
     try {
-      // Final flush to ensure no pending answers are missed
       await api.put(`/submissions/${submissionId}/save`, { answers: answersRef.current || answers });
       await api.put(`/submissions/${submissionId}/submit`, { answers: answersRef.current || answers, autoSubmit: auto, reason });
       document.exitFullscreen?.().catch(() => { });
@@ -487,7 +484,7 @@ export const LiveExamPage = () => {
 
     setRunning(true);
     setRunResult(null);
-    setJudgeResult(null); // Clear judge panel so they don't overlap
+    setJudgeResult(null);
 
     try {
       const r = await api.post('/compiler/execute', { language: ans.language, code: ans.code, stdin: codeStdin });
@@ -513,7 +510,7 @@ export const LiveExamPage = () => {
 
     setJudging(true);
     setJudgeResult(null);
-    setRunResult(null); // Clear terminal panel so they don't overlap
+    setRunResult(null);
 
     try {
       const r = await api.post('/compiler/judge', {
@@ -941,7 +938,7 @@ export const LiveExamPage = () => {
 
                     <div className="h-48 border-t border-gray-800 bg-[#0d1117] overflow-auto p-4 flex-shrink-0">
 
-                      {/* TERMINAL OUTPUT PANE (Only visible during raw execution) */}
+                      {}
                       {!judgeResult && (
                         <>
                           <div className="flex items-center gap-2 mb-3">
@@ -960,7 +957,7 @@ export const LiveExamPage = () => {
                         </>
                       )}
 
-                      {/* JUDGE TEST CASES PANE (Only visible after clicking Submit Code) */}
+                      {}
                       {judging && <p className="text-gray-500 text-xs font-mono animate-pulse mt-2">⚖️ Judging against hidden test cases...</p>}
                       {judgeResult && (
                         <div className="animate-in slide-in-from-bottom-2 duration-300">
@@ -1002,7 +999,7 @@ export const LiveExamPage = () => {
                 </div>
               )}
 
-              {/* Bottom nav */}
+              {}
               <div className="flex items-center justify-between px-6 py-3 bg-gray-900 border-t border-gray-800 flex-shrink-0">
                 <button onClick={handlePrev}
                   disabled={currentQ === 0 || isForceSaving}
@@ -1021,7 +1018,7 @@ export const LiveExamPage = () => {
         </div>
       )}
 
-      {/* Custom Confirmation Modal */}
+      {}
       {confirmModal && (
         <div className="fixed inset-0 z-[400] flex items-center justify-center bg-gray-900/60 backdrop-blur-md animate-in fade-in duration-300">
           <div className="bg-white rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl border border-gray-100 text-center animate-in zoom-in-95 duration-300">
@@ -1036,7 +1033,7 @@ export const LiveExamPage = () => {
         </div>
       )}
 
-      {/* Custom Toast Notification */}
+      {}
       {toast && (
         <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[300] animate-in slide-in-from-top-10 duration-500">
           <div className={`px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-4 border backdrop-blur-md ${toast.type === 'error' ? 'bg-red-600/90 border-red-400 text-white' :

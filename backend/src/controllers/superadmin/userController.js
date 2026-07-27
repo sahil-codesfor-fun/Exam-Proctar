@@ -4,7 +4,6 @@ export const getUsers = async (req, res) => {
   try {
     const { role } = req.query;
     
-    // For Phase 1, we specifically manage Dept Heads here
     if (role === 'admin' || role === 'department_head') {
       const result = await userService.getDepartmentHeads(req.query);
       return res.status(200).json(result);

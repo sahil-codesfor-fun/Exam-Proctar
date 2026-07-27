@@ -35,12 +35,10 @@ function computeQuestionStats(answers) {
 }
 
 // ─── GET /api/trainer/results/:examId ────────────────────────────────────────
-// Returns summary table data for all submissions in an exam
 export const getExamResultsSummary = async (req, res) => {
   try {
     const { examId } = req.params;
 
-    // Verify exam belongs to this teacher
     const exam = await prisma.exam.findUnique({
       where: { id: examId },
       select: { id: true, creatorId: true, title: true }
@@ -62,7 +60,6 @@ export const getExamResultsSummary = async (req, res) => {
       orderBy: { totalScore: 'desc' }
     });
 
-    // Deduplicate: keep latest submitted/auto_submitted per student
     const uniqueMap = new Map();
     submissions.forEach(s => {
       const sid = s.studentId;
@@ -107,7 +104,6 @@ export const getExamResultsSummary = async (req, res) => {
       };
     });
 
-    // Re-sort by totalScore descending and assign ranks
     results.sort((a, b) => b.totalScore - a.totalScore);
     results.forEach((r, i) => r.rank = i + 1);
 
@@ -119,12 +115,10 @@ export const getExamResultsSummary = async (req, res) => {
 };
 
 // ─── GET /api/trainer/results/:examId/:submissionId ──────────────────────────
-// Returns complete detailed report for a single submission (lazy-loaded)
 export const getDetailedReport = async (req, res) => {
   try {
     const { examId, submissionId } = req.params;
 
-    // Verify exam belongs to this teacher
     const exam = await prisma.exam.findUnique({
       where: { id: examId },
       include: {
@@ -153,7 +147,6 @@ export const getDetailedReport = async (req, res) => {
     if (!submission) return res.status(404).json({ success: false, message: 'Submission not found' });
     if (submission.examId !== examId) return res.status(400).json({ success: false, message: 'Submission does not belong to this exam' });
 
-    // Get violations for this student in this exam
     const violations = await prisma.violation.findMany({
       where: { examId, studentId: submission.studentId },
       orderBy: { timestamp: 'desc' }
@@ -162,7 +155,6 @@ export const getDetailedReport = async (req, res) => {
     const answers = Array.isArray(submission.answers) ? submission.answers : [];
     const stats = computeQuestionStats(answers);
 
-    // Build question-wise breakdown
     const questionBreakdown = answers.map((ans, index) => {
       const question = exam.questions.find(q => q.id === ans.questionId);
       if (!question) {
@@ -184,7 +176,6 @@ export const getDetailedReport = async (req, res) => {
       const score = Number(ans.score) || 0;
       const maxScore = Number(question.points) || Number(ans.maxScore) || 0;
 
-      // Determine status
       let status = 'skipped';
       const hasAnswer = !!(
         ans.selectedOptionId ||
@@ -200,7 +191,6 @@ export const getDetailedReport = async (req, res) => {
         else status = 'correct';
       }
 
-      // Build type-specific details
       let details = {};
       let studentAnswer = null;
       let correctAnswer = null;
@@ -287,7 +277,6 @@ export const getDetailedReport = async (req, res) => {
     });
 
     const report = {
-      // Student Information
       student: {
         name: submission.student?.name || 'Unknown',
         rollNumber: submission.student?.studentId || '—',
@@ -298,7 +287,6 @@ export const getDetailedReport = async (req, res) => {
         section: '—',
         batch: '—'
       },
-      // Exam Information
       exam: {
         name: exam.title,
         subject: exam.course || '—',
@@ -312,7 +300,6 @@ export const getDetailedReport = async (req, res) => {
         autoSubmitted: submission.status === 'auto_submitted',
         submissionStatus: submission.status
       },
-      // Performance Summary
       performance: {
         maxMarks: submission.maxScore,
         marksObtained: submission.totalScore,
@@ -324,24 +311,20 @@ export const getDetailedReport = async (req, res) => {
         partial: stats.partial,
         skipped: stats.skipped,
         infractions: submission.violationCount,
-        rank: null // Will be computed client-side or in a future update
+        rank: null
       },
-      // Question-wise breakdown
       questions: questionBreakdown,
-      // Violations detail
       violations: violations.map(v => ({
         type: v.type,
         severity: v.severity,
         details: v.details,
         timestamp: v.timestamp
       })),
-      // Faculty remarks placeholder
       facultyRemarks: {
         generalFeedback: null,
         recommendation: null,
         signature: null
       },
-      // Metadata
       generatedAt: new Date().toISOString()
     };
 
@@ -375,7 +358,6 @@ export const exportCSV = async (req, res) => {
       orderBy: { totalScore: 'desc' }
     });
 
-    // Deduplicate
     const uniqueMap = new Map();
     submissions.forEach(s => {
       const sid = s.studentId;
@@ -413,7 +395,6 @@ export const exportCSV = async (req, res) => {
       };
     });
 
-    // Generate CSV
     const headers = Object.keys(rows[0] || {});
     let csv = headers.join(',') + '\n';
     rows.forEach(row => {
@@ -458,7 +439,6 @@ export const exportExcel = async (req, res) => {
       orderBy: { totalScore: 'desc' }
     });
 
-    // Deduplicate
     const uniqueMap = new Map();
     submissions.forEach(s => {
       const sid = s.studentId;
@@ -496,13 +476,7 @@ export const exportExcel = async (req, res) => {
       };
     });
 
-    // Use xlsx to create workbook — dynamic import since backend may not have it
-    // We'll generate a simple buffer manually using CSV-to-Excel approach
-    // Actually, let's just send JSON and let the frontend handle Excel with its xlsx package
-    // But the user requested backend Excel export, so we'll do CSV with .xlsx mime type
-    // For proper Excel, we need xlsx package on backend too
 
-    // Fallback: send as CSV with Excel-compatible format
     const headers = Object.keys(rows[0] || {});
     let tsv = headers.join('\t') + '\n';
     rows.forEach(row => {

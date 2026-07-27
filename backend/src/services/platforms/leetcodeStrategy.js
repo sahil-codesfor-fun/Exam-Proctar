@@ -42,7 +42,7 @@ class LeetCodeStrategy extends PlatformStrategy {
       return { totalSolved: total, easy, medium, hard };
     } catch (err) {
       console.error(`LeetCode Sync Error for ${username}:`, err.message);
-      return { totalSolved: 0, easy: 0, medium: 0, hard: 0 }; // Fail gracefully, don't break the piggyback
+      return { totalSolved: 0, easy: 0, medium: 0, hard: 0 };
     }
   }
 }

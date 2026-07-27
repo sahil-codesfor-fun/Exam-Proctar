@@ -27,7 +27,6 @@ class DashboardService {
       prisma.departmentCourse.count()
     ]);
 
-    // Find departments without courses
     const allDepts = await prisma.department.findMany({
       include: {
         _count: {
@@ -38,7 +37,6 @@ class DashboardService {
 
     const departmentsWithoutCourses = allDepts.filter(d => d._count.allocatedCourses === 0).length;
     
-    // Find most active department (the one with most exams/activity, or most allocated courses for simplicity)
     const mostActiveDepartment = allDepts.length > 0 ? allDepts.reduce((prev, current) => 
       (prev._count.allocatedCourses > current._count.allocatedCourses) ? prev : current
     , allDepts[0]) : null;
@@ -56,7 +54,6 @@ class DashboardService {
         completedExams: await prisma.exam.count({ where: { status: 'completed' } }),
         totalSubmissions: await prisma.submission.count(),
         
-        // Course Allocation Stats
         totalCourses: courses,
         allocatedCourses,
         unallocatedCourses: courses - (await prisma.course.count({

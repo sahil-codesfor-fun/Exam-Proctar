@@ -60,7 +60,7 @@ function HomePage() {
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-1">
-        {/* Hero */}
+        {}
         <section className="relative overflow-hidden bg-gradient-to-br from-secondary/60 via-background to-background">
           <div className="dotted-grid pointer-events-none absolute left-6 top-24 h-32 w-32 opacity-20" />
           <div className="dotted-grid pointer-events-none absolute bottom-10 right-10 h-28 w-28 opacity-20" />
@@ -115,7 +115,7 @@ function HomePage() {
             </div>
           </div>
 
-          {/* Stat band */}
+          {}
           <div className="bg-gradient-to-r from-primary to-sky">
             <div className="mx-auto grid max-w-7xl grid-cols-2 gap-px px-4 sm:px-6 lg:grid-cols-4 lg:px-8">
               {heroStats.map((s) => (
@@ -137,7 +137,7 @@ function HomePage() {
         </section>
 
 
-        {/* Top Categories */}
+        {}
         <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
           <SectionHeading
             eyebrow="Top Categories"
@@ -162,7 +162,7 @@ function HomePage() {
           </div>
         </section>
 
-        {/* About */}
+        {}
         <section className="bg-secondary/40 py-20">
           <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:px-8">
             <div className="relative">
@@ -220,7 +220,7 @@ function HomePage() {
           </div>
         </section>
 
-        {/* Popular Courses */}
+        {}
         <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
           <SectionHeading
             eyebrow="Popular Courses"
@@ -239,7 +239,7 @@ function HomePage() {
           </div>
         </section>
 
-        {/* Counters */}
+        {}
         <section className="bg-gradient-to-r from-primary to-sky py-16">
           <div className="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-4 sm:px-6 lg:grid-cols-4 lg:px-8">
             {counters.map((c) => (
@@ -251,7 +251,7 @@ function HomePage() {
           </div>
         </section>
 
-        {/* Testimonials */}
+        {}
         <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
           <SectionHeading
             eyebrow="Testimonials"
@@ -287,7 +287,7 @@ function HomePage() {
           </div>
         </section>
 
-        {/* CTA */}
+        {}
         <section className="bg-secondary/40 py-20">
           <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
             <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-sky px-8 py-14 text-center shadow-xl">
@@ -309,7 +309,7 @@ function HomePage() {
           </div>
         </section>
 
-        {/* Partners */}
+        {}
         <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
           <SectionHeading
             eyebrow="Our Partners"

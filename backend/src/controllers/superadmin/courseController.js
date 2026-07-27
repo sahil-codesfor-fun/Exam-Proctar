@@ -45,7 +45,6 @@ export const deleteCourse = async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Check if course is allocated to any departments
     const allocations = await prisma.departmentCourse.count({
       where: { courseId: id }
     });

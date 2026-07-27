@@ -6,7 +6,6 @@ import { redisClient, isRedisConnected } from '../config/redis.js';
 class JobQueue extends EventEmitter {}
 export const jobQueue = new JobQueue();
 
-// Error handling for the event emitter to prevent crashes
 jobQueue.on('error', (err) => {
   console.error('Background Job Queue Error:', err);
 });
@@ -41,7 +40,7 @@ jobQueue.on('createExam', async ({ examId, reqUser, examData, targetBatch, targe
               browserLock: proctoring?.requireFullscreen || false,
               fullscreenRequired: proctoring?.requireFullscreen || false,
               aiFaceDetection: proctoring?.enableWebcam || false,
-              clipboardDetection: proctoring?.disableCopyPaste !== false, // Defaults to true
+              clipboardDetection: proctoring?.disableCopyPaste !== false,
               autoTerminateViolations: proctoring?.maxViolations ? parseInt(proctoring.maxViolations, 10) : 5,
               sessionTimeoutMinutes: proctoring?.restrictionMinutes !== undefined ? parseInt(proctoring.restrictionMinutes, 10) : 30,
               enableTypeDistribution: proctoring?.enableTypeDistribution || false,
@@ -59,7 +58,7 @@ jobQueue.on('createExam', async ({ examId, reqUser, examData, targetBatch, targe
       })
     ], {
       maxWait: 10000,
-      timeout: 30000 // Safely gives the cloud DB 30 seconds to parse the giant nested tree
+      timeout: 30000
     });
 
     const responseData = {

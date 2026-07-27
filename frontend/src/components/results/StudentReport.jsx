@@ -56,7 +56,7 @@ const StudentReport = ({ report, loading }) => {
       
       {/* ─── Student & Exam Info (Two Cards) ─── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Student Info Card */}
+        {}
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
           <SectionHeader icon={<User size={16} />} title="Student Information" />
           <div className="space-y-0.5">
@@ -71,7 +71,7 @@ const StudentReport = ({ report, loading }) => {
           </div>
         </div>
 
-        {/* Exam Info Card */}
+        {}
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
           <SectionHeader icon={<BookOpen size={16} />} title="Exam Information" />
           <div className="space-y-0.5">
@@ -105,7 +105,7 @@ const StudentReport = ({ report, loading }) => {
       <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
         <SectionHeader icon={<BarChart3 size={16} />} title="Performance Summary" />
 
-        {/* Primary stats */}
+        {}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
           <StatCard label="Maximum Marks" value={perf.maxMarks} />
           <StatCard
@@ -125,7 +125,7 @@ const StudentReport = ({ report, loading }) => {
           <StatCard label="Questions" value={perf.totalQuestions} />
         </div>
 
-        {/* Secondary stats */}
+        {}
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
           <StatCard label="Attempted" value={perf.attempted} small />
           <StatCard

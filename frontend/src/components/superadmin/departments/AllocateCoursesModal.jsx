@@ -7,14 +7,11 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
   const [allocatedCourses, setAllocatedCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // Search & Filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   
-  // Selection state
   const [selectedCourseIds, setSelectedCourseIds] = useState([]);
   
-  // Configuration state for batch allocation
   const [config, setConfig] = useState({
     academicYear: new Date().getFullYear().toString() + '-' + (new Date().getFullYear() + 1).toString().slice(-2),
     batch: new Date().getFullYear().toString(),
@@ -27,17 +24,14 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   
-  // Create New Course State
   const [showCreateCourse, setShowCreateCourse] = useState(false);
   const [newCourse, setNewCourse] = useState({
     name: '', code: '', duration: 4, credits: 160, semesters: 8
   });
   const [creatingCourse, setCreatingCourse] = useState(false);
 
-  // Delete Course Confirmation State
   const [courseToDelete, setCourseToDelete] = useState(null);
   
-  // Remove Course Allocation State
   const [courseToRemove, setCourseToRemove] = useState(null);
 
   useEffect(() => {
@@ -66,7 +60,7 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
   };
 
   const handleSelect = (courseId) => {
-    if (isAllocated(courseId)) return; // Prevent selecting already allocated
+    if (isAllocated(courseId)) return;
     
     setSelectedCourseIds(prev => 
       prev.includes(courseId) 
@@ -78,9 +72,9 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
   const handleSelectAll = () => {
     const availableCourseIds = filteredCourses.filter(c => !isAllocated(c.id)).map(c => c.id);
     if (selectedCourseIds.length === availableCourseIds.length && availableCourseIds.length > 0) {
-      setSelectedCourseIds([]); // Deselect all
+      setSelectedCourseIds([]);
     } else {
-      setSelectedCourseIds(availableCourseIds); // Select all available
+      setSelectedCourseIds(availableCourseIds);
     }
   };
 
@@ -101,7 +95,7 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
       });
       setSuccess(`Successfully allocated ${selectedCourseIds.length} course(s).`);
       setSelectedCourseIds([]);
-      await fetchData(); // Refresh list
+      await fetchData();
       if (onRefresh) onRefresh();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to allocate courses.');
@@ -124,7 +118,7 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
       setSuccess(`Course ${res.data.data.name} created successfully!`);
       setShowCreateCourse(false);
       setNewCourse({ name: '', code: '', duration: 4, credits: 160, semesters: 8 });
-      await fetchData(); // Refresh courses list
+      await fetchData();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create course.');
     } finally {
@@ -190,7 +184,7 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl my-8 overflow-hidden flex flex-col max-h-[90vh]">
-        {/* Header */}
+        {}
         <div className="bg-slate-900 px-6 py-4 flex justify-between items-center text-white shrink-0">
           <div>
             <h3 className="text-xl font-bold flex items-center gap-2">
@@ -206,7 +200,7 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
           </button>
         </div>
 
-        {/* Notifications */}
+        {}
         {error && (
           <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center gap-2 shrink-0">
             <AlertCircle className="w-5 h-5" /> {error}
@@ -218,10 +212,10 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
           </div>
         )}
 
-        {/* Main Content */}
+        {}
         <div className="flex-1 overflow-y-auto p-6 flex flex-col lg:flex-row gap-6">
           
-          {/* Left Column: Course Selection */}
+          {}
           <div className="flex-1 flex flex-col space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shrink-0">
               <h4 className="font-bold text-gray-800 flex items-center gap-2">
@@ -304,7 +298,7 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
                             <input 
                               type="checkbox" 
                               checked={selected}
-                              onChange={() => {}} // Handled by parent div
+                              onChange={() => {}}
                               className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                             />
                           )}
@@ -352,7 +346,7 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
             </div>
           </div>
 
-          {/* Right Column: Configuration */}
+          {}
           <div className="w-full lg:w-80 shrink-0 space-y-6">
             <div className="bg-blue-50 border border-blue-100 rounded-xl p-5">
               <h4 className="font-bold text-blue-900 flex items-center gap-2 mb-4">
@@ -452,7 +446,7 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
         </div>
       </div>
 
-      {/* Create New Course Sub-Modal */}
+      {}
       {showCreateCourse && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
@@ -528,7 +522,7 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
         </div>
       )}
 
-      {/* Delete Confirmation Sub-Modal */}
+      {}
       {courseToDelete && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[70]">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden p-6 text-center">
@@ -559,7 +553,7 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
         </div>
       )}
 
-      {/* Remove Allocation Confirmation Sub-Modal */}
+      {}
       {courseToRemove && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[70]">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden p-6 text-center">

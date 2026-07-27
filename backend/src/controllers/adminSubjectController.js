@@ -2,12 +2,10 @@ import subjectService from '../services/subjectService.js';
 
 export const getSubjects = async (req, res) => {
   try {
-    // Admin can ONLY see subjects belonging to their own department
     if (!req.user.departmentId) {
       return res.status(403).json({ success: false, message: 'Admin does not belong to any department' });
     }
     
-    // Inject departmentId from JWT
     const result = await subjectService.getSubjects({ ...req.query, departmentId: req.user.departmentId });
     res.status(200).json(result);
   } catch (error) {
@@ -20,7 +18,6 @@ export const createSubject = async (req, res) => {
     if (!req.user.departmentId) {
       return res.status(403).json({ success: false, message: 'Admin does not belong to any department' });
     }
-    // Force departmentId to be the admin's department
     const data = { ...req.body, departmentId: req.user.departmentId };
     const result = await subjectService.createSubject(data, req.user.id);
     res.status(201).json(result);
@@ -34,9 +31,6 @@ export const updateSubject = async (req, res) => {
     if (!req.user.departmentId) {
       return res.status(403).json({ success: false, message: 'Admin does not belong to any department' });
     }
-    // Make sure to only update the subject if it belongs to admin dept
-    // For now we just pass it to the service. A stricter check can be done in service or here.
-    // The subjectService.updateSubject will just update it. To be very secure, we should verify it belongs to this dept.
     const subject = await subjectService.getSubjectById(req.params.id);
     if (subject.data.departmentId !== req.user.departmentId) {
       return res.status(403).json({ success: false, message: 'Subject does not belong to your department' });
@@ -69,7 +63,6 @@ export const deleteSubject = async (req, res) => {
 
 export const getTeacherSubjects = async (req, res) => {
   try {
-    // Basic authorization could be applied here to ensure teacher belongs to admin's dept
     const result = await subjectService.getTeacherSubjects(req.params.teacherId);
     res.status(200).json(result);
   } catch (error) {

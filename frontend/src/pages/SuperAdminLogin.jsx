@@ -76,12 +76,12 @@ const SuperAdminLogin = () => {
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-[#F8FAFC] font-sans text-slate-800 relative overflow-hidden">
-      {/* Background Decorative Circles */}
+      {}
       <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-primary/5 blur-3xl pointer-events-none"></div>
       <div className="absolute top-1/3 -right-20 w-80 h-80 rounded-full bg-amber-200/10 blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-10 left-1/3 w-[500px] h-[500px] rounded-full bg-indigo-50/50 blur-3xl pointer-events-none"></div>
 
-      {/* Floating Header */}
+      {}
       <header className="w-full max-w-7xl mx-auto px-6 py-3 flex justify-between items-center z-20 relative">
         <Logo />
         <Link to="/" className="inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-primary bg-white shadow-sm border border-slate-200/60 px-4 py-2 rounded-full transition-all hover:shadow hover:border-slate-300 active:scale-[0.97]">
@@ -89,13 +89,13 @@ const SuperAdminLogin = () => {
         </Link>
       </header>
 
-      {/* Main Split Content Area */}
+      {}
       <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-3 flex flex-col lg:flex-row gap-8 lg:gap-12 items-center lg:items-center justify-center lg:justify-between z-10 relative lg:min-h-0">
         
-        {/* Left Column: Hero Description */}
+        {}
         <section className="w-full lg:w-[50%] flex flex-col justify-center py-4 h-full">
           <div>
-            {/* Super Admin Portal Badge */}
+            {}
             <div className="bg-primary/10 text-primary border border-primary/20 px-4 py-1.5 rounded-full text-xs font-bold tracking-wider inline-block mb-4 uppercase shadow-sm">
               Super Admin Portal
             </div>
@@ -108,7 +108,7 @@ const SuperAdminLogin = () => {
               Welcome to the Super Admin Portal. Oversee the entire platform, manage departments, users, roles and ensure everything runs smoothly.
             </p>
 
-            {/* Micro value list */}
+            {}
             <div className="space-y-3">
               {[
                 { title: "Complete Control", desc: "Manage departments, users, roles and system settings.", icon: Crown },
@@ -129,7 +129,7 @@ const SuperAdminLogin = () => {
             </div>
           </div>
 
-          {/* Building Image with Banner */}
+          {}
           <div className="mt-8 lg:mt-12 relative max-w-sm mx-auto lg:mx-0 mb-8">
             <div className="relative rounded-3xl overflow-hidden shadow-2xl ring-1 ring-slate-900/10 aspect-[4/3] bg-slate-100">
               <img 
@@ -140,7 +140,7 @@ const SuperAdminLogin = () => {
               <div className="absolute inset-0 bg-gradient-to-t from-slate-900/20 to-transparent"></div>
             </div>
             
-            {/* Overlay Banner */}
+            {}
             <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-[#0F172A] text-white p-4 sm:p-5 rounded-2xl shadow-2xl flex items-center gap-4 border border-slate-700/80 w-[92%] max-w-[340px] backdrop-blur-xl hover:-translate-y-1 transition-transform duration-300 group cursor-default">
               <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center shrink-0 border border-primary/30 shadow-inner group-hover:scale-110 transition-transform duration-300">
                 <Star className="w-6 h-6 text-[#F59E0B]" fill="currentColor" />
@@ -153,17 +153,17 @@ const SuperAdminLogin = () => {
           </div>
         </section>
 
-        {/* Right Column: Auth Card & Bottom Stats */}
+        {}
         <section className="w-full lg:w-[50%] flex flex-col justify-center items-center lg:items-end h-full">
           <div className="w-full max-w-[460px] bg-white border border-slate-100 shadow-2xl rounded-[2rem] p-6 sm:p-8 transition-all">
             
-            {/* Top Icon */}
+            {}
             <div className="mx-auto w-12 h-12 bg-[#0F172A] rounded-full flex items-center justify-center mb-4 border-2 border-primary/20 shadow-inner relative overflow-hidden transform -rotate-3 hover:rotate-0 transition-transform duration-300">
                 <Shield className="w-6 h-6 text-[#F59E0B] absolute z-0" fill="currentColor" />
                 <Crown className="w-4 h-4 text-white z-10 -mt-1" />
             </div>
 
-            {/* Card Titles */}
+            {}
             <h2 className="font-display text-2xl font-bold text-slate-900 text-center mb-1">
               {isSignUp ? 'Super Admin Registration' : 'Super Admin Login'}
             </h2>
@@ -171,7 +171,7 @@ const SuperAdminLogin = () => {
               Sign in to access the Super Admin Dashboard
             </p>
 
-            {/* Status alerts */}
+            {}
             {status.message && (
               <div className={`mb-6 p-4 rounded-2xl border flex items-start gap-3 text-sm ${
                 status.type === 'error' 
@@ -189,10 +189,10 @@ const SuperAdminLogin = () => {
               </div>
             )}
 
-            {/* Form */}
+            {}
             <form onSubmit={handleSubmit} className="space-y-4">
               
-              {/* Full Name (sign up only) */}
+              {}
               {isSignUp && (
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider">Full Name</label>
@@ -211,7 +211,7 @@ const SuperAdminLogin = () => {
                 </div>
               )}
 
-              {/* Admin Email */}
+              {}
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider">
                   Admin Email
@@ -230,7 +230,7 @@ const SuperAdminLogin = () => {
                 </div>
               </div>
 
-              {/* Password */}
+              {}
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider">Password</label>
                 <div className="relative group">
@@ -254,7 +254,7 @@ const SuperAdminLogin = () => {
                 </div>
               </div>
 
-              {/* Remember Me */}
+              {}
               {!isSignUp && (
                 <div className="flex items-center py-1">
                   <label className="flex items-center gap-3 text-sm font-semibold text-slate-600 cursor-pointer select-none">
@@ -269,7 +269,7 @@ const SuperAdminLogin = () => {
                 </div>
               )}
 
-              {/* Submit button */}
+              {}
               <button 
                 type="submit" 
                 disabled={loading} 
@@ -289,13 +289,13 @@ const SuperAdminLogin = () => {
               </button>
             </form>
 
-            {/* Help / Contact */}
+            {}
             <p className="text-sm font-medium text-slate-500 text-center mt-5">
               Need help? <Link to="/contact" className="text-primary hover:text-primary/80 hover:underline font-bold transition-colors">Contact Support</Link>
             </p>
           </div>
 
-          {/* Bottom horizontal stat grid */}
+          {}
           <div className="grid grid-cols-4 gap-3 mt-4 sm:mt-5 w-full max-w-[460px]">
             {[
               { value: "Secure Access", label: "Advanced encryption", icon: ShieldCheck },
@@ -319,7 +319,7 @@ const SuperAdminLogin = () => {
 
       </main>
 
-      {/* Styled Footer */}
+      {}
       <footer className="w-full max-w-7xl mx-auto px-6 py-3 flex flex-col sm:flex-row justify-between items-center border-t border-slate-200/50 text-xs text-slate-400 font-bold uppercase tracking-wider z-10 relative gap-4 mt-auto bg-[#F8FAFC]/80 backdrop-blur-sm">
         <div>© {new Date().getFullYear()} Nexus Proctor, Academic Integrity. All rights reserved.</div>
         <div className="flex gap-6">

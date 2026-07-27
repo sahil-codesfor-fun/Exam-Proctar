@@ -28,7 +28,7 @@ export const registerUser = async (req, res) => {
       name,
       email,
       password: hashedPassword,
-      role: 'student', // Strictly forced for public signups
+      role: 'student',
       isActive: true,
       passwordResetRequired: false,
       course: course || null,
@@ -36,7 +36,6 @@ export const registerUser = async (req, res) => {
       departmentId: departmentId || null
     };
 
-    // Public signups are always students
     newUserData.studentId = studentId;
 
     const user = await prisma.user.create({ data: newUserData });
@@ -188,7 +187,6 @@ export const getFacultyProfile = async (req, res) => {
 
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
     
-    // Calculate additional stats (e.g., active exams, total past exams)
     const activeExams = await prisma.exam.count({
       where: { creatorId: req.user.id, status: 'active' }
     });

@@ -5,9 +5,6 @@ import { saveAs } from 'file-saver';
 
 
 
-/**
- * Generate a professional marksheet PDF for a student's exam report
- */
 export async function generateReportPDF(report) {
   const doc = new jsPDF('p', 'mm', 'a4');
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -16,15 +13,15 @@ export async function generateReportPDF(report) {
   let y = margin;
 
   // ─── Colors ──────────────────────────────────────────────────
-  const brandGreen = [75, 119, 94];    // #4B775E
-  const darkGray = [31, 41, 55];       // #1F2937
-  const medGray = [107, 114, 128];     // #6B7280
-  const lightGray = [243, 244, 246];   // #F3F4F6
+  const brandGreen = [75, 119, 94];
+  const darkGray = [31, 41, 55];
+  const medGray = [107, 114, 128];
+  const lightGray = [243, 244, 246];
   const white = [255, 255, 255];
-  const correctGreen = [16, 185, 129]; // #10B981
-  const wrongRed = [239, 68, 68];      // #EF4444
-  const partialYellow = [245, 158, 11];// #F59E0B
-  const skippedGray = [156, 163, 175]; // #9CA3AF
+  const correctGreen = [16, 185, 129];
+  const wrongRed = [239, 68, 68];
+  const partialYellow = [245, 158, 11];
+  const skippedGray = [156, 163, 175];
 
   // ─── Header ──────────────────────────────────────────────────
   doc.setFillColor(...brandGreen);
@@ -57,7 +54,6 @@ export async function generateReportPDF(report) {
   // ─── Student & Exam Info (Two Columns) ───────────────────────
   const colWidth = (contentWidth - 6) / 2;
 
-  // Student Info Box
   doc.setDrawColor(229, 231, 235);
   doc.setFillColor(...lightGray);
   doc.roundedRect(margin, y, colWidth, 52, 2, 2, 'FD');
@@ -86,7 +82,6 @@ export async function generateReportPDF(report) {
     doc.text(String(value || '—'), margin + 35, y + 14 + i * 7);
   });
 
-  // Exam Info Box
   const examX = margin + colWidth + 6;
   doc.setFillColor(...lightGray);
   doc.roundedRect(examX, y, colWidth, 52, 2, 2, 'FD');
@@ -125,7 +120,6 @@ export async function generateReportPDF(report) {
   doc.text('PERFORMANCE SUMMARY', margin + 4, y + 5.5);
   y += 12;
 
-  // Score cards row
   const perf = report.performance || {};
   const cardW = (contentWidth - 12) / 4;
 
@@ -153,7 +147,6 @@ export async function generateReportPDF(report) {
 
   y += 22;
 
-  // Secondary stats row
   const secCards = [
     { label: 'PARTIAL', value: String(perf.partial || 0), color: partialYellow },
     { label: 'SKIPPED', value: String(perf.skipped || 0), color: skippedGray },
@@ -270,7 +263,6 @@ export async function generateReportPDF(report) {
   doc.text('This is a computer-generated document. No signature is required.', pageWidth / 2, pageHeight - 12, { align: 'center' });
   doc.text(`NEXUS PROCTOR | ${report.exam?.name || 'Exam'} | ${new Date().toLocaleString()}`, pageWidth / 2, pageHeight - 7, { align: 'center' });
 
-  // Signature line
   if (y + 20 < pageHeight - 25) {
     doc.setDrawColor(...medGray);
     doc.line(pageWidth - margin - 50, y + 5, pageWidth - margin, y + 5);
@@ -282,9 +274,6 @@ export async function generateReportPDF(report) {
   return doc;
 }
 
-/**
- * Download a single student's report PDF
- */
 export async function downloadReportPDF(report) {
   try {
     const doc = await generateReportPDF(report);
@@ -297,9 +286,6 @@ export async function downloadReportPDF(report) {
   }
 }
 
-/**
- * Generate multiple report PDFs and bundle them into a ZIP
- */
 export async function downloadAllReportsPDF(reports, examTitle) {
   try {
     const zip = new JSZip();

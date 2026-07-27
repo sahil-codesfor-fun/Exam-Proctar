@@ -17,29 +17,25 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
   const [generatedCreds, setGeneratedCreds] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Password Setup States
   const [passwordMode, setPasswordMode] = useState('auto');
   const [manualPassword, setManualPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const toast = null; // replaced below
+  const toast = null;
   const [toastState, setToast] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
   
   const [resetModal, setResetModal] = useState({ isOpen: false, id: null, newPassword: '' });
   
-  // Subject Allocation Modal
   const [subjectModal, setSubjectModal] = useState({ isOpen: false, teacherId: null, assignedIds: [] });
   const [departmentSubjects, setDepartmentSubjects] = useState([]);
 
-  // Teacher Drawer
   const [drawerTeacher, setDrawerTeacher] = useState(null);
   const [teacherLoginHistory, setTeacherLoginHistory] = useState([]);
   const [teacherActivity, setTeacherActivity] = useState([]);
 
-  // Dashboard Stats
   const [stats, setStats] = useState({ total: 0, active: 0, suspended: 0, loggedInToday: 0 });
 
   const [departments, setDepartments] = useState([{id: 'All', name: 'All'}]); 
@@ -73,7 +69,6 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
       const res = await api.get(`${apiEndpoint}?search=${search}${isSuperAdmin && deptFilter !== 'All' ? `&department=${deptFilter}` : ''}`);
       setFaculty(res.data.data);
       
-      // Compute local stats for now
       const active = res.data.data.filter(f => f.status === 'ACTIVE' || f.isActive).length;
       const suspended = res.data.data.filter(f => f.status === 'DISABLED' || !f.isActive).length;
       setStats({
@@ -94,12 +89,7 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
 
   const fetchSubjects = async (departmentId) => {
     try {
-      // If superadmin, we need the departmentId of the teacher to fetch subjects
       const url = isSuperAdmin ? `/superadmin/subjects?departmentId=${departmentId}` : `/admin/subjects`;
-      // We'll need to make sure `/superadmin/subjects` exists, or we use a generic endpoint.
-      // For now, assume it exists or use admin endpoint if it works (but admin uses token).
-      // Actually, we don't have superadmin/subjects yet. But the backend can be added later if missing.
-      // For now, let's just use the URL.
       const res = await api.get(url);
       setDepartmentSubjects(res.data.data || []);
     } catch (err) {
@@ -331,7 +321,7 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
         </div>
       </div>
 
-      {/* Stats Summary */}
+      {}
       <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 px-6">
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
           <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Faculty</p><p className="text-2xl font-black text-gray-900">{stats.total}</p></div>
@@ -449,7 +439,7 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
         </div>
       </div>
 
-      {/* Provisioning Modal */}
+      {}
       {showProvisionModal && !generatedCreds && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in">
            <div className="relative bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl p-10 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
@@ -625,7 +615,7 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
         </div>
       )}
 
-      {/* Generated Credentials Modal */}
+      {}
       {generatedCreds && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-gray-100 text-center animate-in zoom-in-95 duration-200">
@@ -651,7 +641,7 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
         </div>
       )}
 
-      {/* Subject Allocation Modal */}
+      {}
       {subjectModal.isOpen && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200 max-h-[80vh] flex flex-col">
@@ -699,7 +689,7 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
         </div>
       )}
 
-      {/* Teacher Details Drawer */}
+      {}
       {drawerTeacher && (
         <div className="fixed inset-0 z-[300] bg-gray-900/20 backdrop-blur-sm flex justify-end animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-md h-full shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-300">
@@ -709,7 +699,7 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
             </div>
             
             <div className="p-6 space-y-8">
-              {/* Profile Header */}
+              {}
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-2xl border border-emerald-100 uppercase shadow-sm">
                   {drawerTeacher.name?.[0]}
@@ -724,7 +714,7 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
                 </div>
               </div>
 
-              {/* Info Grid */}
+              {}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
                   <div className="flex items-center gap-1.5 text-gray-400 mb-1"><Mail className="w-3.5 h-3.5"/><span className="text-[10px] font-bold uppercase tracking-widest">Email</span></div>
@@ -744,7 +734,7 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
                 </div>
               </div>
 
-              {/* Subjects */}
+              {}
               <div>
                 <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3 flex items-center gap-2"><Book className="w-4 h-4 text-indigo-500"/> Allocated Subjects</h4>
                 <div className="flex flex-wrap gap-2">
@@ -759,7 +749,7 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
                 </div>
               </div>
 
-              {/* Exam Stats */}
+              {}
               <div>
                 <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3 flex items-center gap-2"><Activity className="w-4 h-4 text-emerald-500"/> Exam Statistics</h4>
                 <div className="flex gap-4">
@@ -774,7 +764,7 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
                 </div>
               </div>
 
-              {/* Login History Timeline */}
+              {}
               <div>
                 <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3 flex items-center gap-2"><Clock className="w-4 h-4 text-blue-500"/> Recent Logins</h4>
                 <div className="space-y-3">
@@ -797,7 +787,7 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
                 </div>
               </div>
 
-              {/* Activity Timeline */}
+              {}
               <div>
                 <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3 flex items-center gap-2"><Activity className="w-4 h-4 text-purple-500"/> Activity Timeline</h4>
                 <div className="space-y-3">

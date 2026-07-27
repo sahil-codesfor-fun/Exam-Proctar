@@ -68,7 +68,6 @@ const StudentOverview = () => {
     if (!ticketModal.reason.trim()) return alert('Please provide a reason');
     setSubmittingTicket(true);
     try {
-      // Pre-check: verify student hasn't already attempted this exam
       try {
         const freshSubRes = await api.get(`/submissions/my?t=${Date.now()}`);
         const freshSubs = freshSubRes.data.data || [];
@@ -77,7 +76,6 @@ const StudentOverview = () => {
           return subExamId === ticketModal.examId;
         });
         if (alreadyAttempted) {
-          // Update local state so the button becomes disabled
           const subMap = {};
           freshSubs.forEach(s => {
             subMap[s.examId || s.exam?._id || s.exam?.id] = s.status;
@@ -145,9 +143,9 @@ const StudentOverview = () => {
                       isRescheduleWindowOpen = true;
                       isExpired = false; 
                    } else if (nowTime < resStartTime) {
-                      isExpired = true; // Wait for it to open
+                      isExpired = true;
                    } else {
-                      isExpired = true; // Ended
+                      isExpired = true;
                       rescheduleEnded = true;
                    }
                 }

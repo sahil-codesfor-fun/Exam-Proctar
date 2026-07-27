@@ -5,14 +5,12 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Attach JWT token on every request
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-// Auto-redirect on 401
 api.interceptors.response.use(
   res => res,
   err => {
@@ -20,7 +18,6 @@ api.interceptors.response.use(
       localStorage.removeItem('token');
       localStorage.removeItem('role');
 
-      // If the failed request was to a superadmin endpoint, redirect to superadmin login
       const requestUrl = err.config?.url || '';
       if (requestUrl.includes('superadmin')) {
         window.location.href = '/superadmin/login';

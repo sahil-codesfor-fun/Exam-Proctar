@@ -1,8 +1,6 @@
 import prisma from '../config/prisma.js';
 
-// Pre-defined mapping for non-relational entities (Option B strategy)
 const DEPARTMENT_MAPPINGS = {
-  // We can fallback to these defaults if specific mapping isn't found
   default: {
     courses: [
       { id: 'B.Tech', name: 'B.Tech' },
@@ -29,14 +27,12 @@ export const getDepartments = async (req, res) => {
   try {
     let whereClause = {};
     
-    // Role-based filtering
     if (req.user.role === 'department_head' || req.user.role === 'faculty' || req.user.role === 'teacher') {
       if (req.user.departmentId) {
         whereClause = { id: req.user.departmentId };
       } else if (req.user.department) {
         whereClause = { name: req.user.department };
       } else {
-        // If they have no department assigned, return empty to force them to get one
         return res.json({ success: true, data: [] });
       }
     }
@@ -85,19 +81,16 @@ export const getDepartmentTeachers = async (req, res) => {
   }
 };
 
-// Static mappings endpoints for non-relational fields
 export const getDepartmentCourses = async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Fetch dynamically allocated courses from DepartmentCourse
     const allocations = await prisma.departmentCourse.findMany({
       where: { departmentId: id },
       include: { course: true },
       orderBy: { course: { name: 'asc' } }
     });
     
-    // Fallback to defaults if no courses allocated yet (to avoid breaking things if they haven't allocated any)
     if (allocations.length === 0) {
       const dept = await prisma.department.findUnique({ where: { id } });
       let defaultCourses = DEPARTMENT_MAPPINGS.default.courses;
@@ -128,9 +121,8 @@ export const getDepartmentCourses = async (req, res) => {
       return res.json({ success: true, data: defaultCourses });
     }
 
-    // Return the dynamic courses
     const courses = allocations.map(a => ({
-      id: a.course.name, // Using name as ID for backward compatibility with Exam model which stores course as String
+      id: a.course.name,
       name: `${a.course.name} (${a.course.code})`
     }));
     
@@ -142,7 +134,6 @@ export const getDepartmentCourses = async (req, res) => {
 
 export const getDepartmentBatches = async (req, res) => {
   try {
-    // Return default batches (last 4 years)
     res.json({ success: true, data: DEPARTMENT_MAPPINGS.default.batches });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

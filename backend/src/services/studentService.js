@@ -40,7 +40,6 @@ class StudentService {
       studentRepository.countAll(where)
     ]);
 
-    // Remove passwords
     students.forEach(s => delete s.password);
 
     const response = {

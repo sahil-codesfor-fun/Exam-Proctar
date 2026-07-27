@@ -59,7 +59,6 @@ export const runLocalCode = async (language, code, stdin = '', timeout = 5000) =
     const sessionDir = path.join(TEMP_DIR, sessionId);
     fs.mkdirSync(sessionDir, { recursive: true });
 
-    // Java needs the filename to match the class name (usually Main)
     const fileName = language === 'java' ? 'Main.java' : `solution.${config.extension}`;
     const filePath = path.join(sessionDir, fileName);
     const executablePath = path.join(sessionDir, os.platform() === 'win32' ? 'solution.exe' : 'solution');
@@ -70,10 +69,8 @@ export const runLocalCode = async (language, code, stdin = '', timeout = 5000) =
     console.log("SOURCE FILE:", filePath);
 
     try {
-        // Write source code
         fs.writeFileSync(filePath, code);
 
-        // Compilation step
         if (config.isCompiled) {
             const compileCmd = typeof config.compileCommand === 'function' 
                 ? config.compileCommand(filePath, executablePath) 
@@ -97,7 +94,6 @@ export const runLocalCode = async (language, code, stdin = '', timeout = 5000) =
             }
         }
 
-        // Execution step
         const runCmd = typeof config.command === 'function' ? config.command(executablePath || sessionDir) : config.command;
         const runArgs = config.args(sessionDir, fileName);
 
@@ -109,7 +105,7 @@ export const runLocalCode = async (language, code, stdin = '', timeout = 5000) =
             
             const child = spawn(runCmd, runArgs, {
                 cwd: sessionDir,
-                shell: true, // Crucial for Windows to resolve commands in PATH
+                shell: true,
                 env: { ...process.env, NODE_OPTIONS: '' } 
             });
 
@@ -195,7 +191,6 @@ export const runLocalCode = async (language, code, stdin = '', timeout = 5000) =
             memory: 0
         };
     } finally {
-        // Cleanup in a bit to allow for async file reads if any
         setTimeout(() => {
             try {
                 if (fs.existsSync(sessionDir)) {

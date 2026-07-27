@@ -9,7 +9,6 @@ export const useFocus = () => {
     const handleBlur = () => {
       setIsFocused(false);
       setBlurCount((prev) => prev + 1);
-      // Trigger a socket event here in a real integration to flag the user!
     };
 
     window.addEventListener('focus', handleFocus);

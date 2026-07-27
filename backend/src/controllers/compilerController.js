@@ -84,7 +84,6 @@ function mapJudgeResult(data) {
 async function runCode(language, code, stdin = '', timeSec = 5, memKb = 262144) {
   console.log(`[Compiler] Running code for ${language}...`);
   
-  // Try local execution first for supported languages
   if (LANGUAGE_CONFIG[language]) {
     try {
       const localResult = await runLocalCode(language, code, stdin, timeSec * 1000);
@@ -98,7 +97,6 @@ async function runCode(language, code, stdin = '', timeSec = 5, memKb = 262144) 
       };
     } catch (err) {
       console.error(`[Compiler] Local execution failed for ${language}:`, err.message);
-      // Fallback to Judge0 if allowed
     }
   }
 
@@ -122,7 +120,6 @@ async function runCode(language, code, stdin = '', timeSec = 5, memKb = 262144) 
 
 // ── Controllers ───────────────────────────────────────────────────────────────
 
-/** POST /api/compiler/execute */
 export const executeCode = async (req, res) => {
   const { language, code, stdin = '' } = req.body;
   console.log("========================================");
@@ -159,11 +156,10 @@ export const executeCode = async (req, res) => {
 };
 
 
-/** POST /api/compiler/judge — run against multiple test cases */
 export const judgeCode = async (req, res) => {
   const { language, code, questionId, practiceSheetId, timeLimitSec = 5 } = req.body;
-  let testCases = req.body.testCases || []; // Fallback to provided tests if not a formal submission
-  const studentId = req.user?.id; // Assuming protect middleware is used
+  let testCases = req.body.testCases || [];
+  const studentId = req.user?.id;
 
   console.log("========================================");
   console.log("INCOMING JUDGE REQUEST");
@@ -177,7 +173,6 @@ export const judgeCode = async (req, res) => {
 
     let question = null;
 
-    // Secure mode: Fetch test cases from DB if questionId is provided
     if (questionId) {
       question = await prisma.question.findUnique({
         where: { id: questionId },
@@ -241,7 +236,6 @@ export const judgeCode = async (req, res) => {
 
     // --- Record Submission in DB ---
     if (studentId && questionId) {
-      // Check if first attempt
       const previousSubmissions = await prisma.practiceSubmission.count({
         where: { studentId, questionId }
       });
@@ -260,12 +254,11 @@ export const judgeCode = async (req, res) => {
           memory: maxMemory,
           isFirstAttempt,
           attemptNumber,
-          status: 'Accepted' // or maybe dynamic based on verdict
+          status: 'Accepted'
         },
         include: { student: { select: { name: true, studentId: true } } }
       });
 
-      // Emit Live Submission Event for Teacher Monitoring
       const io = getPracticeIO();
       if (io && practiceSheetId) {
         io.to(`sheet_${practiceSheetId}`).emit('new_submission', {
@@ -280,7 +273,6 @@ export const judgeCode = async (req, res) => {
         });
       }
 
-      // Update Statistics
       const todayStart = new Date();
       todayStart.setUTCHours(0,0,0,0);
       const yesterdayStart = new Date(todayStart);
@@ -299,7 +291,6 @@ export const judgeCode = async (req, res) => {
       
       let streakUpdate = {};
       if (previousSubmissionsCount === 0) {
-        // First submission today! Was there one yesterday?
         const yesterdaySubmissionsCount = await prisma.practiceSubmission.count({
           where: {
             studentId,
@@ -313,7 +304,6 @@ export const judgeCode = async (req, res) => {
         if (yesterdaySubmissionsCount > 0) {
           streakUpdate = { currentStreak: { increment: 1 } };
         } else {
-          // Streak broken or starting new!
           streakUpdate = { currentStreak: 1 };
         }
       }
@@ -335,15 +325,12 @@ export const judgeCode = async (req, res) => {
         }
       });
 
-      // If accepted, update Progress & Topics
       if (finalVerdict === 'accepted') {
         const hasSolvedBefore = await prisma.practiceSubmission.findFirst({
           where: { studentId, questionId, verdict: 'accepted', isFirstAttempt: false }
         });
 
-        // Only increment solved count if this is the first time they got it Accepted
         if (!hasSolvedBefore || isFirstAttempt) {
-          // Determine difficulty
           const diff = question.difficulty?.toLowerCase() || 'medium';
           await prisma.studentCodingProgress.upsert({
             where: { studentId },
@@ -362,7 +349,6 @@ export const judgeCode = async (req, res) => {
             }
           });
 
-          // Topic Progress Update
           if (question.topics) {
             const topicList = question.topics.split(',').map(t => t.trim()).filter(Boolean);
             for (const t of topicList) {
@@ -392,7 +378,6 @@ export const judgeCode = async (req, res) => {
   }
 };
 
-/** GET /api/compiler/languages */
 export const getLanguages = (_req, res) => {
   const data = Object.entries(LANGUAGE_CONFIG).map(([key, cfg]) => ({
     id: key, name: cfg.name, ext: cfg.ext, monacoLang: cfg.monacoLang, judge0Id: cfg.id,
@@ -400,7 +385,6 @@ export const getLanguages = (_req, res) => {
   res.json({ success: true, data });
 };
 
-/** GET /api/compiler/templates */
 export const getTemplates = (_req, res) => {
   res.json({ success: true, data: TEMPLATES });
 };

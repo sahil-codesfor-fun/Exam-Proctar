@@ -61,9 +61,9 @@ const CodeChefCard = ({
 
   return (
     <div className="w-full bg-white rounded-[2rem] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden transition-transform hover:-translate-y-1 duration-300 flex flex-col">
-      {/* Top Gradient Border */}
+      {}
 
-      {/* Top Gradient Border */}
+      {}
       <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#5B3922] to-[#8C5A35]"></div>
       
       <div className="p-5 h-full flex flex-col flex-grow">

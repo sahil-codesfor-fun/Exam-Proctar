@@ -11,10 +11,8 @@ import prisma from '../../config/prisma.js';
 
 const router = express.Router();
 
-// Public route — login does NOT require JWT
 router.use('/', authRoutes);
 
-// Protected routes — require JWT + superadmin role
 router.use('/dashboard', dashboardRoutes);
 router.use('/departments', departmentRoutes);
 router.use('/users', userRoutes);
@@ -22,7 +20,6 @@ router.use('/teachers', teacherRoutes);
 router.use('/subjects', subjectRoutes);
 router.use('/exams', examRoutes);
 
-// Course Management
 router.get('/courses', getCourses);
 router.get('/courses/:id', getCourseById);
 router.post('/courses', createCourse);

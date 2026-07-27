@@ -12,7 +12,6 @@ export const createExam = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Department is required' });
     }
 
-    // Role based access check
     if (req.user.role !== 'superadmin' && req.user.departmentId && req.user.departmentId !== departmentId) {
       return res.status(403).json({ success: false, message: 'You can only create exams for your own department' });
     }
@@ -124,7 +123,7 @@ export const getExams = async (req, res) => {
     });
 
     if (isRedisConnected) {
-      await redisClient.setEx(cacheKey, 300, JSON.stringify(formattedExams)); // 5 mins TTL
+      await redisClient.setEx(cacheKey, 300, JSON.stringify(formattedExams));
     }
 
     res.json({ success: true, data: formattedExams });
@@ -212,7 +211,6 @@ export const updateExam = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Department is required' });
     }
 
-    // Role based access check
     if (req.user.role !== 'superadmin' && req.user.departmentId && req.user.departmentId !== departmentId) {
       return res.status(403).json({ success: false, message: 'You can only update exams for your own department' });
     }

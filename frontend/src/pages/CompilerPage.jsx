@@ -109,29 +109,24 @@ export function CompilerPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
-    // 1. Disable Right Click
     const handleContextMenu = (e) => e.preventDefault();
     document.addEventListener('contextmenu', handleContextMenu);
 
-    // 2. Disable Copy/Paste/Cut/Drag
     const handleCopyPaste = (e) => {
       e.preventDefault();
       e.stopPropagation();
     };
-    // Use capture phase (true) to intercept before Monaco gets it
     document.addEventListener('copy', handleCopyPaste, true);
     document.addEventListener('paste', handleCopyPaste, true);
     document.addEventListener('cut', handleCopyPaste, true);
     document.addEventListener('dragstart', handleCopyPaste, true);
     document.addEventListener('drop', handleCopyPaste, true);
 
-    // 3. Track Fullscreen
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
 
-    // 4. Disable Text Selection (except in editor)
     const handleSelectStart = (e) => {
       if (!e.target.closest('.monaco-editor')) {
         e.preventDefault();
@@ -141,7 +136,6 @@ export function CompilerPage() {
     document.body.style.userSelect = 'none';
     document.body.style.webkitUserSelect = 'none';
 
-    // Set initial state in case already fullscreen
     setIsFullscreen(!!document.fullscreenElement);
 
     return () => {
@@ -230,7 +224,6 @@ export function CompilerPage() {
           const res = await api.get(`/hub/modules/${moduleId}`);
           if (res.data.success && res.data.module) {
             const mod = res.data.module;
-            // Format module to look like a practice sheet for the sidebar
             const formattedSheet = {
               id: mod.id,
               title: mod.title,
@@ -242,7 +235,6 @@ export function CompilerPage() {
             };
             setPracticeSheets([formattedSheet]);
             
-            // Map the isSolved flag into questionStatuses format
             const mappedStatuses = mod.questions.map(q => ({
               questionId: q.id,
               status: q.isSolved ? 'Accepted' : 'Not Started',
@@ -257,7 +249,6 @@ export function CompilerPage() {
             setPracticeSheets(sheets);
             if (res.data.questionStatuses) setQuestionStatuses(res.data.questionStatuses);
 
-            // If no question is selected, default to the first question of the first sheet
             if (!questionId && sheets.length > 0 && sheets[0].questions?.length > 0) {
               setSearchParams(prev => { prev.set('questionId', sheets[0].questions[0].questionId); return prev; });
             }
@@ -268,7 +259,6 @@ export function CompilerPage() {
     fetchSheets();
   }, [moduleId]);
 
-  // Compute the active sheet based on the current question
   const activeSheet = practiceSheets.find(s => s.questions?.some(q => q.questionId === questionId)) || practiceSheets[0];
 
   useEffect(() => {
@@ -294,12 +284,11 @@ export function CompilerPage() {
     const qs = questionStatuses.find(q => q.questionId === questionId);
     const draftCode = (qs && qs.draft && qs.draft.language === lang) ? qs.draft.code : null;
     
-    // Did we just switch question or language?
     if (activeKeyRef.current !== key) {
       setRunResult(null);
       setJudgeResult(null);
       activeKeyRef.current = key;
-      lastLoadedDraftRef.current = null; // reset draft tracker for new context
+      lastLoadedDraftRef.current = null;
       
       if (draftCode) {
         setCode(draftCode);
@@ -309,7 +298,6 @@ export function CompilerPage() {
         setCode(template);
       }
     } 
-    // We are in the same context, but a draft just arrived from a delayed API fetch
     else if (draftCode && lastLoadedDraftRef.current !== `${key}_has_draft`) {
       setCode(draftCode);
       lastLoadedDraftRef.current = `${key}_has_draft`;
@@ -421,7 +409,7 @@ export function CompilerPage() {
         </div>
       )}
 
-      {/* ── Top Bar ── */}
+      {}
       <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-6 py-3 bg-gray-900 border-b border-gray-800 flex-shrink-0">
         <div className="flex items-center gap-4">
             <button onClick={handleExit}
@@ -445,15 +433,15 @@ export function CompilerPage() {
         </div>
       </div>
 
-      {/* ── Main Layout (3 Columns) ── */}
+      {}
       <div className="flex-1 flex overflow-hidden">
 
-        {/* 1. Left Sidebar: Navigator (Shows ALL Sheets!) */}
+        {}
         {practiceSheets.length > 0 && (
           <div className="w-full md:w-64 flex-shrink-0 bg-gray-900/50 border-r border-gray-800 flex flex-col overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-700 [&::-webkit-scrollbar-thumb]:rounded-full pb-8">
               {practiceSheets.map((sheet, sheetIdx) => (
                   <div key={sheet.id || sheetIdx} className="mb-6">
-                      {/* Sticky Sheet Header */}
+                      {}
                       <div className="px-4 py-3 sticky top-0 bg-gray-900/95 backdrop-blur z-10 border-b border-gray-800 shadow-sm mb-3">
                           <h3 className="text-[11px] font-black text-gray-300 uppercase tracking-widest truncate" title={sheet.title}>{sheet.title}</h3>
                           <div className="flex justify-between items-center mt-2">
@@ -461,7 +449,7 @@ export function CompilerPage() {
                           </div>
                       </div>
                       
-                      {/* Grid of Questions for this Sheet */}
+                      {}
                       <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-4 gap-2 px-4">
                           {sheet.questions?.map((q, idx) => {
                               const qs = questionStatuses.find(status => status.questionId === q.questionId);
@@ -492,7 +480,7 @@ export function CompilerPage() {
           </div>
         )}
 
-        {/* 2. Middle Column: Description */}
+        {}
         <div className="w-2/5 border-r border-gray-800 overflow-y-auto p-6 bg-gray-900/30 flex flex-col [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-700 [&::-webkit-scrollbar-thumb]:rounded-full">
             {loadingQuestion ? (
                 <div className="flex-1 flex items-center justify-center text-gray-500 font-bold animate-pulse">Loading Question...</div>
@@ -555,10 +543,10 @@ export function CompilerPage() {
             )}
         </div>
 
-        {/* 3. Right Column: Editor & Terminal */}
+        {}
         <div className="flex-1 flex flex-col bg-[#1e1e1e] min-w-0">
           
-          {/* Editor Header */}
+          {}
           <div className="flex items-center gap-2 px-4 py-2 bg-gray-900 border-b border-gray-800 flex-shrink-0">
             <select value={lang} onChange={e => setLang(e.target.value)}
                 className="bg-gray-800 text-white text-sm border border-gray-700 rounded-lg px-3 py-1.5 outline-none cursor-pointer font-semibold">
@@ -576,7 +564,7 @@ export function CompilerPage() {
             </div>
           </div>
 
-          {/* Monaco Editor */}
+          {}
           <div className="flex-1 relative">
             <Editor
               height="100%"
@@ -586,7 +574,6 @@ export function CompilerPage() {
               onChange={v => setCode(v || '')}
               onMount={(editor, monaco) => {
                 editor.onKeyDown((e) => {
-                  // Block Ctrl+C, Ctrl+V, Ctrl+X, Cmd+C, Cmd+V, Cmd+X
                   if ((e.ctrlKey || e.metaKey) && (e.keyCode === monaco.KeyCode.KeyC || e.keyCode === monaco.KeyCode.KeyV || e.keyCode === monaco.KeyCode.KeyX)) {
                     e.preventDefault();
                     e.stopPropagation();
@@ -612,10 +599,10 @@ export function CompilerPage() {
             />
           </div>
 
-          {/* Bottom Terminal Pane */}
+          {}
           <div className="h-64 border-t border-gray-800 bg-[#0d1117] flex flex-col flex-shrink-0">
               
-              {/* Terminal Tabs */}
+              {}
               <div className="flex items-center px-4 bg-gray-900 border-b border-gray-800">
                 <button onClick={() => setTab('output')}
                     className={`px-4 py-2 text-xs font-bold uppercase tracking-widest border-b-2 transition-colors ${tab === 'output' ? 'text-blue-400 border-blue-500' : 'text-gray-500 border-transparent hover:text-gray-300'}`}>
@@ -627,7 +614,7 @@ export function CompilerPage() {
                 </button>
               </div>
 
-              {/* Terminal Body */}
+              {}
               <div className="flex-1 overflow-auto p-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-800 [&::-webkit-scrollbar-thumb]:rounded-full">
                   
                   {/* CONSOLE TAB */}

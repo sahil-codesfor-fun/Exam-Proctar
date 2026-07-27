@@ -3,7 +3,6 @@ import prisma from '../../config/prisma.js';
 export const createExam = async (data) => {
   const { settings, schedule, ...examData } = data;
   
-  // Create exam code if not provided
   if (!examData.examCode) {
     examData.examCode = `EXAM-${Math.floor(1000 + Math.random() * 9000)}-${Date.now().toString().slice(-4)}`;
   }
@@ -166,8 +165,6 @@ export const addQuestionToExam = async (examId, questionData) => {
 
 export const updateQuestion = async (examId, questionId, questionData) => {
   const { options, testCases, programmingDetails, ...qData } = questionData;
-  // Simplistic approach: delete existing children and recreate
-  // Note: For production, a more careful upsert might be preferred.
   
   await prisma.$transaction([
     prisma.questionOption.deleteMany({ where: { questionId } }),
@@ -207,7 +204,6 @@ export const getExamAnalytics = async (examId) => {
   const analytics = await prisma.examAnalytics.findUnique({ where: { examId } });
   if (analytics) return analytics;
 
-  // Compute on the fly if not generated
   const results = await getExamResults(examId);
   const totalAttendees = results.length;
   if (totalAttendees === 0) return null;

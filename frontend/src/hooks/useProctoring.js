@@ -2,10 +2,6 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import api from '../services/api';
 import { getSocket } from '../services/socket';
 
-/**
- * useProctoring — Core anti-cheat engine hook
- * Detects: tab switch, blur, fullscreen exit, copy/paste, right-click, devtools, shortcuts
- */
 export default function useProctoring({ examId, enabled = false, maxViolations = 3, onRestricted, onAutoSubmit }) {
   const [violations, setViolations] = useState([]);
   const [violationCount, setViolationCount] = useState(0);
@@ -21,11 +17,9 @@ export default function useProctoring({ examId, enabled = false, maxViolations =
     setViolationCount(count);
     setViolations(prev => [...prev, { type, severity, details, timestamp: new Date() }]);
 
-    // Emit via socket for live monitoring
     const socket = getSocket();
     if (socket) socket.emit('violation', { type, severity, details, count });
 
-    // Log to backend
     try {
       const res = await api.post('/violations', { examId, type, severity, details });
       if (res.data.restricted) {
@@ -33,24 +27,20 @@ export default function useProctoring({ examId, enabled = false, maxViolations =
         if (onRestricted) onRestricted(res.data.message);
         if (onAutoSubmit) onAutoSubmit('Max violations exceeded');
       }
-    } catch (e) { /* silent */ }
+    } catch (e) { }
   }, [examId, enabled, restricted, onRestricted, onAutoSubmit]);
 
   useEffect(() => {
     if (!enabled) return;
 
-    // ── Tab visibility change ──
     const handleVisibility = () => {
       if (document.hidden) logViolation('tab_switch', 'high', 'Tab switched / minimized');
     };
 
-    // ── Window blur (alt-tab, app switch) ──
     const handleBlur = () => logViolation('window_blur', 'high', 'Window lost focus');
 
-    // ── Fullscreen exit ── (Handled in page for custom force-reentry logic)
     const handleFullscreen = () => {};
 
-    // ── Copy / Paste / Cut / Drag / Drop ──
     const preventEvent = (name) => (e) => { e.preventDefault(); logViolation('copy_paste', 'medium', `${name} attempted`); };
     const handleCopy = preventEvent('Copy');
     const handlePaste = preventEvent('Paste');
@@ -58,12 +48,9 @@ export default function useProctoring({ examId, enabled = false, maxViolations =
     const handleDrag = preventEvent('Drag');
     const handleDrop = preventEvent('Drop');
 
-    // ── Right click ──
     const handleContext = (e) => { e.preventDefault(); logViolation('right_click', 'low', 'Right-click attempted'); };
 
-    // ── Keyboard shortcuts ──
     const handleKeydown = (e) => {
-      // ── Anti-Ghosting / Keystroke Velocity Tracking ──
       const now = Date.now();
       if (now - lastKeypressTimeRef.current < 20) {
         rapidKeystrokeCountRef.current += 1;
@@ -77,7 +64,6 @@ export default function useProctoring({ examId, enabled = false, maxViolations =
       }
       lastKeypressTimeRef.current = now;
 
-      // F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U (DevTools / Source)
       if (
         e.key === 'F12' || 
         (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j')) ||
@@ -86,24 +72,20 @@ export default function useProctoring({ examId, enabled = false, maxViolations =
         e.preventDefault(); logViolation('devtools', 'critical', 'DevTools shortcut detected');
         return;
       }
-      // Ctrl+Tab, Ctrl+T, Ctrl+N
       if (e.ctrlKey && (e.key === 'Tab' || e.key === 't' || e.key === 'T' || e.key === 'n' || e.key === 'N')) {
         e.preventDefault(); logViolation('keyboard_shortcut', 'high', `Ctrl+${e.key} detected`);
         return;
       }
-      // Alt+Tab (can't fully prevent but detect)
       if (e.altKey && e.key === 'Tab') {
         logViolation('keyboard_shortcut', 'high', 'Alt+Tab detected');
         return;
       }
-      // Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+A globally prevented
       if (e.ctrlKey && ['c', 'v', 'x', 'a', 'C', 'V', 'X', 'A'].includes(e.key)) {
         e.preventDefault(); 
         logViolation('copy_paste', 'medium', `Ctrl+${e.key.toUpperCase()} detected`); 
       }
     };
 
-    // ── Screen resize (possible monitor change) ──
     let lastW = window.innerWidth, lastH = window.innerHeight;
     const handleResize = () => {
       const dw = Math.abs(window.innerWidth - lastW);
@@ -114,18 +96,15 @@ export default function useProctoring({ examId, enabled = false, maxViolations =
       lastW = window.innerWidth; lastH = window.innerHeight;
     };
 
-    // ── DevTools detection via debugger timing ──
     const devtoolsInterval = setInterval(() => {
       const el = new Image();
-      Object.defineProperty(el, 'id', { get: () => { /* triggered by devtools */ } });
+      Object.defineProperty(el, 'id', { get: () => { } });
     }, 5000);
 
-    // ── Disable text selection globally ──
     const preventSelection = (e) => {
       e.preventDefault();
     };
 
-    // ── Anti-Extension Shield (MutationObserver) ──
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         for (const node of mutation.addedNodes) {
@@ -152,7 +131,6 @@ export default function useProctoring({ examId, enabled = false, maxViolations =
     document.body.style.userSelect = 'none';
     document.body.style.webkitUserSelect = 'none';
 
-    // Attach listeners
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('blur', handleBlur);
     document.addEventListener('fullscreenchange', handleFullscreen);

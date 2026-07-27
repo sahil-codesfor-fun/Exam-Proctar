@@ -19,7 +19,6 @@ export const protect = async (req, res, next) => {
         return res.status(401).json({ message: 'User not found' });
       }
       
-      // Remove password from memory for security
       delete user.password;
       req.user = user;
       

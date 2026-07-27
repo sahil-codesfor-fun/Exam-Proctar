@@ -45,7 +45,7 @@ const AdminSidebar = () => {
         {isOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
 
-      {/* Mobile overlay */}
+      {}
       {isOpen && (
         <div 
           className="md:hidden fixed inset-0 bg-black/30 z-30"
@@ -54,20 +54,20 @@ const AdminSidebar = () => {
       )}
 
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 text-gray-900 transform transition-transform duration-300 ease-in-out flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
-        {/* Logo */}
+        {}
         <div className="flex items-center gap-3 h-20 px-6 border-b border-gray-200">
           <span className="text-2xl">🛡️</span>
           <span className="text-xl font-extrabold text-gray-900 tracking-tight">Nexus Proctor</span>
         </div>
 
-        {/* User Info */}
+        {}
         <div className="p-4 border-b border-gray-100">
           <p className="text-[10px] text-gray-400 uppercase tracking-wider font-bold mb-1">Department Head</p>
           <p className="text-sm font-semibold text-gray-900 truncate">{user?.name || 'Administrator'}</p>
           <p className="text-xs text-gray-400 truncate">{user?.departmentRel?.name || 'Department'}</p>
         </div>
 
-        {/* Navigation */}
+        {}
         <nav className="flex-1 overflow-y-auto py-4">
           <ul className="space-y-1 px-3">
             {menuItems.map((item) => (
@@ -91,7 +91,7 @@ const AdminSidebar = () => {
           </ul>
         </nav>
 
-        {/* Footer */}
+        {}
         <div className="p-4 border-t border-gray-200 space-y-1">
           <NavLink
             to="/admin/profile"

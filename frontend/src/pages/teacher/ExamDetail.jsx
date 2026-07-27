@@ -14,7 +14,6 @@ const ExamDetail = () => {
   const [liveStudents, setLiveStudents] = useState([]);
   const [activeTab, setActiveTab] = useState('submissions');
   
-  // Find the exam from the context or fetch it if not found
   const exam = exams.find(e => e._id === examId);
 
   useEffect(() => {

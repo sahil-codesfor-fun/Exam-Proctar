@@ -248,7 +248,6 @@ export const TeacherCourseProgress = () => {
                 {filteredStudents.map((student, idx) => {
                   const isExpanded = expandedStudentId === student.id;
                   
-                  // Calculate overall average progress
                   const totalProgressSum = courses.reduce((acc, course) => {
                     const cp = student.courseProgress.find(p => p.courseId === course.id);
                     return acc + (cp ? cp.progress : 0);
@@ -296,7 +295,7 @@ export const TeacherCourseProgress = () => {
                           </button>
                         </td>
                       </tr>
-                      {/* Expanded View for Courses */}
+                      {}
                       {isExpanded && (
                         <tr className="bg-slate-50/50 border-b border-slate-100 shadow-inner">
                           <td colSpan={4} className="p-0">

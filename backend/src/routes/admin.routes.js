@@ -17,12 +17,11 @@ import {
   deleteSubject
 } from '../controllers/adminSubjectController.js';
 import teacherRoutes from './admin/teacherRoutes.js';
-import examRoutes from './admin/examRoutes.js'; // We will create this
+import examRoutes from './admin/examRoutes.js';
 import studentRoutes from './admin/studentRoutes.js';
 
 const router = express.Router();
 
-// All admin routes are protected and restricted to 'admin' role
 router.use(protect);
 router.use(adminOnly);
 

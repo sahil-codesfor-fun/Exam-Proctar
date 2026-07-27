@@ -69,7 +69,6 @@ class StudentRepository {
       throw new Error('Cannot permanently delete a student who has exam submissions. Please archive them instead.');
     }
 
-    // Remove activity logs first since they don't cascade
     await prisma.activityLog.deleteMany({
       where: { OR: [{ userId: id }, { entityId: id, entity: 'User' }] }
     });

@@ -80,7 +80,6 @@ const DepartmentHeads = () => {
         });
       } else {
         setSuccessMessage('Department Head provisioned successfully!');
-        // We do not close modals immediately so the user can see the success message
       }
       fetchData();
     } catch (err) {
@@ -373,7 +372,7 @@ const DepartmentHeads = () => {
         </div>
       )}
 
-      {/* Success Modal showing credentials (Auto Generate Only) */}
+      {}
       {generatedCreds && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden text-center">
@@ -408,7 +407,7 @@ const DepartmentHeads = () => {
         </div>
       )}
 
-      {/* Manual Success Modal */}
+      {}
       {successMessage && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in duration-200">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden text-center transform scale-100 animate-in zoom-in-95 duration-200">
@@ -431,7 +430,7 @@ const DepartmentHeads = () => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {}
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in duration-200">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden transform scale-100 animate-in zoom-in-95 duration-200">

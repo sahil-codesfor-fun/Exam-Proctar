@@ -76,12 +76,12 @@ export const AdminLogin = () => {
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-[#F8FAFC] font-sans text-slate-800 relative overflow-hidden">
-      {/* Background Decorative Circles */}
+      {}
       <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-primary/5 blur-3xl pointer-events-none"></div>
       <div className="absolute top-1/3 -right-20 w-80 h-80 rounded-full bg-amber-200/10 blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-10 left-1/3 w-[500px] h-[500px] rounded-full bg-indigo-50/50 blur-3xl pointer-events-none"></div>
 
-      {/* Floating Header */}
+      {}
       <header className="w-full max-w-7xl mx-auto px-6 py-3 flex justify-between items-center z-20 relative">
         <Logo />
         <Link to="/" className="inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-primary bg-white shadow-sm border border-slate-200/60 px-4 py-2 rounded-full transition-all hover:shadow hover:border-slate-300 active:scale-[0.97]">
@@ -89,13 +89,13 @@ export const AdminLogin = () => {
         </Link>
       </header>
 
-      {/* Main Split Content Area */}
+      {}
       <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-3 flex flex-col lg:flex-row gap-8 lg:gap-12 items-center lg:items-center justify-center lg:justify-between z-10 relative lg:min-h-0">
         
-        {/* Left Column: Hero Description */}
+        {}
         <section className="w-full lg:w-[50%] flex flex-col justify-center py-4 h-full">
           <div>
-            {/* Admin Portal Badge */}
+            {}
             <div className="bg-primary/10 text-primary border border-primary/20 px-4 py-1.5 rounded-full text-xs font-bold tracking-wider inline-block mb-4 uppercase shadow-sm">
               Admin Portal
             </div>
@@ -108,7 +108,7 @@ export const AdminLogin = () => {
               Access the Admin Portal to manage users, oversee academic activities and drive institution excellence.
             </p>
 
-            {/* Micro value list */}
+            {}
             <div className="space-y-3">
               {[
                 { title: "User Management", desc: "Manage students, faculty and departments.", icon: Users },
@@ -129,7 +129,7 @@ export const AdminLogin = () => {
             </div>
           </div>
 
-          {/* Building Image */}
+          {}
           <div className="mt-5 lg:mt-6 flex justify-center lg:justify-start">
             <img 
               src={about1} 
@@ -139,16 +139,16 @@ export const AdminLogin = () => {
           </div>
         </section>
 
-        {/* Right Column: Auth Card & Bottom Stats */}
+        {}
         <section className="w-full lg:w-[50%] flex flex-col justify-center items-center lg:items-end h-full">
           <div className="w-full max-w-[460px] bg-white border border-slate-100 shadow-2xl rounded-[2rem] p-6 sm:p-8 transition-all">
             
-            {/* Top Shield Icon */}
+            {}
             <div className="mx-auto w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center mb-4 shadow-sm transform -rotate-3 hover:rotate-0 transition-transform duration-300">
               <Shield className="w-6 h-6 text-primary" />
             </div>
 
-            {/* Card Titles */}
+            {}
             <h2 className="font-display text-2xl font-bold text-slate-900 text-center mb-1">
               {isSignUp ? 'Admin Registration' : 'Admin Login'}
             </h2>
@@ -156,7 +156,7 @@ export const AdminLogin = () => {
               Sign in to access the admin dashboard
             </p>
 
-            {/* Status alerts */}
+            {}
             {status.message && (
               <div className={`mb-6 p-4 rounded-2xl border flex items-start gap-3 text-sm ${
                 status.type === 'error' 
@@ -174,10 +174,10 @@ export const AdminLogin = () => {
               </div>
             )}
 
-            {/* Form */}
+            {}
             <form onSubmit={handleSubmit} className="space-y-4">
               
-              {/* Full Name (sign up only) */}
+              {}
               {isSignUp && (
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider">Full Name</label>
@@ -196,7 +196,7 @@ export const AdminLogin = () => {
                 </div>
               )}
 
-              {/* Admin Email */}
+              {}
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider">
                   Admin Email
@@ -215,7 +215,7 @@ export const AdminLogin = () => {
                 </div>
               </div>
 
-              {/* Password */}
+              {}
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider">Password</label>
                 <div className="relative group">
@@ -239,7 +239,7 @@ export const AdminLogin = () => {
                 </div>
               </div>
 
-              {/* Remember Me */}
+              {}
               {!isSignUp && (
                 <div className="flex items-center py-1">
                   <label className="flex items-center gap-3 text-sm font-semibold text-slate-600 cursor-pointer select-none">
@@ -254,7 +254,7 @@ export const AdminLogin = () => {
                 </div>
               )}
 
-              {/* Submit button */}
+              {}
               <button 
                 type="submit" 
                 disabled={loading} 
@@ -274,13 +274,13 @@ export const AdminLogin = () => {
               </button>
             </form>
 
-            {/* Help / Contact */}
+            {}
             <p className="text-sm font-medium text-slate-500 text-center mt-5">
               Need help? <Link to="/contact" className="text-primary hover:text-primary/80 hover:underline font-bold transition-colors">Contact Support</Link>
             </p>
           </div>
 
-          {/* Bottom horizontal stat grid */}
+          {}
           <div className="grid grid-cols-4 gap-3 mt-4 sm:mt-5 w-full max-w-[460px]">
             {[
               { value: "Secure Access", label: "Role-based auth", icon: ShieldCheck },
@@ -304,7 +304,7 @@ export const AdminLogin = () => {
 
       </main>
 
-      {/* Styled Footer */}
+      {}
       <footer className="w-full max-w-7xl mx-auto px-6 py-3 flex flex-col sm:flex-row justify-between items-center border-t border-slate-200/50 text-xs text-slate-400 font-bold uppercase tracking-wider z-10 relative gap-4 mt-auto bg-[#F8FAFC]/80 backdrop-blur-sm">
         <div>© {new Date().getFullYear()} Nexus Proctor, Academic Integrity. All rights reserved.</div>
         <div className="flex gap-6">

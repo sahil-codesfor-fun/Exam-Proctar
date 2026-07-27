@@ -13,21 +13,14 @@ const Departments = () => {
   const [showArchived, setShowArchived] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isSaving, setIsSaving] = useState(false); // 👈 Added processing state
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Allocate Courses State
   const [allocatingDept, setAllocatingDept] = useState(null);
 
   const fetchDepartments = async () => {
     try {
-      // Use standard api get
       const res = await api.get('/superadmin/departments');
 
-      // For each department, we could fetch allocated courses count if backend doesn't provide it, 
-      // but assuming the backend was updated to return _count or we can fetch it. 
-      // Since we didn't add it to department list API, we'll fetch them manually for now, or just show a button.
-      // Actually, since we didn't change getDepartments to return _count.allocatedCourses in the service, 
-      // let's fetch it via Promise.all for each, or just use a generic label. Let's just use a label.
       setDepartments(res.data.data);
     } catch (err) {
       console.error(err);
@@ -42,7 +35,7 @@ const Departments = () => {
 
   const handleCreateOrUpdate = async (e) => {
     e.preventDefault();
-    setIsSaving(true); // 👈 Start processing
+    setIsSaving(true);
     try {
       if (editId) {
         await api.put(`/superadmin/departments/${editId}`, formData);
@@ -56,7 +49,7 @@ const Departments = () => {
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to save department');
     } finally {
-      setIsSaving(false); // 👈 Stop processing
+      setIsSaving(false);
     }
   };
 
@@ -86,7 +79,6 @@ const Departments = () => {
     }
   };
 
-  // Close dropdown on click outside
   useEffect(() => {
     const handleClickOutside = () => setActiveDropdown(null);
     document.addEventListener('click', handleClickOutside);
@@ -280,7 +272,7 @@ const Departments = () => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {}
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[60] animate-in fade-in duration-200">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden transform scale-100 animate-in zoom-in-95 duration-200">

@@ -105,12 +105,12 @@ export const LandingPage = () => {
 
   return (
     <div className="h-screen w-full flex flex-col bg-[#F8FAFC] font-sans text-slate-800 relative overflow-y-auto lg:overflow-hidden">
-      {/* Background Decorative Circles */}
+      {}
       <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full bg-primary/5 blur-3xl pointer-events-none"></div>
       <div className="absolute top-1/3 -right-20 w-80 h-80 rounded-full bg-amber-200/10 blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-10 left-1/3 w-[500px] h-[500px] rounded-full bg-indigo-50/50 blur-3xl pointer-events-none"></div>
 
-      {/* Floating Header */}
+      {}
       <header className="w-full max-w-7xl mx-auto px-6 py-3 flex justify-between items-center z-20 relative">
         <Logo />
         <Link to="/" className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-primary bg-white shadow-sm border border-slate-200/60 px-4 py-2 rounded-full transition-all hover:shadow hover:border-slate-300 active:scale-[0.97]">
@@ -118,13 +118,13 @@ export const LandingPage = () => {
         </Link>
       </header>
 
-      {/* Main Split Content Area */}
+      {}
       <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-3 flex flex-col lg:flex-row gap-8 lg:gap-12 items-center lg:items-center lg:justify-between z-10 relative lg:min-h-0 lg:overflow-hidden">
         
-        {/* Left Column: Hero Description */}
+        {}
         <section className="w-full lg:w-[48%] flex flex-col justify-center py-2 lg:py-4 h-full lg:max-h-full">
           <div>
-            {/* Coach badge */}
+            {}
             <div className="bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-full text-[10px] font-bold tracking-wider inline-block mb-3 uppercase">
               Since 2016 • 60+ Tech Coaches
             </div>
@@ -137,7 +137,7 @@ export const LandingPage = () => {
               Login to access your personalized dashboard, courses, assignments and track your progress.
             </p>
 
-            {/* Micro stats list */}
+            {}
             <div className="space-y-3">
               {[
                 { label: "2000+ Students Trained", icon: GraduationCap },
@@ -166,12 +166,12 @@ export const LandingPage = () => {
         <section className="w-full lg:w-[48%] flex flex-col justify-center items-center h-full lg:max-h-full">
           <div className="w-full max-w-[420px] bg-white border border-slate-100 shadow-xl rounded-3xl p-6 sm:p-8 transition-all hover:shadow-2xl">
             
-            {/* Top Cap Icon */}
+            {}
             <div className="mx-auto w-11 h-11 bg-primary/10 rounded-full flex items-center justify-center mb-3">
               <GraduationCap className="w-5 h-5 text-primary" />
             </div>
 
-            {/* Card Titles */}
+            {}
             <h2 className="font-display text-lg font-bold text-slate-900 text-center mb-1">
               {isSignUp ? 'Student Registration' : 'Welcome Back! 👋'}
             </h2>
@@ -181,7 +181,7 @@ export const LandingPage = () => {
                 : 'Sign in to continue your learning journey at Nexus Proctor.'}
             </p>
 
-            {/* Status alerts */}
+            {}
             {status.message && (
               <div className={`mb-5 p-3.5 rounded-2xl border flex items-start gap-3 text-xs ${
                 status.type === 'error' 
@@ -199,12 +199,12 @@ export const LandingPage = () => {
               </div>
             )}
 
-            {/* Form */}
+            {}
             <form onSubmit={handleSubmit} className="space-y-3">
               
               {isSignUp && (
                 <>
-                  {/* Full Name */}
+                  {}
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Full Name</label>
                     <div className="relative">
@@ -221,7 +221,7 @@ export const LandingPage = () => {
                     </div>
                   </div>
 
-                  {/* Roll No */}
+                  {}
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Roll No.</label>
                     <div className="relative">
@@ -238,7 +238,7 @@ export const LandingPage = () => {
                     </div>
                   </div>
 
-                  {/* Department */}
+                  {}
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Department</label>
                     <div className="relative">
@@ -312,7 +312,7 @@ export const LandingPage = () => {
                 </>
               )}
 
-              {/* Email Input */}
+              {}
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">
                   {isSignUp ? 'Email Address' : 'University Email or Roll No.'}
@@ -331,7 +331,7 @@ export const LandingPage = () => {
                 </div>
               </div>
 
-              {/* Password Input */}
+              {}
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Password</label>
                 <div className="relative">
@@ -355,7 +355,7 @@ export const LandingPage = () => {
                 </div>
               </div>
 
-              {/* Remember Me */}
+              {}
               {!isSignUp && (
                 <div className="flex items-center py-1">
                   <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer select-none">
@@ -370,7 +370,7 @@ export const LandingPage = () => {
                 </div>
               )}
 
-              {/* Submit button */}
+              {}
               <button 
                 type="submit" 
                 disabled={loading} 
@@ -390,14 +390,14 @@ export const LandingPage = () => {
               </button>
             </form>
 
-            {/* Contact Help (Login only) */}
+            {}
             {!isSignUp && (
               <p className="text-[11px] font-semibold text-slate-500 text-center mt-3">
                 Need help? <Link to="/contact" className="text-primary hover:underline font-bold">Contact Support</Link>
               </p>
             )}
 
-            {/* Account toggle */}
+            {}
             <div className="mt-4 pt-3 border-t border-slate-100 text-center">
               <button 
                 type="button" 
@@ -409,7 +409,7 @@ export const LandingPage = () => {
             </div>
           </div>
 
-          {/* Bottom horizontal stat grid */}
+          {}
           <div className="grid grid-cols-4 gap-3 mt-5 w-full max-w-[420px]">
             {[
               { value: "35+", label: "Courses", icon: BookOpen },
@@ -433,7 +433,7 @@ export const LandingPage = () => {
 
       </main>
 
-      {/* Styled Footer */}
+      {}
       <footer className="w-full max-w-7xl mx-auto px-6 py-3 flex flex-col sm:flex-row justify-between items-center border-t border-slate-200/50 text-[10px] text-slate-400 font-bold uppercase tracking-wider z-10 relative gap-3 mt-auto">
         <div>© {new Date().getFullYear()} Nexus Proctor, Academic Integrity. All rights reserved.</div>
         <div className="flex gap-6">

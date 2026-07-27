@@ -16,21 +16,17 @@ const HistoricalSubmissions = ({ exam }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Search & Filter
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [percentageFilter, setPercentageFilter] = useState('');
   const [infractionFilter, setInfractionFilter] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
-  // Sort
   const [sortBy, setSortBy] = useState('highest');
 
-  // Pagination
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
 
-  // Bulk export
   const [bulkExporting, setBulkExporting] = useState(false);
 
   // ─── Fetch Results ─────────────────────────────────────────
@@ -55,7 +51,6 @@ const HistoricalSubmissions = ({ exam }) => {
   const filteredResults = useMemo(() => {
     let filtered = [...results];
 
-    // Search
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       filtered = filtered.filter(r =>
@@ -65,12 +60,10 @@ const HistoricalSubmissions = ({ exam }) => {
       );
     }
 
-    // Status filter
     if (statusFilter) {
       filtered = filtered.filter(r => r.status === statusFilter);
     }
 
-    // Percentage filter
     if (percentageFilter) {
       if (percentageFilter === 'above75') filtered = filtered.filter(r => r.percentage >= 75);
       else if (percentageFilter === 'above50') filtered = filtered.filter(r => r.percentage >= 50 && r.percentage < 75);
@@ -78,14 +71,12 @@ const HistoricalSubmissions = ({ exam }) => {
       else if (percentageFilter === 'below33') filtered = filtered.filter(r => r.percentage < 33.33);
     }
 
-    // Infraction filter
     if (infractionFilter) {
       if (infractionFilter === 'none') filtered = filtered.filter(r => r.violationCount === 0);
       else if (infractionFilter === 'has') filtered = filtered.filter(r => r.violationCount > 0);
       else if (infractionFilter === 'high') filtered = filtered.filter(r => r.violationCount >= 3);
     }
 
-    // Sort
     if (sortBy === 'highest') filtered.sort((a, b) => b.totalScore - a.totalScore);
     else if (sortBy === 'lowest') filtered.sort((a, b) => a.totalScore - b.totalScore);
     else if (sortBy === 'percentage') filtered.sort((a, b) => b.percentage - a.percentage);
@@ -99,14 +90,12 @@ const HistoricalSubmissions = ({ exam }) => {
   const totalPages = Math.ceil(filteredResults.length / pageSize) || 1;
   const paginatedResults = filteredResults.slice((page - 1) * pageSize, page * pageSize);
 
-  // Reset page when filters change
   useEffect(() => { setPage(1); }, [searchQuery, statusFilter, percentageFilter, infractionFilter, sortBy, pageSize]);
 
   // ─── Bulk Export ───────────────────────────────────────────
   const handleBulkPDF = async () => {
     setBulkExporting(true);
     try {
-      // Fetch all detailed reports
       const reports = [];
       for (const r of filteredResults) {
         try {
@@ -139,7 +128,7 @@ const HistoricalSubmissions = ({ exam }) => {
   // ─── Render ────────────────────────────────────────────────
   return (
     <div className="bg-white rounded-3xl border shadow-sm overflow-hidden">
-      {/* Header */}
+      {}
       <div className="p-6 pb-0">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
@@ -148,7 +137,7 @@ const HistoricalSubmissions = ({ exam }) => {
             <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md font-black">{filteredResults.length}</span>
           </h3>
 
-          {/* Bulk Export Buttons */}
+          {}
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={handleBulkPDF}
@@ -175,9 +164,9 @@ const HistoricalSubmissions = ({ exam }) => {
           </div>
         </div>
 
-        {/* Search & Filter Bar */}
+        {}
         <div className="flex items-center gap-3 mb-4 flex-wrap">
-          {/* Search */}
+          {}
           <div className="relative flex-1 min-w-[200px]">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
@@ -193,7 +182,7 @@ const HistoricalSubmissions = ({ exam }) => {
             )}
           </div>
 
-          {/* Filter Toggle */}
+          {}
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${showFilters || hasActiveFilters ? 'bg-[#4B775E] text-white border-[#4B775E]' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'}`}
@@ -201,7 +190,7 @@ const HistoricalSubmissions = ({ exam }) => {
             <Filter size={12} /> Filters {hasActiveFilters && <span className="bg-white/20 text-white px-1.5 py-0.5 rounded-md text-[8px]">ON</span>}
           </button>
 
-          {/* Sort */}
+          {}
           <div className="relative">
             <SortAsc size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             <select
@@ -218,7 +207,7 @@ const HistoricalSubmissions = ({ exam }) => {
           </div>
         </div>
 
-        {/* Expanded Filters */}
+        {}
         {showFilters && (
           <div className="flex items-center gap-3 mb-4 p-4 bg-gray-50 rounded-xl border border-gray-100 flex-wrap animate-in slide-in-from-top-2 fade-in duration-200">
             <select
@@ -268,7 +257,7 @@ const HistoricalSubmissions = ({ exam }) => {
         )}
       </div>
 
-      {/* Table Content */}
+      {}
       <div className="px-6 pb-4">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-16 opacity-50">
@@ -292,7 +281,7 @@ const HistoricalSubmissions = ({ exam }) => {
         )}
       </div>
 
-      {/* Pagination */}
+      {}
       {!loading && filteredResults.length > 0 && (
         <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between flex-wrap gap-3 bg-gray-50/30">
           <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400">
@@ -320,7 +309,7 @@ const HistoricalSubmissions = ({ exam }) => {
               <ChevronLeft size={14} className="text-gray-500" />
             </button>
 
-            {/* Page numbers */}
+            {}
             {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
               let pageNum;
               if (totalPages <= 5) {

@@ -50,7 +50,6 @@ export const updateDepartmentStatus = async (req, res) => {
   }
 };
 
-// Course Allocation Methods
 
 export const getAllocatedCourses = async (req, res) => {
   try {
@@ -74,11 +73,9 @@ export const allocateCourses = async (req, res) => {
       return res.status(400).json({ success: false, message: "Course IDs array is required" });
     }
 
-    // Verify department exists
     const department = await prisma.department.findUnique({ where: { id } });
     if (!department) return res.status(404).json({ success: false, message: "Department not found" });
 
-    // Filter out already allocated courses
     const existingAllocations = await prisma.departmentCourse.findMany({
       where: { departmentId: id, courseId: { in: courseIds } }
     });
@@ -90,8 +87,6 @@ export const allocateCourses = async (req, res) => {
       return res.status(400).json({ success: false, message: "All selected courses are already allocated to this department." });
     }
 
-    // Validate that all newCourseIds actually exist in the database
-    // (Prevents foreign key constraint errors if a course was deleted but still in frontend state)
     const validCourses = await prisma.course.findMany({
       where: { id: { in: newCourseIds } },
       select: { id: true }
@@ -163,7 +158,6 @@ export const removeAllocatedCourse = async (req, res) => {
 
     res.status(200).json({ success: true, message: "Course removed from department successfully" });
   } catch (error) {
-    // Check if error is due to not found
     if (error.code === 'P2025') {
       return res.status(404).json({ success: false, message: "Allocation not found" });
     }

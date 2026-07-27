@@ -7,7 +7,7 @@ async function groupModules() {
   const courses = await prisma.hubCourse.findMany({
     include: {
       modules: {
-        orderBy: { createdAt: 'asc' } // Assuming we want chronological/sequential grouping
+        orderBy: { createdAt: 'asc' }
       }
     }
   });
@@ -19,14 +19,12 @@ async function groupModules() {
     console.log(`Processing course: ${course.title}`);
     const modules = course.modules;
     
-    // Chunk into groups of 4
     for (let i = 0; i < modules.length; i += 4) {
       const chunk = modules.slice(i, i + 4);
       
       const moduleNumber = Math.floor(i / 4) + 1;
       const newModuleTitle = `Module ${moduleNumber}: ${chunk[0].title}`;
       
-      // Create new consolidated module
       const newModule = await prisma.hubModule.create({
         data: {
           courseId: course.id,
@@ -36,7 +34,6 @@ async function groupModules() {
       });
       newModuleCount++;
 
-      // Move all articles and questions from the chunk modules into the new module
       for (const oldMod of chunk) {
         await prisma.hubArticle.updateMany({
           where: { moduleId: oldMod.id },
@@ -48,7 +45,6 @@ async function groupModules() {
           data: { hubModuleId: newModule.id }
         });
 
-        // Delete the old module
         await prisma.hubModule.delete({
           where: { id: oldMod.id }
         });

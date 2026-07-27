@@ -68,7 +68,6 @@ export const TeacherDashboard = () => {
     try {
       const res = await api.get('/metadata/departments');
       setDepartments(res.data.data || []);
-      // If user is not superadmin and only has one department, auto-select it
       if (user?.role !== 'superadmin' && res.data.data?.length === 1) {
         setForm(p => ({ ...p, departmentId: res.data.data[0].id }));
       }

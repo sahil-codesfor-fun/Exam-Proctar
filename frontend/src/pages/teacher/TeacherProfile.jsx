@@ -47,7 +47,7 @@ const TeacherProfile = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         
-        {/* Left Column: Basic Details */}
+        {}
         <div className="md:col-span-1 space-y-6">
           <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-[0_8px_32px_rgba(0,0,0,0.02)] text-center relative overflow-hidden group">
             <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-br from-emerald-500 to-teal-600"></div>
@@ -89,10 +89,10 @@ const TeacherProfile = () => {
           </div>
         </div>
 
-        {/* Right Column: Stats & Subjects */}
+        {}
         <div className="md:col-span-2 space-y-8">
           
-          {/* Stats Overview */}
+          {}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-[0_4px_24px_rgba(0,0,0,0.02)] hover:-translate-y-1 transition-transform">
               <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4"><FileText size={20} /></div>
@@ -116,7 +116,7 @@ const TeacherProfile = () => {
             </div>
           </div>
 
-          {/* Allocated Subjects */}
+          {}
           <div className="bg-white rounded-3xl border border-gray-100 shadow-[0_8px_32px_rgba(0,0,0,0.02)] overflow-hidden">
             <div className="px-8 py-6 border-b border-gray-50 flex items-center justify-between">
               <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest flex items-center gap-3">

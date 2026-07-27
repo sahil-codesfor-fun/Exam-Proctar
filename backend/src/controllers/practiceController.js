@@ -69,7 +69,6 @@ export const createPracticeSheet = async (req, res) => {
 };
 
 // ----------------------------------------------------
-// GET ALL PRACTICE SHEETS (For Faculty)
 // ----------------------------------------------------
 export const getPracticeSheets = async (req, res) => {
   try {
@@ -80,7 +79,6 @@ export const getPracticeSheets = async (req, res) => {
       },
       orderBy: { createdAt: 'desc' }
     });
-    // Fetch all submissions for the current user
     const submissions = await prisma.practiceSubmission.findMany({
       where: { studentId: req.user.id },
       select: { questionId: true, verdict: true }
@@ -99,7 +97,6 @@ export const getPracticeSheets = async (req, res) => {
       }
     });
 
-    // Hydrate each question with the correct userStatus based on historical submissions
     const enrichedSheets = sheets.map(sheet => {
       const enrichedQuestions = sheet.questions.map(qLink => {
         const q = qLink.question;
@@ -135,17 +132,14 @@ export const deletePracticeSheet = async (req, res) => {
 };
 
 // ----------------------------------------------------
-// ADD QUESTION TO SHEET (From Question Bank)
 // ----------------------------------------------------
 export const addQuestionToSheet = async (req, res) => {
   try {
     const { sheetId, questionId, order } = req.body;
     
-    // Check if the sheet exists
     const sheet = await prisma.practiceSheet.findUnique({ where: { id: sheetId } });
     if (!sheet) return res.status(404).json({ success: false, message: 'Sheet not found' });
 
-    // Check if the question exists
     const question = await prisma.question.findUnique({ where: { id: questionId } });
     if (!question) return res.status(404).json({ success: false, message: 'Question not found' });
 
@@ -189,7 +183,6 @@ export const assignPracticeSheet = async (req, res) => {
 };
 
 // ----------------------------------------------------
-// GET QUESTION (For Compiler Page)
 // ----------------------------------------------------
 export const getQuestion = async (req, res) => {
   try {
@@ -209,7 +202,6 @@ export const getQuestion = async (req, res) => {
 
     if (!question) return res.status(404).json({ success: false, message: 'Question not found' });
 
-    // Hide expected outputs of hidden test cases from the client
     const safeTestCases = question.testCases.map(tc => tc.isHidden ? { input: tc.input, expectedOutput: 'Hidden', isHidden: true } : tc);
 
     res.status(200).json({ success: true, question: { ...question, testCases: safeTestCases } });
@@ -241,7 +233,6 @@ export const getPracticeSheetById = async (req, res) => {
 
     if (!sheet) return res.status(404).json({ success: false, message: 'Sheet not found' });
 
-    // Fetch user submissions for this sheet to calculate status
     const submissions = await prisma.practiceSubmission.findMany({
       where: {
         studentId: req.user.id,
@@ -306,7 +297,6 @@ export const updatePracticeSheet = async (req, res) => {
     const existing = await prisma.practiceSheet.findUnique({ where: { id } });
     if (!existing) return res.status(404).json({ success: false, message: 'Sheet not found' });
     
-    // Authorization check
     if (existing.creatorId !== req.user.id && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
@@ -323,7 +313,6 @@ export const updatePracticeSheet = async (req, res) => {
     });
 
     if (questions && Array.isArray(questions)) {
-      // Re-create the practiceSheetQuestions links
       await prisma.practiceSheetQuestion.deleteMany({
         where: { practiceSheetId: id }
       });
@@ -382,10 +371,7 @@ export const updatePracticeSheet = async (req, res) => {
 export const getCurrentPracticeSheet = async (req, res) => {
   try {
     const studentId = req.user.id;
-    // For now, fetch the latest published sheet assigned to this student or globally available.
-    // Ideally, we'd query PracticeAssignment, but assuming they are published.
     
-    // Check if there is an assignment specifically for this user
     const assignments = await prisma.practiceAssignment.findMany({
       where: {
         OR: [
@@ -412,7 +398,6 @@ export const getCurrentPracticeSheet = async (req, res) => {
     if (assignments.length > 0) {
       sheet = assignments[0].practiceSheet;
     } else {
-      // Fallback: Just get the newest published sheet
       sheet = await prisma.practiceSheet.findFirst({
         where: { status: 'published' },
         include: {
@@ -431,14 +416,11 @@ export const getCurrentPracticeSheet = async (req, res) => {
       return res.status(404).json({ success: false, message: 'No active practice sheet assigned.' });
     }
 
-    // Fetch student's drafts and submission statuses for these questions
     const questionStatuses = await Promise.all(sheet.questions.map(async (sq) => {
-      // Latest submission
       const latestSub = await prisma.practiceSubmission.findFirst({
         where: { studentId, questionId: sq.questionId },
         orderBy: { createdAt: 'desc' }
       });
-      // Draft
       const draft = await prisma.codeDraft.findFirst({
         where: { studentId, questionId: sq.questionId },
         orderBy: { lastSavedAt: 'desc' }
@@ -508,15 +490,12 @@ export const getSubmissionHistory = async (req, res) => {
 };
 
 // ----------------------------------------------------
-// PERFORM QUESTION ACTION (Bookmark, Mark for Review)
 // ----------------------------------------------------
 export const performQuestionAction = async (req, res) => {
   try {
-    const { questionId, action } = req.body; // action = 'bookmarked', 'reviewed'
+    const { questionId, action } = req.body;
     const studentId = req.user.id;
 
-    // We can store these special statuses in the most recent submission, or create a dummy one.
-    // For now, let's create a dummy submission record to act as a state tracker if none exists.
     let sub = await prisma.practiceSubmission.findFirst({
       where: { studentId, questionId },
       orderBy: { createdAt: 'desc' }
@@ -525,7 +504,6 @@ export const performQuestionAction = async (req, res) => {
     if (sub) {
       let newStatus = action;
       if (sub.status === action) {
-        // Toggle off: revert to accepted/attempted based on verdict
         if (sub.verdict === 'accepted') {
           newStatus = 'Accepted';
         } else if (sub.verdict === 'none' && !sub.code) {

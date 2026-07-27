@@ -26,10 +26,8 @@ const Dashboard = () => {
       }
     };
     
-    // Initial fetch
     fetchStats();
 
-    // Live polling every 5 seconds without showing loading spinner
     const intervalId = setInterval(fetchStats, 5000);
 
     return () => clearInterval(intervalId);
@@ -46,7 +44,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Stats Grid */}
+      {}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         <StatCard 
           title="Total Departments" 
@@ -101,7 +99,7 @@ const Dashboard = () => {
           value={stats?.activeExams || 0} 
           icon={Activity} 
           colorClass="bg-cyan-100 text-cyan-600" 
-          onClick={() => navigate('/superadmin/exams')} // Can add filtering logic to target URL later if needed
+          onClick={() => navigate('/superadmin/exams')}
           loading={loading}
         />
         <StatCard 
@@ -121,7 +119,7 @@ const Dashboard = () => {
           loading={loading}
         />
         
-        {/* Course Allocation Stats */}
+        {}
         <StatCard 
           title="Total Courses" 
           value={stats?.totalCourses || 0} 

@@ -7,7 +7,7 @@ class DepartmentService {
     const page = parseInt(query.page) || 1;
     const limit = parseInt(query.limit) || 20;
     const search = query.search || '';
-    const status = query.status || ''; // e.g., ACTIVE
+    const status = query.status || '';
 
     const cacheKey = `departments:${page}:${limit}:${search}:${status}`;
     const cachedData = await cacheService.get(cacheKey);
@@ -30,7 +30,6 @@ class DepartmentService {
   }
 
   async createDepartment(data, userId) {
-    // Validation
     if (!data.name || !data.code) {
       throw new Error('Department name and code are required');
     }
@@ -125,7 +124,6 @@ class DepartmentService {
         message: 'Department deleted successfully'
       };
     } catch (err) {
-      // If there are foreign key constraints (e.g. users attached), fallback to soft delete
       if (err.code === 'P2003') {
         const timestamp = Date.now();
         await departmentRepository.update(id, { 

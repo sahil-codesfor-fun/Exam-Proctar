@@ -16,7 +16,6 @@ export const StudentDashboard = () => {
   const [nowTime, setNowTime] = useState(Date.now());
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Timer interval for real-time exam status updates
   useEffect(() => {
     const ticker = setInterval(() => setNowTime(Date.now()), 1000);
     return () => clearInterval(ticker);
@@ -172,7 +171,7 @@ export const StudentDashboard = () => {
       <div className="flex-1 min-w-0 h-full overflow-y-auto p-6 pt-16 md:pt-10 relative">
         <div className="max-w-6xl mx-auto w-full">
           
-          {/* Your Original Welcome Banner */}
+          {}
           <div className="bg-white rounded-[2.5rem] p-8 xl:p-10 border border-gray-100 shadow-xl shadow-gray-200/20 mb-8 flex justify-between items-center gap-6">
             <div>
               <h2 className="text-3xl xl:text-4xl font-black text-gray-900 mb-2 uppercase tracking-tight">
@@ -186,7 +185,7 @@ export const StudentDashboard = () => {
             </div>
           </div>
 
-          {/* Dynamic Content Outlet */}
+          {}
           {loading ? (
             <div className="flex flex-col items-center justify-center py-32 opacity-30">
               <div className="w-10 h-10 border-2 border-gray-900 border-t-transparent rounded-full animate-spin mb-4"></div>

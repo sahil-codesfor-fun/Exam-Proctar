@@ -7,7 +7,6 @@ export const getIO = () => {
 
 export const setupProctorSockets = (io) => {
   globalIO = io;
-  // Track active exam sessions: { examId: { studentId: socketId } }
   const activeSessions = new Map();
 
   io.on('connection', (socket) => {

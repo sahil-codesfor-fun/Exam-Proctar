@@ -152,16 +152,13 @@ class SubjectService {
     }
   }
 
-  // Admin assigning subjects to teacher
   async assignSubjectsToTeacher(teacherId, subjectIds, adminDepartmentId, userId) {
-    // 1. Verify Teacher belongs to Admin's department
     const teacher = await prisma.user.findUnique({ where: { id: teacherId } });
     if (!teacher) throw new Error('Teacher not found');
     if (teacher.departmentId !== adminDepartmentId) {
       throw new Error('You can only assign subjects to teachers in your department');
     }
 
-    // 2. Verify all subjects belong to Admin's department
     const subjects = await prisma.subject.findMany({
       where: { id: { in: subjectIds } }
     });

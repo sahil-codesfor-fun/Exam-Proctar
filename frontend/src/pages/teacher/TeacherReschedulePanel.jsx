@@ -62,7 +62,6 @@ const TeacherReschedulePanel = ({ examId }) => {
       });
       alert('Rescheduling successful!');
       
-      // Update local state
       setTickets(tickets.map(t => {
         if (selectedIds.includes(t.id)) {
           return {

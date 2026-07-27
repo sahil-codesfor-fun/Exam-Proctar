@@ -47,7 +47,6 @@ class TeacherService {
       teacherRepository.countByDepartmentId(effectiveDepartmentId, where)
     ]);
 
-    // Remove passwords
     teachers.forEach(t => delete t.password);
 
     const response = {
@@ -149,14 +148,11 @@ class TeacherService {
   }
 
   async assignSubjects(teacherId, departmentId, subjectIds, headId) {
-    // Verify teacher
     const teacher = await teacherRepository.findByIdAndDepartment(teacherId, departmentId);
     if (!teacher) throw new Error('Teacher not found');
 
-    // If superadmin is assigning (departmentId is undefined), use the teacher's departmentId
     const targetDeptId = departmentId || teacher.departmentId;
 
-    // Verify subjects belong to this department
     const subjects = await prisma.subject.findMany({
       where: { id: { in: subjectIds }, departmentId: targetDeptId }
     });
@@ -164,7 +160,6 @@ class TeacherService {
       throw new Error('One or more subjects do not belong to this department');
     }
 
-    // Connect them via the explicit junction table
     await prisma.$transaction([
       prisma.teacherSubject.deleteMany({ where: { teacherId } }),
       ...(subjects.length > 0 ? [

@@ -23,27 +23,22 @@ const PLATFORM_CONFIG = {
   }
 };
 
-// 🌑 THE DARK MODE HEATMAP COMPONENT (Now 100% authentic, no fake data!)
 const NexusContributionGraph = ({ activityMap }) => {
   const [days, setDays] = useState([]);
   const [monthLabels, setMonthLabels] = useState([]);
 
   useEffect(() => {
     const temp = [];
-    // Determine the calendar year (Jan 1 to Dec 31)
     const currentYear = new Date().getUTCFullYear();
     const startDate = new Date(Date.UTC(currentYear, 0, 1));
     const endDate = new Date(Date.UTC(currentYear, 11, 31));
 
-    // Get the day of the week for Jan 1 (0 = Sunday, 6 = Saturday)
     const startDayOfWeek = startDate.getUTCDay();
 
-    // Pad the beginning with null to align the first date to its correct weekday
     for (let i = 0; i < startDayOfWeek; i++) {
       temp.push({ date: null, count: 0, isPadding: true });
     }
 
-    // Generate days from startDate to endDate
     const iterDate = new Date(startDate);
     while (iterDate <= endDate) {
       const d = new Date(iterDate);
@@ -52,12 +47,10 @@ const NexusContributionGraph = ({ activityMap }) => {
 
       temp.push({ date: d, count, isPadding: false });
       
-      // Move to next day
       iterDate.setUTCDate(iterDate.getUTCDate() + 1);
     }
     setDays(temp);
 
-    // Calculate dynamic month labels with colSpan
     const monthsName = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const totalColumns = Math.ceil(temp.length / 7);
     const labels = [];
@@ -94,11 +87,11 @@ const NexusContributionGraph = ({ activityMap }) => {
   }, [activityMap]);
 
   const getLevelClass = (count) => {
-    if (count === 0) return 'bg-[#161b22]'; // Dark empty square
-    if (count === 1) return 'bg-[#0e4429]'; // Light green
-    if (count === 2) return 'bg-[#006d32]'; // Med green
-    if (count === 3) return 'bg-[#26a641]'; // Bright green
-    return 'bg-[#39d353]'; // Super bright green
+    if (count === 0) return 'bg-[#161b22]';
+    if (count === 1) return 'bg-[#0e4429]';
+    if (count === 2) return 'bg-[#006d32]';
+    if (count === 3) return 'bg-[#26a641]';
+    return 'bg-[#39d353]';
   };
 
   return (
@@ -111,7 +104,7 @@ const NexusContributionGraph = ({ activityMap }) => {
         <div className="min-w-[750px]">
 
           <div className="flex gap-2">
-            {/* Days of Week Labels */}
+            {}
             <div className="flex flex-col gap-[3px] text-[9px] text-gray-400 font-medium pr-2 mt-5">
               <span className="h-[10px]"></span>
               <span className="h-[10px] leading-[10px]">Mon</span>
@@ -122,9 +115,9 @@ const NexusContributionGraph = ({ activityMap }) => {
               <span className="h-[10px]"></span>
             </div>
             
-            {/* Grid Squares and Months */}
+            {}
             <div className="flex flex-col w-full">
-               {/* Months Header - EXACT ALIGNMENT USING FLEX PERCENTAGES */}
+               {}
                <div className="flex mb-1 w-full text-[10px] text-gray-400 font-medium">
                   {monthLabels.labels?.map((m, i) => (
                     <span 
@@ -137,7 +130,7 @@ const NexusContributionGraph = ({ activityMap }) => {
                   ))}
                </div>
                
-               {/* Grid Squares */}
+               {}
                <div className="grid grid-flow-col grid-rows-7 gap-[3px] w-full">
                  {days.map((day, i) => (
                    <div 
@@ -150,7 +143,7 @@ const NexusContributionGraph = ({ activityMap }) => {
             </div>
           </div>
 
-          {/* Footer Legend */}
+          {}
           <div className="flex justify-between items-center mt-3 pt-2">
             <span className="text-[10px] text-gray-500 font-medium hover:text-blue-400 cursor-pointer transition-colors pl-8">
               Learn how we count contributions
@@ -181,7 +174,6 @@ export const CodingProgress = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Modal State
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState(null);
   const [usernameInput, setUsernameInput] = useState('');
@@ -276,7 +268,6 @@ export const CodingProgress = () => {
   };
 
   // --- Combined Statistics & Progress Calculations ---
-  // Ensure the formula is strictly: totalProblemsSolved = external + unifiedNexusCount
   const unifiedNexusCount = internalStats?.nexusSolvedCount || internalStats?.progress?.totalSolved || 0;
   let combinedTotal = unifiedNexusCount;
   
@@ -291,7 +282,6 @@ export const CodingProgress = () => {
 
   const calculatedUploaded = sheetQuestionsCount;
 
-  // Use the newly added backend metric specifically for Practice Sheets
   const nexusSolved = unifiedNexusCount;
   const nexusUploaded = internalStats?.progress?.totalUploaded || calculatedUploaded || Math.max(nexusSolved, 1);
   const nexusProgressPercent = nexusUploaded > 0 ? Math.round((nexusSolved / nexusUploaded) * 100) : 0;
@@ -416,7 +406,7 @@ export const CodingProgress = () => {
         <h3 className="text-2xl font-black text-gray-900 tracking-tight uppercase mb-6">Platform Summary</h3>
         <div className="bg-white rounded-[2rem] border border-gray-100 p-8 shadow-[0_4px_20px_rgb(0,0,0,0.03)] flex flex-col gap-8">
 
-          {/* Top Row: Overall Stats & Breakdown */}
+          {}
           <div className="flex flex-col md:flex-row gap-8 items-center justify-between">
             <div className="w-full md:w-1/2">
               <h4 className="text-gray-500 font-bold mb-2 uppercase tracking-widest text-sm">Combined Coding Activity</h4>
@@ -492,7 +482,7 @@ export const CodingProgress = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 pt-2 px-2 pb-8">
 
-        {/* NEXUS Code Playground (Internal) */}
+        {}
         <div className="w-full bg-white rounded-[2rem] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden transition-transform hover:-translate-y-1 duration-300 flex flex-col">
           <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-500 to-teal-400"></div>
           <div className="p-5 flex flex-col flex-grow">
@@ -550,16 +540,15 @@ export const CodingProgress = () => {
           </div>
         </div>
 
-        {/* Dynamic External Platform Cards */}
+        {}
         {Object.keys(PLATFORM_CONFIG).map(platformKey => renderPlatformCard(platformKey))}
 
-        {/* CodeChef Specific Card */}
+        {}
         <CodeChefCard 
           isOwner={isOwner}
           isConnected={!!internalStats?.user?.codechefUsername}
           stats={internalStats?.user}
           onConnectSuccess={(data) => {
-            // Update local state immediately for seamless UX
             setInternalStats(prev => ({
               ...prev,
               user: {

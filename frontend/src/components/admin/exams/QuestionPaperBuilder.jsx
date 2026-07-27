@@ -10,7 +10,7 @@ const QuestionTypes = [
 const QuestionPaperBuilder = ({ exam, onClose }) => {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [activeQuestion, setActiveQuestion] = useState(null); // The question currently being edited
+  const [activeQuestion, setActiveQuestion] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
@@ -57,7 +57,7 @@ const QuestionPaperBuilder = ({ exam, onClose }) => {
       if (isNew) {
         const res = await api.post(`/admin/exams/${exam.id}/questions`, {
           ...activeQuestion,
-          id: undefined // Let DB generate ID
+          id: undefined
         });
         savedQ = res.data.data;
         setQuestions([...questions, savedQ]);
@@ -94,7 +94,7 @@ const QuestionPaperBuilder = ({ exam, onClose }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="bg-white w-full max-w-6xl h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
-        {/* Header */}
+        {}
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 ">
           <div>
             <h2 className="text-xl font-bold text-gray-900 ">Question Paper Builder</h2>
@@ -107,7 +107,7 @@ const QuestionPaperBuilder = ({ exam, onClose }) => {
 
         <div className="flex flex-1 overflow-hidden">
           
-          {/* Question List Sidebar */}
+          {}
           <div className="w-1/3 border-r border-gray-200 flex flex-col bg-gray-50/30 ">
             <div className="p-4 border-b border-gray-200 flex gap-2 overflow-x-auto">
               {QuestionTypes.map(qt => (
@@ -153,7 +153,7 @@ const QuestionPaperBuilder = ({ exam, onClose }) => {
             </div>
           </div>
 
-          {/* Editor Area */}
+          {}
           <div className="flex-1 flex flex-col bg-white ">
             {isEditing && activeQuestion ? (
               <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
@@ -190,7 +190,7 @@ const QuestionPaperBuilder = ({ exam, onClose }) => {
                   ></textarea>
                 </div>
 
-                {/* Type Specific Fields */}
+                {}
                 
                 {activeQuestion.type === 'MCQ' && (
                   <div className="space-y-3">
@@ -335,7 +335,7 @@ const QuestionPaperBuilder = ({ exam, onClose }) => {
                   </div>
                 )}
                 
-                {/* Actions */}
+                {}
                 <div className="mt-auto pt-4 border-t border-gray-200 flex justify-end gap-3">
                   <button onClick={() => { setIsEditing(false); setActiveQuestion(null); }} className="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-100 :bg-slate-800">
                     Cancel

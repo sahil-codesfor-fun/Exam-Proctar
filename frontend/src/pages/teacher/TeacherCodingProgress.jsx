@@ -30,7 +30,6 @@ const getPlatformStyling = (platformString) => {
     };
   }
   
-  // Default to LeetCode
   return {
     name: 'LeetCode',
     icon: <Code2 size={14} strokeWidth={2.5} />,
@@ -47,17 +46,13 @@ export const TeacherCodingProgress = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
-  // State to track which student rows are expanded
   const [expandedRows, setExpandedRows] = useState({});
   
-  // State for Universal Sync
   const [isSyncingAll, setIsSyncingAll] = useState(false);
   const [syncWarning, setSyncWarning] = useState('');
   
-  // State for Search
   const [searchQuery, setSearchQuery] = useState('');
 
-  // State for Download
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const [downloadStep, setDownloadStep] = useState(1);
   const [selectedAcademicCourse, setSelectedAcademicCourse] = useState(null);
@@ -90,7 +85,6 @@ export const TeacherCodingProgress = () => {
           return acc;
         }, {});
 
-        // Add metrics to students
         rawData.forEach(m => {
           if (!m) return;
           const sId = m.user?.studentId || m.user?.id || m.id || 'unknown';
@@ -103,7 +97,6 @@ export const TeacherCodingProgress = () => {
           }
         });
 
-        // Convert the object back to an array and sort by whoever has the most total solved
         const sortedArray = Object.values(grouped).sort((a, b) => b.totalSolved - a.totalSolved);
         setGroupedStudents(sortedArray);
       } else {
@@ -181,7 +174,6 @@ export const TeacherCodingProgress = () => {
     setIsSyncingAll(true);
     try {
       // ⚠️ Note to Jefe: Make sure you create this backend route to trigger a mass sync if you haven't!
-      // If it doesn't exist yet, this will just gracefully fail and refresh the page data anyway.
       await api.post('/integrations/sync-all').catch(() => console.log('Mass sync route not found, refreshing data instead.'));
       
       localStorage.setItem('global_sync_time', Date.now().toString());
@@ -225,7 +217,7 @@ export const TeacherCodingProgress = () => {
           </div>
         </div>
 
-        {/* Actions: Search and Universal Sync */}
+        {}
         <div className="flex flex-col items-end gap-3 sm:flex-row sm:items-center">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
@@ -343,7 +335,7 @@ export const TeacherCodingProgress = () => {
       {/* 🚀 THE SLEEK ACCORDION UI */}
       <div className="bg-white rounded-[2rem] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] overflow-hidden">
         
-        {/* Table Header Row */}
+        {}
         <div className="flex items-center py-4 px-8 bg-gray-50 border-b border-gray-100 text-[10px] font-black text-gray-400 uppercase tracking-widest">
           <div className="w-1/3">Student</div>
           <div className="w-1/4">Combined Output</div>
@@ -351,7 +343,7 @@ export const TeacherCodingProgress = () => {
           <div className="w-1/6 text-right">Details</div>
         </div>
 
-        {/* Filtered Rows */}
+        {}
         <div className="divide-y divide-gray-50">
           {groupedStudents
             .filter(student => 
@@ -364,12 +356,12 @@ export const TeacherCodingProgress = () => {
 
             return (
               <React.Fragment key={sId}>
-                {/* 🔽 TOP LEVEL ROW (Clickable) */}
+                {}
                 <div 
                   onClick={() => toggleRow(sId)}
                   className={`flex items-center py-5 px-8 bg-white cursor-pointer transition-colors group ${isExpanded ? 'border-b border-gray-50' : 'border-b border-gray-100 hover:bg-gray-50/50'}`}
                 >
-                  {/* Column 1: Student Name */}
+                  {}
                   <div className="w-1/3 pr-4">
                     <h4 className="text-sm font-black text-gray-900 group-hover:text-[#1A5F53] transition-colors truncate">
                       {student.user?.name || 'Unknown Student'}
@@ -379,13 +371,13 @@ export const TeacherCodingProgress = () => {
                     </p>
                   </div>
 
-                  {/* Column 2: Combined Total Solved */}
+                  {}
                   <div className="w-1/4 flex items-baseline gap-1.5">
                     <span className="text-xl font-black text-[#1A5F53]">{student.totalSolved}</span>
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Solved</span>
                   </div>
 
-                  {/* Column 3: Combined Difficulty */}
+                  {}
                   <div className="w-1/4 flex items-center gap-4 text-sm font-black">
                     <span className="text-[#00B8A3]">{student.easySolved}</span>
                     <span className="text-gray-200">/</span>
@@ -394,7 +386,7 @@ export const TeacherCodingProgress = () => {
                     <span className="text-[#EF4743]">{student.hardSolved}</span>
                   </div>
 
-                  {/* Column 4: Expand Toggle */}
+                  {}
                   <div className="w-1/6 flex justify-end">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isExpanded ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'}`}>
                       {isExpanded ? <ChevronUp size={16} strokeWidth={3} /> : <ChevronDown size={16} strokeWidth={3} />}
@@ -411,7 +403,7 @@ export const TeacherCodingProgress = () => {
                       return (
                         <div key={m.id || index} className="flex items-center py-4 px-8 pl-16 border-t border-gray-100/50 hover:bg-white transition-colors">
                           
-                          {/* Sub-Column 1: Platform Icon & Name */}
+                          {}
                           <div className="w-1/3 flex items-center gap-3">
                             <div className={`w-7 h-7 rounded-md ${pInfo.bg} ${pInfo.text} flex items-center justify-center shrink-0`}>
                               {pInfo.icon}
@@ -422,13 +414,13 @@ export const TeacherCodingProgress = () => {
                             </div>
                           </div>
 
-                          {/* Sub-Column 2: Platform Total */}
+                          {}
                           <div className="w-1/4 flex items-baseline gap-1.5">
                             <span className="text-sm font-black text-gray-700">{m.totalSolved || 0}</span>
                             <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Solved</span>
                           </div>
 
-                          {/* Sub-Column 3: Platform Difficulty */}
+                          {}
                           <div className="w-1/4 flex items-center gap-3 text-xs font-black">
                             <span className={pInfo.easy}>{m.easySolved || 0}</span>
                             <span className="text-gray-200">/</span>
@@ -437,7 +429,7 @@ export const TeacherCodingProgress = () => {
                             <span className={pInfo.hard}>{m.hardSolved || 0}</span>
                           </div>
 
-                          {/* Sub-Column 4: Activity Status */}
+                          {}
                           <div className="w-1/6 flex flex-col items-end justify-center gap-1">
                              <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest transition-all ${
                               m.thisWeek > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400'
@@ -460,7 +452,7 @@ export const TeacherCodingProgress = () => {
             );
           })}
 
-          {/* Empty State */}
+          {}
           {groupedStudents.length === 0 && !loading && (
              <div className="text-center py-20 bg-white">
                 <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">No student metrics found in the database.</p>

@@ -7,7 +7,6 @@ export const getUnifiedDashboard = async (req, res) => {
   try {
     const studentId = req.user.id;
 
-    // Get basic stats
     const user = await prisma.user.findUnique({ 
       where: { id: studentId },
       select: { 
@@ -27,17 +26,14 @@ export const getUnifiedDashboard = async (req, res) => {
       currentStreak: 0, longestStreak: 0, acceptanceRate: 0, averageRuntime: 0, averageMemory: 0, totalAttempts: 0, wrongAttempts: 0, solvedOnFirstAttempt: 0
     };
 
-    // Topic progress
     const topicProgress = await prisma.topicProgress.findMany({ where: { studentId } });
 
-    // Badges
     const badges = await prisma.studentBadge.findMany({
       where: { studentId },
       include: { badge: true }
     });
 
     // 🚀 THE NEW ENGINE: Fetch submissions to build the activityMap for the heatmap!
-    // We only count submissions that are actually 'submitted' or 'auto_submitted'
     const submissions = await prisma.submission.findMany({
       where: { 
         studentId: studentId,
@@ -51,19 +47,16 @@ export const getUnifiedDashboard = async (req, res) => {
       select: { createdAt: true }
     });
 
-    // Build the date map (e.g., { "2026-07-07": 1 })
     const activityMap = {};
     const allActivity = [...submissions, ...practiceSubmissionsHeat];
     
     allActivity.forEach(sub => {
       if (sub.createdAt) {
-        // Ensure we handle Date objects properly
         const dateStr = new Date(sub.createdAt).toISOString().split('T')[0];
         activityMap[dateStr] = (activityMap[dateStr] || 0) + 1;
       }
     });
 
-    // Compute Streak dynamically based on accurate Activity Map
     let computedStreak = 0;
     const todayObj = new Date();
     const todayStr = todayObj.toISOString().split('T')[0];
@@ -123,7 +116,6 @@ export const getUnifiedDashboard = async (req, res) => {
 
     const nexusSolvedCount = solvedQuestions.length;
 
-    // Unified Progress State
     progress.totalSolved = nexusSolvedCount;
     progress.easySolved = easySolved;
     progress.mediumSolved = mediumSolved;
@@ -137,7 +129,7 @@ export const getUnifiedDashboard = async (req, res) => {
         stats,
         topicProgress,
         badges,
-        activityMap, // 👈 BOOM! Now the frontend heatmap gets its fuel!
+        activityMap,
         nexusSolvedCount
       }
     });
@@ -151,20 +143,15 @@ export const getUnifiedDashboard = async (req, res) => {
 // ----------------------------------------------------
 export const getInternalLeaderboard = async (req, res) => {
   try {
-    const { type } = req.query; // 'university', 'department', 'course', etc.
+    const { type } = req.query;
 
     const leaderboard = await prisma.codingLeaderboard.findMany({
       orderBy: { score: 'desc' },
       take: 10,
       include: {
-        // Need to join user to get name/department depending on how schema relations are setup
-        // For now just sending raw rows since User relation is not explicitly on Leaderboard in schema,
-        // Wait, schema has studentId on CodingLeaderboard but no explicit relation defined.
-        // Let's assume we can fetch users separately or add relation.
       }
     });
 
-    // Fetch user details for these studentIds
     const studentIds = leaderboard.map(l => l.studentId);
     const users = await prisma.user.findMany({
       where: { id: { in: studentIds } },

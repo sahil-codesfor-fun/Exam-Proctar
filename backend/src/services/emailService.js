@@ -14,9 +14,6 @@ const transporter = nodemailer.createTransport({
   debug: true,
 });
 
-/**
- * Enhanced sendEmail function for diagnostics
- */
 export const sendEmail = async () => {
   try {
     console.log("🔍 Verifying SMTP Connection...");
@@ -25,7 +22,7 @@ export const sendEmail = async () => {
 
     const info = await transporter.sendMail({
       from: process.env.EMAIL_USER,
-      to: "himangshukumardas75695@gmail.com", // Self-test
+      to: "himangshukumardas75695@gmail.com",
       subject: "SMTP TEST",
       html: `
         <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
@@ -45,9 +42,6 @@ export const sendEmail = async () => {
   }
 };
 
-/**
- * Dynamic Test Email function (Restored for Admin Controller)
- */
 export const sendTestEmail = async (to) => {
   try {
     await transporter.verify();
@@ -65,9 +59,6 @@ export const sendTestEmail = async (to) => {
   }
 };
 
-/**
- * Standard faculty credential dispatch
- */
 export const sendFacultyCredentials = async (faculty) => {
   const user = (process.env.EMAIL_USER || "").trim();
   

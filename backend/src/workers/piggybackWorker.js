@@ -17,7 +17,6 @@ export const initPiggybackWorker = () => {
     console.log(`🔄 Processing Piggyback Sync for user: ${userId}`);
 
     try {
-      // 1. Fetch user to get usernames
       const user = await prisma.user.findUnique({
         where: { id: userId },
         select: { codechefUsername: true, leetcodeUsername: true, hackerrankUsername: true }
@@ -27,7 +26,6 @@ export const initPiggybackWorker = () => {
         throw new Error(`User not found: ${userId}`);
       }
 
-      // 2. Execute CodeChef with Mandatory 5-second Delay
       let codechefTotalSolved = 0;
       if (user.codechefUsername) {
         console.log(`Scraping CodeChef for ${user.codechefUsername}...`);
@@ -38,14 +36,12 @@ export const initPiggybackWorker = () => {
         await new Promise(resolve => setTimeout(resolve, 5000));
       }
 
-      // 3. Execute LeetCode and HackerRank concurrently
       console.log(`Fetching LeetCode & HackerRank concurrently...`);
       const [leetcodeResult, hackerrankResult] = await Promise.all([
         leetcodeStrategy.fetchStats(user.leetcodeUsername),
         hackerrankStrategy.fetchStats(user.hackerrankUsername)
       ]);
 
-      // 4. Update Database
       await prisma.user.update({
         where: { id: userId },
         data: {
@@ -63,7 +59,6 @@ export const initPiggybackWorker = () => {
       return true;
     } catch (error) {
       console.error(`❌ Piggyback Worker failed for user ${userId}:`, error.message);
-      // Update timestamp to avoid infinitely retrying a broken user
       await prisma.user.update({
         where: { id: userId },
         data: { platformsLastSyncedAt: new Date() }

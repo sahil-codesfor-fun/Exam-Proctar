@@ -6,28 +6,24 @@ import { protect, adminOnly, teacherOnly } from '../middleware/authMiddleware.js
 
 const router = express.Router();
 
-// Multer memory storage configuration (since we process it as a stream)
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB file size limit
+    fileSize: 10 * 1024 * 1024,
   }
 });
 
-// Rate limiting middleware for this specific route
 const uploadRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // Limit each IP to 20 requests per `window`
+  windowMs: 15 * 60 * 1000,
+  max: 20,
   message: 'Too many upload requests from this IP, please try again after 15 minutes',
   standardHeaders: true, 
   legacyHeaders: false,
 });
 
-// Enforce strict JSON and form-data payload limits
 const payloadLimiter = express.json({ limit: '10kb' });
 const urlEncodedLimiter = express.urlencoded({ extended: true, limit: '10kb' });
 
-// Route to handle bulk CSV upload for courses (articles and questions)
 router.post(
   '/upload-csv',
   protect,
@@ -40,16 +36,12 @@ router.post(
   uploadCourseCsv
 );
 
-// Route for students to fetch their department courses
 router.get('/', protect, getDepartmentCourses);
 
-// Route for faculty to fetch student course progress
 router.get('/faculty/student-progress', protect, getFacultyStudentProgress);
 
-// Route for students to fetch a specific module's contents
 router.get('/module/:moduleId', protect, getModuleContent);
 
-// Admin management routes
 router.get('/admin/all', protect, adminOnly, getAllCourses);
 router.post('/admin/assign', protect, adminOnly, assignCourseToDepartment);
 router.post('/admin/create-course', protect, adminOnly, createCourse);

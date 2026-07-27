@@ -19,12 +19,10 @@ const PracticeSheetEditor = ({ sheetId, onClose, onSave }) => {
 
   const [questions, setQuestions] = useState([]);
   
-  // Quick mock for question search in bank
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   
-  // Validation state
   const [uploadErrors, setUploadErrors] = useState([]);
   const [expandedQ, setExpandedQ] = useState(null);
 
@@ -85,11 +83,7 @@ const PracticeSheetEditor = ({ sheetId, onClose, onSave }) => {
     if (!searchQuery) return;
     setSearching(true);
     try {
-      // For now, let's just mock or call a general questions endpoint if it exists
-      // const res = await api.get(`/questions?search=${searchQuery}&type=coding`);
-      // setSearchResults(res.data.data);
       
-      // Temporary mock data to test UI
       setSearchResults([
         { id: '1', title: 'Two Sum', difficulty: 'easy', topic: 'Arrays' },
         { id: '2', title: 'Valid Parentheses', difficulty: 'easy', topic: 'Stacks' },
@@ -164,7 +158,7 @@ const PracticeSheetEditor = ({ sheetId, onClose, onSave }) => {
         if (!values || values.length === 0 || (!values[0] && !values[1])) continue;
         
         const q = { id: `temp_${Date.now()}_${i}`, testCases: [] };
-        let tcMap = {}; // Group test case fields by index (e.g. 1, 2)
+        let tcMap = {};
         
         headers.forEach((h, idx) => {
           const val = values[idx];
@@ -174,7 +168,6 @@ const PracticeSheetEditor = ({ sheetId, onClose, onSave }) => {
           else if (h === 'topic') q.topic = val?.trim() || 'General';
           else if (h === 'points') q.points = parseInt(val) || 10;
           else if (h.startsWith('tc') && h.includes('_')) {
-             // e.g. tc1_in, tc1_out, tc1_hidden
              const parts = h.split('_');
              const tcIdx = parts[0].replace('tc', '');
              const field = parts[1];
@@ -185,7 +178,6 @@ const PracticeSheetEditor = ({ sheetId, onClose, onSave }) => {
           }
         });
         
-        // Push parsed test cases
         Object.keys(tcMap).forEach(key => {
           if (tcMap[key].input || tcMap[key].expectedOutput) {
             q.testCases.push(tcMap[key]);
@@ -194,7 +186,6 @@ const PracticeSheetEditor = ({ sheetId, onClose, onSave }) => {
         
         q.type = 'coding';
         
-        // Validations
         if (!q.title) errors.push(`Row ${i+1}: Missing Title.`);
         if (!q.description) errors.push(`Row ${i+1}: Missing Description.`);
         if (q.testCases.length === 0) errors.push(`Row ${i+1}: Missing Test Cases (requires at least one tc1_in, tc1_out).`);
@@ -207,7 +198,7 @@ const PracticeSheetEditor = ({ sheetId, onClose, onSave }) => {
 
       if (errors.length > 0) {
         setUploadErrors(errors);
-        return; // Block upload if there are validation errors
+        return;
       }
 
       setUploadErrors([]);
@@ -229,7 +220,7 @@ const PracticeSheetEditor = ({ sheetId, onClose, onSave }) => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      {/* Header */}
+      {}
       <div className="flex justify-between items-center bg-white p-4 rounded-2xl border shadow-sm">
         <div className="flex items-center gap-4">
           <button onClick={() => { if(onClose) onClose(); else navigate('/teacher-dashboard/practice-manager'); }} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500">
@@ -261,7 +252,7 @@ const PracticeSheetEditor = ({ sheetId, onClose, onSave }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Settings */}
+        {}
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-4">
             <h2 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">Sheet Details</h2>
@@ -289,14 +280,14 @@ const PracticeSheetEditor = ({ sheetId, onClose, onSave }) => {
           </div>
         </div>
 
-        {/* Right Column: Questions */}
+        {}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white p-6 rounded-2xl border shadow-sm flex flex-col h-full min-h-[500px]">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-sm font-black text-gray-400 uppercase tracking-widest">Questions ({questions.length})</h2>
             </div>
 
-            {/* Question Search */}
+            {}
             <div className="flex gap-2 mb-6">
               <input 
                 type="text" 
@@ -315,7 +306,7 @@ const PracticeSheetEditor = ({ sheetId, onClose, onSave }) => {
               </button>
             </div>
 
-            {/* Validation Errors */}
+            {}
             {uploadErrors.length > 0 && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl max-h-48 overflow-y-auto">
                 <h4 className="text-red-700 font-bold text-xs uppercase tracking-widest mb-2 flex justify-between items-center">
@@ -330,7 +321,7 @@ const PracticeSheetEditor = ({ sheetId, onClose, onSave }) => {
               </div>
             )}
 
-            {/* Search Results */}
+            {}
             {searchResults.length > 0 && (
               <div className="mb-6 p-4 bg-gray-50 border rounded-xl space-y-2 max-h-48 overflow-y-auto">
                 <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Search Results</h3>
@@ -351,7 +342,7 @@ const PracticeSheetEditor = ({ sheetId, onClose, onSave }) => {
               </div>
             )}
 
-            {/* Selected Questions List */}
+            {}
             <div className="flex-1 space-y-3">
               {questions.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-3 pt-10">
@@ -382,14 +373,14 @@ const PracticeSheetEditor = ({ sheetId, onClose, onSave }) => {
                     </div>
                     {expandedQ === q.id && (
                       <div className="px-4 pb-4 pt-0 border-t border-gray-100 animate-in slide-in-from-top-2 duration-200">
-                        {/* Description */}
+                        {}
                         {q.description && (
                           <div className="mt-3">
                             <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Description</h5>
                             <p className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 p-3 rounded-lg border">{q.description}</p>
                           </div>
                         )}
-                        {/* Test Cases */}
+                        {}
                         {q.testCases?.length > 0 && (
                           <div className="mt-3">
                             <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Test Cases ({q.testCases.length})</h5>

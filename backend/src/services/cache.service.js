@@ -7,7 +7,7 @@ let redisErrorLogged = false;
 const client = createClient({
   url: redisUrl,
   socket: {
-    reconnectStrategy: false // Do not endlessly try to reconnect if Redis is down
+    reconnectStrategy: false
   }
 });
 
@@ -19,14 +19,13 @@ client.on('error', (err) => {
 });
 client.on('connect', () => console.log('Redis Client Connected'));
 
-// Only attempt connection once and handle failures gracefully
 if (!client.isOpen) {
   client.connect().catch((err) => {
     console.log('Failed to connect to Redis. Caching is disabled.');
   });
 }
 
-const DEFAULT_TTL = 300; // 5 minutes
+const DEFAULT_TTL = 300;
 
 class CacheService {
   async set(key, data, ttl = DEFAULT_TTL) {

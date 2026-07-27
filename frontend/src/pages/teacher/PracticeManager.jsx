@@ -52,7 +52,7 @@ const PracticeManagerList = () => {
         </div>
       )}
 
-      {/* Header */}
+      {}
       <div className="flex justify-between items-center bg-white p-6 rounded-2xl border shadow-sm">
         <div>
           <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-3">
@@ -69,7 +69,7 @@ const PracticeManagerList = () => {
         </button>
       </div>
 
-      {/* Sheets List */}
+      {}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
           <div className="col-span-full py-12 text-center text-gray-400 font-bold uppercase tracking-widest">Loading...</div>

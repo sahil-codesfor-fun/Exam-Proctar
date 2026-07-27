@@ -12,15 +12,12 @@ const StudentsList = ({ apiEndpoint }) => {
   const [toastState, setToast] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
 
-  // Student Drawer
   const [drawerStudent, setDrawerStudent] = useState(null);
   const [studentLoginHistory, setStudentLoginHistory] = useState([]);
   const [studentActivity, setStudentActivity] = useState([]);
 
-  // Dashboard Stats
   const [stats, setStats] = useState({ total: 0, active: 0, suspended: 0, loggedInToday: 0 });
 
-  // Generated Creds (for password reset)
   const [generatedCreds, setGeneratedCreds] = useState(null);
 
   useEffect(() => {
@@ -33,7 +30,6 @@ const StudentsList = ({ apiEndpoint }) => {
       const res = await api.get(`${apiEndpoint}?search=${search}`);
       setStudents(res.data.data);
 
-      // Compute local stats
       const active = res.data.data.filter(s => s.status === 'ACTIVE' || s.isActive).length;
       const suspended = res.data.data.filter(s => s.status === 'DISABLED' || !s.isActive).length;
       setStats({
@@ -161,7 +157,7 @@ const StudentsList = ({ apiEndpoint }) => {
         </div>
       </div>
 
-      {/* Stats Summary */}
+      {}
       <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 px-6">
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
           <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Students</p><p className="text-2xl font-black text-gray-900">{stats.total}</p></div>
@@ -270,7 +266,7 @@ const StudentsList = ({ apiEndpoint }) => {
         </div>
       </div>
 
-      {/* Generated Credentials Modal */}
+      {}
       {generatedCreds && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-gray-100 text-center animate-in zoom-in-95 duration-200">
@@ -296,7 +292,7 @@ const StudentsList = ({ apiEndpoint }) => {
         </div>
       )}
 
-      {/* Student Details Drawer */}
+      {}
       {drawerStudent && (
         <div className="fixed inset-0 z-[300] bg-gray-900/20 backdrop-blur-sm flex justify-end animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-md h-full shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-300">
@@ -306,7 +302,7 @@ const StudentsList = ({ apiEndpoint }) => {
             </div>
             
             <div className="p-6 space-y-8">
-              {/* Profile Header */}
+              {}
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-2xl border border-blue-100 uppercase shadow-sm">
                   {drawerStudent.name?.[0]}
@@ -321,7 +317,7 @@ const StudentsList = ({ apiEndpoint }) => {
                 </div>
               </div>
 
-              {/* Info Grid */}
+              {}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
                   <div className="flex items-center gap-1.5 text-gray-400 mb-1"><Mail className="w-3.5 h-3.5"/><span className="text-[10px] font-bold uppercase tracking-widest">Email</span></div>
@@ -349,7 +345,7 @@ const StudentsList = ({ apiEndpoint }) => {
                 </div>
               </div>
 
-              {/* Exam Stats */}
+              {}
               <div>
                 <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3 flex items-center gap-2"><Activity className="w-4 h-4 text-blue-500"/> Exam Statistics</h4>
                 <div className="flex gap-4">
@@ -364,7 +360,7 @@ const StudentsList = ({ apiEndpoint }) => {
                 </div>
               </div>
 
-              {/* Login History Timeline */}
+              {}
               <div>
                 <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3 flex items-center gap-2"><Clock className="w-4 h-4 text-blue-500"/> Recent Logins</h4>
                 <div className="space-y-3">
@@ -387,7 +383,7 @@ const StudentsList = ({ apiEndpoint }) => {
                 </div>
               </div>
 
-              {/* Activity Timeline */}
+              {}
               <div>
                 <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3 flex items-center gap-2"><Activity className="w-4 h-4 text-purple-500"/> Activity Timeline</h4>
                 <div className="space-y-3">

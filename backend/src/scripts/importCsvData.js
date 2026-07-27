@@ -1,11 +1,4 @@
-/**
- * CSV Data Import Script
- * 
- * Reads all the CSV files from the data folder and imports them into the
- * Prisma database as HubCourse -> HubModule -> Question/HubArticle.
- * 
- * Usage: node src/scripts/importCsvData.js
- */
+
 
 import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
@@ -44,7 +37,7 @@ const COURSES = [
     title: 'C Programming',
     questionsFile: 'C Programming.csv',
     articlesFile: 'C Programming Articles.csv',
-    hasCategory: false, // No category column
+    hasCategory: false,
   },
 ];
 
@@ -67,7 +60,7 @@ function readCsv(filePath) {
 // ── Sanitize ────────────────────────────────────────────────────
 function sanitize(val) {
   if (!val || val === 'undefined' || val === 'null' || val === 'NaN') return null;
-  return String(val).trim().substring(0, 65000); // Prevent overflow
+  return String(val).trim().substring(0, 65000);
 }
 
 function sanitizeLong(val) {
@@ -84,10 +77,8 @@ function parseDifficulty(val) {
 function parseCompanyTags(val) {
   if (!val || val.trim() === '' || val.trim() === '[]') return null;
   try {
-    // Already JSON?
     return JSON.parse(val);
   } catch {
-    // Comma-separated string like "TCS, TCS"
     const tags = val.split(',').map(t => t.trim()).filter(Boolean);
     return tags.length > 0 ? [...new Set(tags)] : null;
   }
@@ -111,7 +102,6 @@ async function importQuestions(courseTitle, filePath, hasCategory, moduleMap) {
       continue;
     }
 
-    // Skip duplicates by legacy CSV _id
     if (legacyId) {
       const existing = await prisma.question.findUnique({ where: { legacyImportId: legacyId } });
       if (existing) {
@@ -120,7 +110,6 @@ async function importQuestions(courseTitle, filePath, hasCategory, moduleMap) {
       }
     }
 
-    // Determine which module this question belongs to
     const category = hasCategory ? sanitize(row.category) : null;
     const moduleTitle = category || 'All Questions';
     const moduleId = moduleMap[moduleTitle];
@@ -153,13 +142,11 @@ async function importQuestions(courseTitle, filePath, hasCategory, moduleMap) {
           tagsInfo: sanitize(row.tagsInfo),
           companyTags: parseCompanyTags(row.companies),
 
-          // Solution code
           solutionJava: sanitizeLong(row.java_editor_data_java_code),
           solutionPython: sanitizeLong(row.python_editor_data_python_code),
           solutionC: sanitizeLong(row.c_editor_data_c_code),
           solutionCpp: sanitizeLong(row.cpp_editor_data_cpp_code),
 
-          // Stub code
           stubJava: sanitizeLong(row.java_stub_editor_data_java_stub_code),
           stubPython: sanitizeLong(row.python_stub_editor_data_python_stub_code),
           stubC: sanitizeLong(row.c_stub_editor_data_c_stub_code),
@@ -167,17 +154,14 @@ async function importQuestions(courseTitle, filePath, hasCategory, moduleMap) {
         },
       });
 
-      // Import test cases
       const testInputs = (row.testcase_input || '').split(', ').filter(Boolean);
       const testOutputs = (row.testcase_output || '').split(', ').filter(Boolean);
       const hiddenInputs = (row.hidden_testcase_input || '').split(', ').filter(Boolean);
       const hiddenOutputs = (row.hidden_testcase_output || '').split(', ').filter(Boolean);
 
-      // We already created the question — find it to get the ID
       if (legacyId) {
         const q = await prisma.question.findUnique({ where: { legacyImportId: legacyId } });
         if (q) {
-          // Visible test cases
           for (let i = 0; i < Math.min(testInputs.length, testOutputs.length); i++) {
             await prisma.testCase.create({
               data: {
@@ -189,7 +173,6 @@ async function importQuestions(courseTitle, filePath, hasCategory, moduleMap) {
               },
             });
           }
-          // Hidden test cases
           for (let i = 0; i < Math.min(hiddenInputs.length, hiddenOutputs.length); i++) {
             await prisma.testCase.create({
               data: {
@@ -233,7 +216,6 @@ async function importArticles(filePath, moduleId) {
       continue;
     }
 
-    // Skip duplicates by legacy CSV _id
     if (legacyId) {
       const existing = await prisma.hubArticle.findUnique({ where: { legacyImportId: legacyId } });
       if (existing) {
@@ -274,7 +256,6 @@ async function main() {
     console.log(`📚 Processing Course: ${courseDef.title}`);
     console.log(`${'═'.repeat(60)}`);
 
-    // 1. Create the HubCourse (or find existing)
     let course = await prisma.hubCourse.findFirst({ where: { title: courseDef.title } });
     if (!course) {
       course = await prisma.hubCourse.create({
@@ -288,11 +269,9 @@ async function main() {
       console.log(`  ♻️  Course already exists: ${course.title} (${course.id})`);
     }
 
-    // 2. Create Modules
-    const moduleMap = {}; // { "Trainer": moduleId, "Practice": moduleId, ... }
+    const moduleMap = {};
 
     if (courseDef.hasCategory) {
-      // Create Trainer, Practice, Lab modules
       const categories = ['Trainer', 'Practice', 'Lab'];
       for (let i = 0; i < categories.length; i++) {
         const cat = categories[i];
@@ -310,7 +289,6 @@ async function main() {
         moduleMap[cat] = mod.id;
       }
     } else {
-      // Single module for C Programming
       let mod = await prisma.hubModule.findFirst({
         where: { courseId: course.id, title: 'All Questions' },
       });
@@ -325,7 +303,6 @@ async function main() {
       moduleMap['All Questions'] = mod.id;
     }
 
-    // Articles module
     let articlesMod = await prisma.hubModule.findFirst({
       where: { courseId: course.id, title: 'Articles' },
     });
@@ -338,12 +315,10 @@ async function main() {
       console.log(`  ♻️  Module exists: Articles`);
     }
 
-    // 3. Import Questions
     const qFile = path.join(DATA_DIR, courseDef.questionsFile);
     const qCount = await importQuestions(courseDef.title, qFile, courseDef.hasCategory, moduleMap);
     totalQuestions += qCount;
 
-    // 4. Import Articles
     const aFile = path.join(DATA_DIR, courseDef.articlesFile);
     const aCount = await importArticles(aFile, articlesMod.id);
     totalArticles += aCount;

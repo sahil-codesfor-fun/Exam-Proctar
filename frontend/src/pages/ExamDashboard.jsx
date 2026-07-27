@@ -13,7 +13,7 @@ export const ExamDashboard = () => {
           <p className="text-gray-500 text-sm font-medium">Candidate ID: BTECH-CSE-2026</p>
         </div>
         
-        {/* Focus Status Indicator */}
+        {}
         <div className={`px-5 py-2.5 rounded-xl font-bold text-sm border flex items-center gap-2 shadow-sm ${
           isFocused 
             ? 'bg-green-50 border-green-200 text-green-700' 
@@ -25,7 +25,7 @@ export const ExamDashboard = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Left Column: The Exam Area */}
+        {}
         <div className="lg:col-span-2 bg-white rounded-2xl p-8 border border-gray-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)]">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-bold text-gray-900">Question 1</h3>
@@ -48,11 +48,11 @@ export const ExamDashboard = () => {
           </div>
         </div>
 
-        {/* Right Column: Proctoring Sidebar */}
+        {}
         <div className="flex flex-col gap-6">
           
 
-          {/* Telemetry Box */}
+          {}
           <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)]">
             <h3 className="text-gray-900 font-bold mb-4 text-sm uppercase tracking-wider">Integrity Telemetry</h3>
             

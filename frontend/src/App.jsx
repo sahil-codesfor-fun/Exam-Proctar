@@ -40,8 +40,6 @@ const AdminStudents = lazy(() => import('./pages/admin/AdminStudents'));
 const CoursesHub = lazy(() => import('./pages/admin/CoursesHub'));
 
 // ── Protected Route wrapper ──────────────────────────────────────
-// Supports a `redirectTo` prop so superadmin routes redirect to their
-// own login page instead of the landing page.
 const ProtectedRoute = ({ children, roles, redirectTo = '/' }) => {
   const { isAuthenticated, user, loading } = useAuth();
 

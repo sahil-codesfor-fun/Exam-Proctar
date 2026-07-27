@@ -1,4 +1,4 @@
-// In-memory placeholder store for settings
+
 const settingsStore = {
   university: {
     name: 'Nexus University',
@@ -11,12 +11,12 @@ const settingsStore = {
   },
   security: {
     passwordPolicy: 'Strong',
-    sessionTimeout: 30, // minutes
+    sessionTimeout: 30,
     maxLoginAttempts: 5,
     twoFactorAuth: false,
   },
   examination: {
-    defaultDuration: 120, // minutes
+    defaultDuration: 120,
     autoSubmit: true,
     fullscreenEnforcement: true,
     webcamRequirement: true,
@@ -35,7 +35,7 @@ const settingsStore = {
   },
   appearance: {
     themeMode: 'light',
-    primaryColor: '#10B981', // emerald-500
+    primaryColor: '#10B981',
     layout: 'fluid',
     compactMode: false,
   }
@@ -48,7 +48,6 @@ export const getSettings = (req, res) => {
     return res.json({ success: true, data: settingsStore[module] });
   }
 
-  // If no module specified or not found in our dummy store, return all
   res.json({ success: true, data: settingsStore });
 };
 

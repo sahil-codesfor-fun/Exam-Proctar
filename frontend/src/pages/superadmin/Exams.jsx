@@ -40,8 +40,6 @@ const Exams = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Mock data for initial render to test UI structure until API connects cleanly
-      // TODO: Replace with actual API call once verified
       const token = localStorage.getItem('token');
       const [examsRes, deptsRes] = await Promise.all([
         api.get('/superadmin/exams'),
@@ -65,12 +63,11 @@ const Exams = () => {
     const draft = data.filter(e => e.status === 'draft').length;
     const suspended = data.filter(e => e.status === 'suspended').length;
     
-    // Simplistic calculation based on available data
     const totalStudents = data.reduce((acc, exam) => acc + (exam._count?.assignments || 0), 0);
     
     setStats({
       total, active, upcoming, completed, draft, suspended, totalStudents,
-      avgCompletion: 92 // Mocking avg completion for now
+      avgCompletion: 92
     });
   };
 
@@ -127,7 +124,7 @@ const Exams = () => {
         </button>
       </div>
 
-      {/* Stats Cards */}
+      {}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
         {[
           { label: 'Total Exams', value: stats.total, icon: FileText, color: 'bg-rose-100 text-rose-600' },
@@ -150,7 +147,7 @@ const Exams = () => {
         ))}
       </div>
 
-      {/* Filters Bar */}
+      {}
       <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mb-6 flex flex-col md:flex-row gap-4 justify-between items-center">
         <div className="relative w-full md:w-96">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
@@ -202,7 +199,7 @@ const Exams = () => {
         </div>
       </div>
 
-      {/* Data Table */}
+      {}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -287,7 +284,7 @@ const Exams = () => {
             </tbody>
           </table>
         </div>
-        {/* Simple Pagination Placeholder */}
+        {}
         <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between bg-gray-50 ">
           <div className="text-sm text-gray-500">
             Showing <span className="font-medium">{filteredExams.length}</span> results

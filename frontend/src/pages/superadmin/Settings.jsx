@@ -101,7 +101,7 @@ const Settings = () => {
 
   return (
     <div className="font-sans relative space-y-6">
-      {/* Toast Notification */}
+      {}
       {toast && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[600] animate-in slide-in-from-bottom-10 fade-in duration-300">
           <div className={`px-6 py-3.5 rounded-full shadow-2xl border flex items-center gap-3 text-sm font-bold ${
@@ -115,7 +115,7 @@ const Settings = () => {
         </div>
       )}
 
-      {/* Header */}
+      {}
       <div>
         <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
           {activeModule && (
@@ -135,7 +135,7 @@ const Settings = () => {
         </p>
       </div>
 
-      {/* Content Area */}
+      {}
       {!activeModule ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {SETTINGS_MODULES.map((mod) => (

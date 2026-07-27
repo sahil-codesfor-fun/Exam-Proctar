@@ -9,7 +9,6 @@ export const useVisibility = () => {
         setIsVisible(true);
       } else {
         setIsVisible(false);
-        // Candidate minimized the browser or switched virtual desktops!
       }
     };
 

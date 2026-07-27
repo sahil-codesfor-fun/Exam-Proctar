@@ -10,11 +10,9 @@ const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379'
 export const platformSyncQueue = new Queue('platformSyncQueue', { connection });
 
 export const initMasterCron = () => {
-  // Run every hour at the top of the hour
   cron.schedule('30 00 * * 3 ', async () => {
     console.log('⏰ Starting Master Piggyback Cron Job...');
     try {
-      // Fetch oldest 10 outdated profiles
       const usersToSync = await prisma.user.findMany({
         where: {
           OR: [

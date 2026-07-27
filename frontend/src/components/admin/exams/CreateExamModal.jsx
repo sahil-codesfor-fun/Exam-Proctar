@@ -21,12 +21,10 @@ const CreateExamModal = ({ exam, onClose, onSave }) => {
     examType: 'regular',
     difficulty: 'medium',
     instructions: '',
-    // Schedule
     startDate: '',
     endDate: '',
     durationMinutes: 60,
     timeZone: 'UTC',
-    // Settings
     randomizeQuestions: false,
     randomizeOptions: false,
     totalMarks: 0,
@@ -34,7 +32,6 @@ const CreateExamModal = ({ exam, onClose, onSave }) => {
     negativeMarking: false,
     autoSubmit: true,
     calculator: false,
-    // Proctoring
     browserLock: true,
     fullscreenRequired: true,
     aiFaceDetection: true,
@@ -44,7 +41,6 @@ const CreateExamModal = ({ exam, onClose, onSave }) => {
     violationSeverityLow: 3,
     violationSeverityHigh: 1,
     autoTerminateViolations: 5,
-    // Security
     examPassword: '',
     ipRestriction: '',
     deviceRestriction: false,
@@ -53,7 +49,6 @@ const CreateExamModal = ({ exam, onClose, onSave }) => {
   useEffect(() => {
     fetchMetadata();
     if (exam) {
-      // Pre-fill logic if editing
       setFormData(prev => ({
         ...prev,
         ...exam,
@@ -63,7 +58,6 @@ const CreateExamModal = ({ exam, onClose, onSave }) => {
         ...exam.settings
       }));
     } else {
-      // Auto-generate a dummy exam code
       setFormData(prev => ({ ...prev, examCode: `EXAM-${Math.floor(1000 + Math.random() * 9000)}` }));
     }
   }, [exam]);
@@ -146,7 +140,7 @@ const CreateExamModal = ({ exam, onClose, onSave }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-white w-full max-w-5xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
-        {/* Header */}
+        {}
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 ">
           <h2 className="text-xl font-bold text-gray-900 ">
             {exam ? 'Edit Exam' : 'Create New Exam'}
@@ -157,7 +151,7 @@ const CreateExamModal = ({ exam, onClose, onSave }) => {
         </div>
 
         <div className="flex flex-1 overflow-hidden">
-          {/* Sidebar Tabs */}
+          {}
           <div className="w-64 border-r border-gray-200 bg-gray-50/50 p-4 space-y-2 overflow-y-auto">
             {Tabs.map(tab => (
               <button
@@ -176,11 +170,11 @@ const CreateExamModal = ({ exam, onClose, onSave }) => {
             ))}
           </div>
 
-          {/* Form Content */}
+          {}
           <div className="flex-1 p-6 overflow-y-auto">
             <form id="exam-form" onSubmit={handleSubmit} className="space-y-6">
               
-              {/* Basic Info Tab */}
+              {}
               <div className={activeTab === 'basic' ? 'block' : 'hidden'}>
                 <div className="space-y-5">
                   <div className="grid grid-cols-2 gap-5">
@@ -228,7 +222,7 @@ const CreateExamModal = ({ exam, onClose, onSave }) => {
                 </div>
               </div>
 
-              {/* Exam Settings Tab */}
+              {}
               <div className={activeTab === 'settings' ? 'block' : 'hidden'}>
                 <div className="space-y-6">
                   <div className="grid grid-cols-2 gap-x-8 gap-y-4">
@@ -267,7 +261,7 @@ const CreateExamModal = ({ exam, onClose, onSave }) => {
                 </div>
               </div>
 
-              {/* Proctoring Tab */}
+              {}
               <div className={activeTab === 'proctoring' ? 'block' : 'hidden'}>
                 <div className="bg-blue-50 p-4 rounded-lg mb-6 text-sm text-blue-800 border border-blue-100 ">
                   Configure AI-based proctoring mechanisms. High severity violations trigger immediate actions.
@@ -316,7 +310,7 @@ const CreateExamModal = ({ exam, onClose, onSave }) => {
                 </div>
               </div>
 
-              {/* Security Tab */}
+              {}
               <div className={activeTab === 'security' ? 'block' : 'hidden'}>
                 <div className="space-y-6">
                   <div>
@@ -342,7 +336,7 @@ const CreateExamModal = ({ exam, onClose, onSave }) => {
           </div>
         </div>
 
-        {/* Footer */}
+        {}
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
           <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 :bg-slate-700 transition-colors">
             Cancel

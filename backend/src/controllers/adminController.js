@@ -35,7 +35,6 @@ export const getFacultyList = async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    // Map 'id' to '_id' so the React frontend Admin Dashboard still works perfectly!
     const formattedFaculty = faculty.map(f => ({ ...f, _id: f.id }));
     res.json({ success: true, data: formattedFaculty });
   } catch (err) {

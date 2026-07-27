@@ -8,32 +8,26 @@ import {
 } from 'lucide-react';
 
 const CoursesHub = () => {
-  // Data
   const [courses, setCourses] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Upload form
   const [articlesFile, setArticlesFile] = useState(null);
   const [questionsFile, setQuestionsFile] = useState(null);
   const [courseTitle, setCourseTitle] = useState('');
   const [uploading, setUploading] = useState(false);
 
-  // Create forms
   const [showNewCourse, setShowNewCourse] = useState(false);
   const [newCourseTitle, setNewCourseTitle] = useState('');
   const [newCourseDesc, setNewCourseDesc] = useState('');
-  const [showNewModule, setShowNewModule] = useState(null); // courseId
+  const [showNewModule, setShowNewModule] = useState(null);
   const [newModuleTitle, setNewModuleTitle] = useState('');
 
-  // Assign
   const [assigningCourse, setAssigningCourse] = useState(null);
   const [selectedDept, setSelectedDept] = useState('');
 
-  // Expandable
   const [expandedCourse, setExpandedCourse] = useState(null);
 
-  // Status
   const [status, setStatus] = useState({ type: '', message: '' });
 
   const loadData = async () => {
@@ -42,7 +36,6 @@ const CoursesHub = () => {
       const coursesData = await fetchAllCourses();
       setCourses(coursesData || []);
 
-      // Fetch departments for assignment
       try {
         const deptRes = await api.get('/metadata/departments');
         setDepartments(deptRes.data?.departments || deptRes.data?.data || deptRes.data || []);
@@ -141,7 +134,7 @@ const CoursesHub = () => {
 
   return (
     <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-8">
-      {/* Header */}
+      {}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-3">
@@ -157,7 +150,7 @@ const CoursesHub = () => {
         </button>
       </div>
 
-      {/* Status Toast */}
+      {}
       {status.message && (
         <div className={`p-4 rounded-xl flex items-center gap-3 ${status.type === 'error' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
           {status.type === 'error' ? <AlertCircle size={20} /> : <CheckCircle size={20} />}
@@ -166,7 +159,7 @@ const CoursesHub = () => {
         </div>
       )}
 
-      {/* Create Course Form */}
+      {}
       {showNewCourse && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
           <h3 className="font-semibold text-slate-700">Create New Course</h3>
@@ -181,7 +174,7 @@ const CoursesHub = () => {
         </div>
       )}
 
-      {/* Course Cards */}
+      {}
       <div className="space-y-4">
         {courses.length === 0 ? (
           <div className="bg-slate-50 p-10 rounded-2xl border border-slate-200 text-center">
@@ -197,7 +190,7 @@ const CoursesHub = () => {
 
             return (
               <div key={course.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                {/* Course Header */}
+                {}
                 <div
                   className="p-5 md:p-6 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
                   onClick={() => setExpandedCourse(isExpanded ? null : course.id)}
@@ -240,10 +233,10 @@ const CoursesHub = () => {
                   </div>
                 </div>
 
-                {/* Expanded Details */}
+                {}
                 {isExpanded && (
                   <div className="border-t border-slate-100 p-5 md:p-6 space-y-4 bg-slate-50/50">
-                    {/* Assign to Department */}
+                    {}
                     {!course.departmentId && (
                       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
                         <div className="flex items-center gap-2 text-amber-700 text-sm font-medium">
@@ -259,7 +252,7 @@ const CoursesHub = () => {
                       </div>
                     )}
 
-                    {/* Modules List */}
+                    {}
                     <div className="space-y-2">
                       <h4 className="text-sm font-bold text-slate-600 uppercase tracking-wider">Modules</h4>
                       {course.modules?.map((mod) => (
@@ -288,7 +281,7 @@ const CoursesHub = () => {
                         </div>
                       ))}
 
-                      {/* Add Module */}
+                      {}
                       {showNewModule === course.id ? (
                         <div className="flex items-center gap-3 mt-2">
                           <input value={newModuleTitle} onChange={(e) => setNewModuleTitle(e.target.value)} placeholder="New Module Title" className="flex-1 px-4 py-2.5 rounded-xl border border-slate-300 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
