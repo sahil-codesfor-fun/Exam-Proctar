@@ -155,8 +155,7 @@ export const TeacherCodingProgress = () => {
 
     setIsSyncingAll(true);
     try {
-      // ⚠️ Note to Jefe: Make sure you create this backend route to trigger a mass sync if you haven't!
-      await api.post('/integrations/sync-all').catch(() => console.log('Mass sync route not found, refreshing data instead.'));
+      await api.post('/platforms/faculty/sync-all').catch(() => console.log('Mass sync route not found, refreshing data instead.'));
       
       localStorage.setItem('global_sync_time', Date.now().toString());
       await fetchAllStats();
@@ -392,7 +391,7 @@ export const TeacherCodingProgress = () => {
                             </div>
                             <div className="flex flex-col">
                               <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">{pInfo.name}</span>
-                              {m.platform !== 'CODECHEF' && (
+                              {m.platform.toUpperCase() !== 'CODECHEF' && (
                                 <span className="text-[9px] font-bold text-gray-400 uppercase">
                                   #{m.ranking?.toLocaleString() || '0'} Rank
                                 </span>
@@ -408,9 +407,9 @@ export const TeacherCodingProgress = () => {
 
                           {}
                           <div className="w-1/4 flex items-center gap-3 text-xs font-black">
-                            {m.platform === 'HACKERRANK' ? (
+                            {m.platform.toUpperCase() === 'HACKERRANK' ? (
                               <span className="text-gray-400 font-medium">Difficulty breakdown N/A</span>
-                            ) : m.platform === 'CODECHEF' ? (
+                            ) : m.platform.toUpperCase() === 'CODECHEF' ? (
                               <span className="text-[#FFC01E] flex items-center gap-1">
                                 {m.ranking || 0} <span className="text-xl leading-none">★</span>
                               </span>

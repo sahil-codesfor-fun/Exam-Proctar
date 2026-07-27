@@ -238,3 +238,38 @@ export const getFacultyStudentMetrics = async (req, res) => {
     return res.status(500).json({ error: 'Failed to fetch student metrics.' });
   }
 };
+
+export const syncAllFacultyStudents = async (req, res) => {
+  try {
+    const departmentId = req.user?.departmentId;
+    if (!departmentId) {
+      return res.status(403).json({ error: 'You are not assigned to a department.' });
+    }
+
+    const students = await prisma.user.findMany({
+      where: { 
+        departmentId, 
+        role: 'student',
+        OR: [
+          { leetcodeUsername: { not: null } },
+          { hackerrankUsername: { not: null } },
+          { codechefUsername: { not: null } }
+        ]
+      },
+      select: { id: true }
+    });
+
+    for (const student of students) {
+      await platformSyncQueue.add(
+        'syncUser', 
+        { userId: student.id }, 
+        { priority: 2, jobId: `sync_${student.id}_mass`, removeOnComplete: true }
+      );
+    }
+
+    return res.status(200).json({ success: true, message: `Queued sync for ${students.length} students.` });
+  } catch (error) {
+    console.error('Error queuing mass platform sync:', error);
+    return res.status(500).json({ error: 'Failed to queue mass sync.' });
+  }
+};

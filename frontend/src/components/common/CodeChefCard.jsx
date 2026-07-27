@@ -102,7 +102,7 @@ const CodeChefCard = ({
              <div className="flex justify-between items-center bg-gray-50 p-4 rounded-2xl border border-gray-100 mt-4">
                 <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Star Rating</span>
                 <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs font-black uppercase tracking-widest rounded-full border border-yellow-200">
-                  {stats?.codechefStars || 1}★ Rating
+                  {stats?.codechefStars || 0}★ Rating
                 </span>
              </div>
           </div>
