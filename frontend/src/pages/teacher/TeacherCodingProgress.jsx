@@ -29,6 +29,18 @@ const getPlatformStyling = (platformString) => {
       hard: 'text-[#EF4743]'
     };
   }
+
+  if (platform === 'CODECHEF') {
+    return {
+      name: 'CodeChef',
+      icon: <Code2 size={14} strokeWidth={2.5} />,
+      bg: 'bg-stone-100',
+      text: 'text-stone-800',
+      easy: 'text-[#00B8A3]',
+      medium: 'text-[#FFC01E]',
+      hard: 'text-[#EF4743]'
+    };
+  }
   
   return {
     name: 'LeetCode',
@@ -57,47 +69,17 @@ export const TeacherCodingProgress = () => {
   const [downloadStep, setDownloadStep] = useState(1);
   const [selectedAcademicCourse, setSelectedAcademicCourse] = useState(null);
   
-  const academicCourses = [...new Set(groupedStudents.map(s => s.user?.course).filter(Boolean))];
-  const PLATFORMS = ['LEETCODE', 'HACKERRANK', 'NEXUS'];
+  const academicCourses = [...new Set(groupedStudents.map(s => s.course).filter(Boolean))];
+  const PLATFORMS = ['LEETCODE', 'HACKERRANK', 'NEXUS', 'CODECHEF'];
 
   const fetchAllStats = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/metrics/all');
+      const res = await api.get('/platforms/faculty/student-metrics');
       
       if (res.data.success) {
-        const rawData = res.data.data || [];
-        const students = res.data.students || [];
-        
-        // 🧠 THE BRAIN: Map over ALL students, attach metrics
-        const grouped = students.reduce((acc, student) => {
-          const sId = student.studentId || student.id;
-          
-          acc[sId] = {
-            user: student,
-            totalSolved: 0,
-            easySolved: 0,
-            mediumSolved: 0,
-            hardSolved: 0,
-            platforms: []
-          };
-          
-          return acc;
-        }, {});
-
-        rawData.forEach(m => {
-          if (!m) return;
-          const sId = m.user?.studentId || m.user?.id || m.id || 'unknown';
-          if (grouped[sId]) {
-            grouped[sId].totalSolved += (m.totalSolved || 0);
-            grouped[sId].easySolved += (m.easySolved || 0);
-            grouped[sId].mediumSolved += (m.mediumSolved || 0);
-            grouped[sId].hardSolved += (m.hardSolved || 0);
-            grouped[sId].platforms.push(m);
-          }
-        });
-
-        const sortedArray = Object.values(grouped).sort((a, b) => b.totalSolved - a.totalSolved);
+        // Backend now returns an array of students, each with a .platforms array
+        const sortedArray = (res.data.data || []).sort((a, b) => b.totalSolved - a.totalSolved);
         setGroupedStudents(sortedArray);
       } else {
         setError('Failed to gather student metrics.');
@@ -113,7 +95,7 @@ export const TeacherCodingProgress = () => {
   const handleDownloadCSV = (platformId = null) => {
     let targetStudents = groupedStudents;
     if (selectedAcademicCourse) {
-      targetStudents = groupedStudents.filter(s => s.user?.course === selectedAcademicCourse);
+      targetStudents = groupedStudents.filter(s => s.course === selectedAcademicCourse);
     }
 
     if (targetStudents.length === 0) return;
@@ -133,7 +115,7 @@ export const TeacherCodingProgress = () => {
         return `${pData.easySolved || 0},${pData.mediumSolved || 0},${pData.hardSolved || 0},${pData.totalSolved || 0}`;
       }).join(',');
       
-      return `"${student.user?.studentId || ''}","${student.user?.name || ''}","${student.user?.email || ''}","${student.user?.course || ''}",${student.totalSolved || 0},${platformData}`;
+      return `"${student.studentId || ''}","${student.name || ''}","${student.email || ''}","${student.course || ''}",${student.totalSolved || 0},${platformData}`;
     });
 
     const csvContent = header + rows.join('\n');
@@ -347,11 +329,11 @@ export const TeacherCodingProgress = () => {
         <div className="divide-y divide-gray-50">
           {groupedStudents
             .filter(student => 
-              (student.user?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-              (student.user?.studentId || '').toLowerCase().includes(searchQuery.toLowerCase())
+              (student.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+              (student.studentId || '').toLowerCase().includes(searchQuery.toLowerCase())
             )
             .map((student) => {
-            const sId = student.user?.studentId || 'unknown';
+            const sId = student.studentId || student.id || 'unknown';
             const isExpanded = expandedRows[sId];
 
             return (
@@ -364,10 +346,10 @@ export const TeacherCodingProgress = () => {
                   {}
                   <div className="w-1/3 pr-4">
                     <h4 className="text-sm font-black text-gray-900 group-hover:text-[#1A5F53] transition-colors truncate">
-                      {student.user?.name || 'Unknown Student'}
+                      {student.name || 'Unknown Student'}
                     </h4>
                     <p className="text-[10px] text-gray-400 font-bold mt-0.5 font-mono uppercase tracking-widest">
-                      {student.user?.studentId || 'N/A'} • {student.platforms.length} Platforms
+                      {student.studentId || 'N/A'} • {student.platforms.length} Platforms
                     </p>
                   </div>
 
@@ -379,11 +361,11 @@ export const TeacherCodingProgress = () => {
 
                   {}
                   <div className="w-1/4 flex items-center gap-4 text-sm font-black">
-                    <span className="text-[#00B8A3]">{student.easySolved}</span>
+                    <span className="text-[#00B8A3]">{student.platforms.reduce((acc, p) => acc + p.easySolved, 0)}</span>
                     <span className="text-gray-200">/</span>
-                    <span className="text-[#FFC01E]">{student.mediumSolved}</span>
+                    <span className="text-[#FFC01E]">{student.platforms.reduce((acc, p) => acc + p.mediumSolved, 0)}</span>
                     <span className="text-gray-200">/</span>
-                    <span className="text-[#EF4743]">{student.hardSolved}</span>
+                    <span className="text-[#EF4743]">{student.platforms.reduce((acc, p) => acc + p.hardSolved, 0)}</span>
                   </div>
 
                   {}
