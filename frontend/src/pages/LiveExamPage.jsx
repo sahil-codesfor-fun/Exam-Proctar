@@ -51,6 +51,7 @@ export const LiveExamPage = () => {
 
   const [toast, setToast] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   const [activeDraw, setActiveDraw] = useState(null);
   const [hoveredRight, setHoveredRight] = useState(null);
@@ -1026,8 +1027,27 @@ export const LiveExamPage = () => {
             <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-4">Final Submission</h3>
             <p className="text-gray-500 font-medium leading-relaxed mb-10 px-4">{confirmModal.message}</p>
             <div className="flex gap-4">
-              <button onClick={() => setConfirmModal(null)} className="flex-1 px-6 py-4 bg-gray-100 hover:bg-gray-200 text-gray-600 font-black text-[10px] uppercase tracking-widest rounded-2xl transition-all">Go Back</button>
-              <button onClick={() => { confirmModal.onConfirm(); setConfirmModal(null); }} className="flex-1 px-6 py-4 bg-[#1A5F53] hover:bg-[#134d42] text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-lg shadow-emerald-900/20 transition-all">Submit Now</button>
+              <button disabled={isConfirming} onClick={() => setConfirmModal(null)} className="flex-1 px-6 py-4 bg-gray-100 hover:bg-gray-200 text-gray-600 font-black text-[10px] uppercase tracking-widest rounded-2xl transition-all disabled:opacity-50">Go Back</button>
+              <button 
+                disabled={isConfirming}
+                onClick={async () => { 
+                  setIsConfirming(true);
+                  try {
+                    await confirmModal.onConfirm(); 
+                  } finally {
+                    setIsConfirming(false);
+                    setConfirmModal(null);
+                  }
+                }} 
+                className="flex-1 px-6 py-4 bg-[#1A5F53] hover:bg-[#134d42] text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-lg shadow-emerald-900/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isConfirming ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Processing...
+                  </>
+                ) : 'Submit Now'}
+              </button>
             </div>
           </div>
         </div>

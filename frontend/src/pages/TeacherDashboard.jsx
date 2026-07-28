@@ -37,6 +37,7 @@ export const TeacherDashboard = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [toast, setToast] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null); 
+  const [isConfirming, setIsConfirming] = useState(false);
   const [editingId, setEditingId] = useState(null);
   
   const fileInputRef = useRef(null);
@@ -595,8 +596,27 @@ export const TeacherDashboard = () => {
             <h3 className="text-xl font-black text-gray-900 tracking-tight mb-2">Confirm Action</h3>
             <p className="text-gray-500 text-sm font-medium leading-relaxed mb-8">{confirmModal.message}</p>
             <div className="flex gap-3">
-              <button onClick={() => setConfirmModal(null)} className="flex-1 px-4 py-3.5 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold text-xs uppercase tracking-widest rounded-xl transition-all">Cancel</button>
-              <button onClick={() => { confirmModal.onConfirm(); setConfirmModal(null); }} className="flex-1 px-4 py-3.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95">Confirm</button>
+              <button disabled={isConfirming} onClick={() => setConfirmModal(null)} className="flex-1 px-4 py-3.5 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold text-xs uppercase tracking-widest rounded-xl transition-all disabled:opacity-50">Cancel</button>
+              <button 
+                disabled={isConfirming}
+                onClick={async () => { 
+                  setIsConfirming(true);
+                  try {
+                    await confirmModal.onConfirm(); 
+                  } finally {
+                    setIsConfirming(false);
+                    setConfirmModal(null);
+                  }
+                }} 
+                className="flex-1 px-4 py-3.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isConfirming ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Processing...
+                  </>
+                ) : 'Confirm'}
+              </button>
             </div>
           </div>
         </div>
