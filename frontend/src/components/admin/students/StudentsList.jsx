@@ -11,6 +11,7 @@ const StudentsList = ({ apiEndpoint }) => {
 
   const [toastState, setToast] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   const [drawerStudent, setDrawerStudent] = useState(null);
   const [studentLoginHistory, setStudentLoginHistory] = useState([]);
@@ -77,7 +78,7 @@ const StudentsList = ({ apiEndpoint }) => {
           message: 'Password reset successful!'
         });
         showToast('Password reset successful', 'success');
-      } catch(err) {
+      } catch (err) {
         showToast('Failed to reset password', 'error');
       }
     });
@@ -125,10 +126,9 @@ const StudentsList = ({ apiEndpoint }) => {
     <div className="font-sans relative">
       {toastState && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[600] animate-in slide-in-from-bottom-10 fade-in duration-300">
-          <div className={`px-6 py-3.5 rounded-full shadow-2xl border flex items-center gap-3 text-sm font-bold ${
-            toastState.type === 'error' ? 'bg-red-600 text-white border-red-500 shadow-red-600/20' : 
-            'bg-gray-900 text-white border-gray-700 shadow-xl'
-          }`}>
+          <div className={`px-6 py-3.5 rounded-full shadow-2xl border flex items-center gap-3 text-sm font-bold ${toastState.type === 'error' ? 'bg-red-600 text-white border-red-500 shadow-red-600/20' :
+              'bg-gray-900 text-white border-gray-700 shadow-xl'
+            }`}>
             <span className="text-lg">{toastState.type === 'error' ? '⚠️' : '✨'}</span>
             <span className="tracking-wide pr-2">{toastState.message}</span>
             <button onClick={() => setToast(null)} className="ml-2 opacity-50 hover:opacity-100 transition-opacity">✕</button>
@@ -143,8 +143,27 @@ const StudentsList = ({ apiEndpoint }) => {
             <h3 className="text-xl font-black text-gray-900 tracking-tight mb-2">Confirm Action</h3>
             <p className="text-gray-500 text-sm font-medium leading-relaxed mb-8">{confirmModal.message}</p>
             <div className="flex gap-3">
-              <button onClick={() => setConfirmModal(null)} className="flex-1 px-4 py-3.5 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold text-xs uppercase tracking-widest rounded-xl transition-all">Cancel</button>
-              <button onClick={() => { confirmModal.onConfirm(); setConfirmModal(null); }} className="flex-1 px-4 py-3.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95">Confirm</button>
+              <button disabled={isConfirming} onClick={() => setConfirmModal(null)} className="flex-1 px-4 py-3.5 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold text-xs uppercase tracking-widest rounded-xl transition-all disabled:opacity-50">Cancel</button>
+              <button 
+                disabled={isConfirming}
+                onClick={async () => { 
+                  setIsConfirming(true);
+                  try {
+                    await confirmModal.onConfirm(); 
+                  } finally {
+                    setIsConfirming(false);
+                    setConfirmModal(null);
+                  }
+                }} 
+                className="flex-1 px-4 py-3.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isConfirming ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Processing...
+                  </>
+                ) : 'Confirm'}
+              </button>
             </div>
           </div>
         </div>
@@ -157,31 +176,31 @@ const StudentsList = ({ apiEndpoint }) => {
         </div>
       </div>
 
-      {}
+      { }
       <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 px-6">
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
           <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Students</p><p className="text-2xl font-black text-gray-900">{stats.total}</p></div>
-          <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center"><UserIcon className="w-5 h-5"/></div>
+          <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center"><UserIcon className="w-5 h-5" /></div>
         </div>
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
           <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Active Students</p><p className="text-2xl font-black text-gray-900">{stats.active}</p></div>
-          <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center"><ShieldCheck className="w-5 h-5"/></div>
+          <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center"><ShieldCheck className="w-5 h-5" /></div>
         </div>
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
           <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Suspended</p><p className="text-2xl font-black text-gray-900">{stats.suspended}</p></div>
-          <div className="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center"><Power className="w-5 h-5"/></div>
+          <div className="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center"><Power className="w-5 h-5" /></div>
         </div>
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
           <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Logged In Today</p><p className="text-2xl font-black text-gray-900">{stats.loggedInToday}</p></div>
-          <div className="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center"><Activity className="w-5 h-5"/></div>
+          <div className="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center"><Activity className="w-5 h-5" /></div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto grid grid-cols-1 gap-8 px-6">
         <div className="bg-white rounded-[1.5rem] border border-gray-100 p-6 shadow-sm flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
-             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><Search className="w-5 h-5"/></span>
-             <input type="text" placeholder="Search by name, ID or email..." value={search} onChange={e => setSearch(e.target.value)}
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><Search className="w-5 h-5" /></span>
+            <input type="text" placeholder="Search by name, ID or email..." value={search} onChange={e => setSearch(e.target.value)}
               className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:bg-white focus:border-blue-400 transition-all text-sm font-medium" />
           </div>
         </div>
@@ -217,8 +236,8 @@ const StudentsList = ({ apiEndpoint }) => {
                       </div>
                     </td>
                     <td className="p-6">
-                       <p className="text-xs font-black text-gray-700 font-mono tracking-tighter">{s.studentId || 'N/A'}</p>
-                       <p className="text-[10px] font-bold text-gray-400 uppercase">{s.course || 'N/A'}{s.section ? ` — Sec ${s.section}` : ''}</p>
+                      <p className="text-xs font-black text-gray-700 font-mono tracking-tighter">{s.studentId || 'N/A'}</p>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase">{s.course || 'N/A'}{s.section ? ` — Sec ${s.section}` : ''}</p>
                     </td>
                     <td className="p-6">
                       <div className="flex gap-3">
@@ -237,26 +256,26 @@ const StudentsList = ({ apiEndpoint }) => {
                         {s.status || (s.isActive ? 'Active' : 'Disabled')}
                       </span>
                       <p className="text-[9px] font-bold text-gray-400 uppercase">
-                         {s.lastLogin ? new Date(s.lastLogin).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Never'}
-                       </p>
+                        {s.lastLogin ? new Date(s.lastLogin).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Never'}
+                      </p>
                     </td>
                     <td className="p-6 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
-                       <button onClick={() => handleToggleStatus(s.id, s.status || (s.isActive ? 'ACTIVE' : 'DISABLED'))} title={s.status === 'ACTIVE' || s.isActive ? 'Disable' : 'Enable'}
+                      <button onClick={() => handleToggleStatus(s.id, s.status || (s.isActive ? 'ACTIVE' : 'DISABLED'))} title={s.status === 'ACTIVE' || s.isActive ? 'Disable' : 'Enable'}
                         className={`p-2 rounded-lg border transition-all ${s.status === 'ACTIVE' || s.isActive ? 'border-amber-100 text-amber-600 hover:bg-amber-50' : 'border-emerald-100 text-emerald-600 hover:bg-emerald-50'}`}>
-                         <Power className="w-4 h-4" />
-                       </button>
-                       <button onClick={() => triggerPasswordReset(s.id)} title="Reset Password"
+                        <Power className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => triggerPasswordReset(s.id)} title="Reset Password"
                         className="p-2 rounded-lg border border-blue-100 text-blue-600 hover:bg-blue-50 transition-all">
-                         <Key className="w-4 h-4" />
-                       </button>
-                       <button onClick={() => handleArchive(s.id)} title="Archive Student"
+                        <Key className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleArchive(s.id)} title="Archive Student"
                         className="p-2 rounded-lg border border-orange-100 text-orange-600 hover:bg-orange-50 transition-all">
-                         <Archive className="w-4 h-4" />
-                       </button>
-                       <button onClick={() => handleHardDelete(s.id)} title="Permanently Delete Student"
+                        <Archive className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleHardDelete(s.id)} title="Permanently Delete Student"
                         className="p-2 rounded-lg border border-red-100 text-red-600 hover:bg-red-50 transition-all">
-                         <Trash2 className="w-4 h-4" />
-                       </button>
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -266,14 +285,14 @@ const StudentsList = ({ apiEndpoint }) => {
         </div>
       </div>
 
-      {}
+      { }
       {generatedCreds && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-gray-100 text-center animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center text-2xl mx-auto mb-5 shadow-inner"><Key className="w-8 h-8"/></div>
+            <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center text-2xl mx-auto mb-5 shadow-inner"><Key className="w-8 h-8" /></div>
             <h3 className="text-xl font-black text-gray-900 tracking-tight mb-2">Credentials Generated</h3>
             <p className="text-gray-500 text-sm font-medium leading-relaxed mb-6">{generatedCreds.message || 'Please securely copy these credentials for the student.'}</p>
-            
+
             <div className="bg-gray-50 rounded-xl p-4 text-left mb-6 border border-gray-100">
               {generatedCreds.username && (
                 <div className="mb-3">
@@ -292,17 +311,17 @@ const StudentsList = ({ apiEndpoint }) => {
         </div>
       )}
 
-      {}
+      { }
       {drawerStudent && (
         <div className="fixed inset-0 z-[300] bg-gray-900/20 backdrop-blur-sm flex justify-end animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-md h-full shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-300">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white/80 backdrop-blur-md z-10">
               <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Student Profile</h2>
-              <button onClick={() => setDrawerStudent(null)} className="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"><X className="w-5 h-5"/></button>
+              <button onClick={() => setDrawerStudent(null)} className="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"><X className="w-5 h-5" /></button>
             </div>
-            
+
             <div className="p-6 space-y-8">
-              {}
+              { }
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-2xl border border-blue-100 uppercase shadow-sm">
                   {drawerStudent.name?.[0]}
@@ -317,52 +336,52 @@ const StudentsList = ({ apiEndpoint }) => {
                 </div>
               </div>
 
-              {}
+              { }
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <div className="flex items-center gap-1.5 text-gray-400 mb-1"><Mail className="w-3.5 h-3.5"/><span className="text-[10px] font-bold uppercase tracking-widest">Email</span></div>
+                  <div className="flex items-center gap-1.5 text-gray-400 mb-1"><Mail className="w-3.5 h-3.5" /><span className="text-[10px] font-bold uppercase tracking-widest">Email</span></div>
                   <p className="text-xs font-medium text-gray-900 truncate" title={drawerStudent.email}>{drawerStudent.email}</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <div className="flex items-center gap-1.5 text-gray-400 mb-1"><ShieldCheck className="w-3.5 h-3.5"/><span className="text-[10px] font-bold uppercase tracking-widest">Student ID</span></div>
+                  <div className="flex items-center gap-1.5 text-gray-400 mb-1"><ShieldCheck className="w-3.5 h-3.5" /><span className="text-[10px] font-bold uppercase tracking-widest">Student ID</span></div>
                   <p className="text-xs font-mono font-bold text-gray-900">{drawerStudent.studentId || 'N/A'}</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <div className="flex items-center gap-1.5 text-gray-400 mb-1"><Phone className="w-3.5 h-3.5"/><span className="text-[10px] font-bold uppercase tracking-widest">Phone</span></div>
+                  <div className="flex items-center gap-1.5 text-gray-400 mb-1"><Phone className="w-3.5 h-3.5" /><span className="text-[10px] font-bold uppercase tracking-widest">Phone</span></div>
                   <p className="text-xs font-medium text-gray-900">{drawerStudent.phone || 'N/A'}</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <div className="flex items-center gap-1.5 text-gray-400 mb-1"><GraduationCap className="w-3.5 h-3.5"/><span className="text-[10px] font-bold uppercase tracking-widest">Course</span></div>
+                  <div className="flex items-center gap-1.5 text-gray-400 mb-1"><GraduationCap className="w-3.5 h-3.5" /><span className="text-[10px] font-bold uppercase tracking-widest">Course</span></div>
                   <p className="text-xs font-medium text-gray-900">{drawerStudent.course || 'N/A'}</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <div className="flex items-center gap-1.5 text-gray-400 mb-1"><BookOpen className="w-3.5 h-3.5"/><span className="text-[10px] font-bold uppercase tracking-widest">Section</span></div>
+                  <div className="flex items-center gap-1.5 text-gray-400 mb-1"><BookOpen className="w-3.5 h-3.5" /><span className="text-[10px] font-bold uppercase tracking-widest">Section</span></div>
                   <p className="text-xs font-medium text-gray-900">{drawerStudent.section || 'N/A'}</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <div className="flex items-center gap-1.5 text-gray-400 mb-1"><Calendar className="w-3.5 h-3.5"/><span className="text-[10px] font-bold uppercase tracking-widest">Joined</span></div>
+                  <div className="flex items-center gap-1.5 text-gray-400 mb-1"><Calendar className="w-3.5 h-3.5" /><span className="text-[10px] font-bold uppercase tracking-widest">Joined</span></div>
                   <p className="text-xs font-medium text-gray-900">{drawerStudent.createdAt ? new Date(drawerStudent.createdAt).toLocaleDateString() : 'N/A'}</p>
                 </div>
               </div>
 
-              {}
+              { }
               <div>
-                <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3 flex items-center gap-2"><Activity className="w-4 h-4 text-blue-500"/> Exam Statistics</h4>
+                <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3 flex items-center gap-2"><Activity className="w-4 h-4 text-blue-500" /> Exam Statistics</h4>
                 <div className="flex gap-4">
-                   <div className="flex-1 bg-blue-50/50 p-3 rounded-xl border border-blue-100 text-center">
-                     <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Exams Assigned</p>
-                     <p className="text-xl font-black text-blue-700">{drawerStudent._count?.examAssignments || 0}</p>
-                   </div>
-                   <div className="flex-1 bg-blue-50/50 p-3 rounded-xl border border-blue-100 text-center">
-                     <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Submissions</p>
-                     <p className="text-xl font-black text-blue-700">{drawerStudent._count?.submissions || 0}</p>
-                   </div>
+                  <div className="flex-1 bg-blue-50/50 p-3 rounded-xl border border-blue-100 text-center">
+                    <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Exams Assigned</p>
+                    <p className="text-xl font-black text-blue-700">{drawerStudent._count?.examAssignments || 0}</p>
+                  </div>
+                  <div className="flex-1 bg-blue-50/50 p-3 rounded-xl border border-blue-100 text-center">
+                    <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Submissions</p>
+                    <p className="text-xl font-black text-blue-700">{drawerStudent._count?.submissions || 0}</p>
+                  </div>
                 </div>
               </div>
 
-              {}
+              { }
               <div>
-                <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3 flex items-center gap-2"><Clock className="w-4 h-4 text-blue-500"/> Recent Logins</h4>
+                <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3 flex items-center gap-2"><Clock className="w-4 h-4 text-blue-500" /> Recent Logins</h4>
                 <div className="space-y-3">
                   {studentLoginHistory.length > 0 ? studentLoginHistory.map(log => (
                     <div key={log.id} className="flex gap-3 text-sm">
@@ -373,9 +392,9 @@ const StudentsList = ({ apiEndpoint }) => {
                       <div className="pb-3 w-full">
                         <p className="font-bold text-gray-900 text-xs">{new Date(log.loginTime).toLocaleString()}</p>
                         <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-[10px] text-gray-500 font-medium">
-                          <span className="flex items-center gap-1"><Monitor className="w-3 h-3"/> {log.deviceType || 'Desktop'} / {log.os || 'Unknown OS'}</span>
-                          <span className="flex items-center gap-1"><Globe className="w-3 h-3"/> {log.browser || 'Unknown Browser'}</span>
-                          <span className="flex items-center gap-1"><HardDrive className="w-3 h-3"/> {log.ipAddress || 'Unknown IP'}</span>
+                          <span className="flex items-center gap-1"><Monitor className="w-3 h-3" /> {log.deviceType || 'Desktop'} / {log.os || 'Unknown OS'}</span>
+                          <span className="flex items-center gap-1"><Globe className="w-3 h-3" /> {log.browser || 'Unknown Browser'}</span>
+                          <span className="flex items-center gap-1"><HardDrive className="w-3 h-3" /> {log.ipAddress || 'Unknown IP'}</span>
                         </div>
                       </div>
                     </div>
@@ -383,9 +402,9 @@ const StudentsList = ({ apiEndpoint }) => {
                 </div>
               </div>
 
-              {}
+              { }
               <div>
-                <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3 flex items-center gap-2"><Activity className="w-4 h-4 text-purple-500"/> Activity Timeline</h4>
+                <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3 flex items-center gap-2"><Activity className="w-4 h-4 text-purple-500" /> Activity Timeline</h4>
                 <div className="space-y-3">
                   {studentActivity.length > 0 ? studentActivity.map(act => (
                     <div key={act.id} className="flex gap-3 text-sm">

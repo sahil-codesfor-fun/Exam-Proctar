@@ -11,7 +11,7 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('All');
-  
+
   const [showProvisionModal, setShowProvisionModal] = useState(false);
   const [newFaculty, setNewFaculty] = useState({ name: '', email: '', phone: '', employeeId: '', designation: '', qualification: '', status: 'ACTIVE' });
   const [generatedCreds, setGeneratedCreds] = useState(null);
@@ -26,9 +26,10 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
   const toast = null;
   const [toastState, setToast] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
-  
+  const [isConfirming, setIsConfirming] = useState(false);
+
   const [resetModal, setResetModal] = useState({ isOpen: false, id: null, newPassword: '' });
-  
+
   const [subjectModal, setSubjectModal] = useState({ isOpen: false, teacherId: null, assignedIds: [] });
   const [departmentSubjects, setDepartmentSubjects] = useState([]);
 
@@ -38,7 +39,7 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
 
   const [stats, setStats] = useState({ total: 0, active: 0, suspended: 0, loggedInToday: 0 });
 
-  const [departments, setDepartments] = useState([{id: 'All', name: 'All'}]); 
+  const [departments, setDepartments] = useState([{ id: 'All', name: 'All' }]);
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -49,7 +50,7 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
   const fetchDepartments = async () => {
     try {
       const res = await api.get('/superadmin/departments');
-      setDepartments([{id: 'All', name: 'All'}, ...res.data.data.filter(d => d.status !== 'ARCHIVED')]);
+      setDepartments([{ id: 'All', name: 'All' }, ...res.data.data.filter(d => d.status !== 'ARCHIVED')]);
     } catch (err) {
       console.error(err);
     }
@@ -65,10 +66,10 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
       const url = new URL(`${api.defaults.baseURL || ''}${apiEndpoint}`, window.location.origin);
       url.searchParams.append('search', search);
       if (isSuperAdmin && deptFilter !== 'All') url.searchParams.append('department', deptFilter);
-      
+
       const res = await api.get(`${apiEndpoint}?search=${search}${isSuperAdmin && deptFilter !== 'All' ? `&department=${deptFilter}` : ''}`);
       setFaculty(res.data.data);
-      
+
       const active = res.data.data.filter(f => f.status === 'ACTIVE' || f.isActive).length;
       const suspended = res.data.data.filter(f => f.status === 'DISABLED' || !f.isActive).length;
       setStats({
@@ -167,7 +168,7 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
         passwordMode,
         manualPassword: passwordMode === 'manual' ? manualPassword : undefined
       };
-      
+
       const res = await api.post(apiEndpoint, payload);
       if (res.data.success) {
         if (passwordMode === 'auto') {
@@ -212,7 +213,7 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
           message: 'Password reset successful!'
         });
         showToast('Password reset successful', 'success');
-      } catch(err) {
+      } catch (err) {
         showToast('Failed to reset password', 'error');
       }
     });
@@ -284,10 +285,9 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
     <div className="font-sans relative">
       {toastState && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[600] animate-in slide-in-from-bottom-10 fade-in duration-300">
-          <div className={`px-6 py-3.5 rounded-full shadow-2xl border flex items-center gap-3 text-sm font-bold ${
-            toastState.type === 'error' ? 'bg-red-600 text-white border-red-500 shadow-red-600/20' : 
-            'bg-gray-900 text-white border-gray-700 shadow-xl'
-          }`}>
+          <div className={`px-6 py-3.5 rounded-full shadow-2xl border flex items-center gap-3 text-sm font-bold ${toastState.type === 'error' ? 'bg-red-600 text-white border-red-500 shadow-red-600/20' :
+              'bg-gray-900 text-white border-gray-700 shadow-xl'
+            }`}>
             <span className="text-lg">{toastState.type === 'error' ? '⚠️' : '✨'}</span>
             <span className="tracking-wide pr-2">{toastState.message}</span>
             <button onClick={() => setToast(null)} className="ml-2 opacity-50 hover:opacity-100 transition-opacity">✕</button>
@@ -302,8 +302,27 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
             <h3 className="text-xl font-black text-gray-900 tracking-tight mb-2">Confirm Action</h3>
             <p className="text-gray-500 text-sm font-medium leading-relaxed mb-8">{confirmModal.message}</p>
             <div className="flex gap-3">
-              <button onClick={() => setConfirmModal(null)} className="flex-1 px-4 py-3.5 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold text-xs uppercase tracking-widest rounded-xl transition-all">Cancel</button>
-              <button onClick={() => { confirmModal.onConfirm(); setConfirmModal(null); }} className="flex-1 px-4 py-3.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95">Confirm</button>
+              <button disabled={isConfirming} onClick={() => setConfirmModal(null)} className="flex-1 px-4 py-3.5 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold text-xs uppercase tracking-widest rounded-xl transition-all disabled:opacity-50">Cancel</button>
+              <button 
+                disabled={isConfirming}
+                onClick={async () => { 
+                  setIsConfirming(true);
+                  try {
+                    await confirmModal.onConfirm(); 
+                  } finally {
+                    setIsConfirming(false);
+                    setConfirmModal(null);
+                  }
+                }} 
+                className="flex-1 px-4 py-3.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isConfirming ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Processing...
+                  </>
+                ) : 'Confirm'}
+              </button>
             </div>
           </div>
         </div>
@@ -321,31 +340,31 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
         </div>
       </div>
 
-      {}
+      { }
       <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 px-6">
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
           <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Faculty</p><p className="text-2xl font-black text-gray-900">{stats.total}</p></div>
-          <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center"><UserIcon className="w-5 h-5"/></div>
+          <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center"><UserIcon className="w-5 h-5" /></div>
         </div>
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
           <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Active Faculty</p><p className="text-2xl font-black text-gray-900">{stats.active}</p></div>
-          <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center"><ShieldCheck className="w-5 h-5"/></div>
+          <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center"><ShieldCheck className="w-5 h-5" /></div>
         </div>
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
           <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Suspended</p><p className="text-2xl font-black text-gray-900">{stats.suspended}</p></div>
-          <div className="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center"><Power className="w-5 h-5"/></div>
+          <div className="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center"><Power className="w-5 h-5" /></div>
         </div>
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
           <div><p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Logged In Today</p><p className="text-2xl font-black text-gray-900">{stats.loggedInToday}</p></div>
-          <div className="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center"><Activity className="w-5 h-5"/></div>
+          <div className="w-10 h-10 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center"><Activity className="w-5 h-5" /></div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto grid grid-cols-1 gap-8 px-6">
         <div className="bg-white rounded-[1.5rem] border border-gray-100 p-6 shadow-sm flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
-             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><Search className="w-5 h-5"/></span>
-             <input type="text" placeholder="Search by name, ID or email..." value={search} onChange={e => setSearch(e.target.value)}
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><Search className="w-5 h-5" /></span>
+            <input type="text" placeholder="Search by name, ID or email..." value={search} onChange={e => setSearch(e.target.value)}
               className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:bg-white focus:border-emerald-400 transition-all text-sm font-medium" />
           </div>
           {isSuperAdmin && (
@@ -391,8 +410,8 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
                       </div>
                     </td>
                     <td className="p-6">
-                       <p className="text-xs font-black text-gray-700 font-mono tracking-tighter">{f.facultyId}</p>
-                       <p className="text-[10px] font-bold text-gray-400 uppercase">{f.designation || 'Faculty'}</p>
+                      <p className="text-xs font-black text-gray-700 font-mono tracking-tighter">{f.facultyId}</p>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase">{f.designation || 'Faculty'}</p>
                     </td>
                     <td className="p-6" onClick={(e) => e.stopPropagation()}>
                       <div className="flex flex-wrap gap-1">
@@ -406,30 +425,30 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
                         {f.status || (f.isActive ? 'Active' : 'Disabled')}
                       </span>
                       <p className="text-[9px] font-bold text-gray-400 uppercase">
-                         {f.lastLogin ? new Date(f.lastLogin).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Never'}
-                       </p>
+                        {f.lastLogin ? new Date(f.lastLogin).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Never'}
+                      </p>
                     </td>
                     <td className="p-6 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
-                       <button onClick={() => openSubjectModal(f)} title="Manage Subjects"
+                      <button onClick={() => openSubjectModal(f)} title="Manage Subjects"
                         className="p-2 rounded-lg border border-indigo-100 text-indigo-600 hover:bg-indigo-50 transition-all">
-                         <BookOpen className="w-4 h-4" />
-                       </button>
-                       <button onClick={() => handleToggleStatus(f.id, f.status || (f.isActive ? 'ACTIVE' : 'DISABLED'))} title={f.status === 'ACTIVE' || f.isActive ? 'Disable' : 'Enable'}
+                        <BookOpen className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleToggleStatus(f.id, f.status || (f.isActive ? 'ACTIVE' : 'DISABLED'))} title={f.status === 'ACTIVE' || f.isActive ? 'Disable' : 'Enable'}
                         className={`p-2 rounded-lg border transition-all ${f.status === 'ACTIVE' || f.isActive ? 'border-amber-100 text-amber-600 hover:bg-amber-50' : 'border-emerald-100 text-emerald-600 hover:bg-emerald-50'}`}>
-                         <Power className="w-4 h-4" />
-                       </button>
-                       <button onClick={() => triggerPasswordReset(f.id)} title="Reset Password"
+                        <Power className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => triggerPasswordReset(f.id)} title="Reset Password"
                         className="p-2 rounded-lg border border-blue-100 text-blue-600 hover:bg-blue-50 transition-all">
-                         <Key className="w-4 h-4" />
-                       </button>
-                       <button onClick={() => handleArchive(f.id)} title="Archive Faculty"
+                        <Key className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleArchive(f.id)} title="Archive Faculty"
                         className="p-2 rounded-lg border border-orange-100 text-orange-600 hover:bg-orange-50 transition-all">
-                         <Archive className="w-4 h-4" />
-                       </button>
-                       <button onClick={() => handleHardDelete(f.id)} title="Permanently Delete Faculty"
+                        <Archive className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => handleHardDelete(f.id)} title="Permanently Delete Faculty"
                         className="p-2 rounded-lg border border-red-100 text-red-600 hover:bg-red-50 transition-all">
-                         <Trash2 className="w-4 h-4" />
-                       </button>
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -439,190 +458,190 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
         </div>
       </div>
 
-      {}
+      { }
       {showProvisionModal && !generatedCreds && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in">
-           <div className="relative bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl p-10 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-              <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight mb-2">Provision Faculty</h2>
-              <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-8">Enter faculty details below</p>
-              
-              <form className="space-y-6" onSubmit={handleCreateFaculty}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="relative bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl p-10 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight mb-2">Provision Faculty</h2>
+            <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-8">Enter faculty details below</p>
+
+            <form className="space-y-6" onSubmit={handleCreateFaculty}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Full Name *</label>
+                  <input type="text" value={newFaculty.name} onChange={e => setNewFaculty({ ...newFaculty, name: e.target.value })} required
+                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:bg-white focus:border-emerald-400 transition-all text-sm font-medium"
+                    placeholder="Jane Doe" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Email *</label>
+                  <input type="email" value={newFaculty.email} onChange={e => setNewFaculty({ ...newFaculty, email: e.target.value })} required
+                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:bg-white focus:border-emerald-400 transition-all text-sm font-medium"
+                    placeholder="jane@university.edu" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Employee ID *</label>
+                  <input type="text" value={newFaculty.employeeId} readOnly
+                    className="w-full px-5 py-4 bg-gray-100 border border-gray-200 text-gray-500 rounded-2xl outline-none focus:bg-gray-100 transition-all text-sm font-medium font-mono"
+                    placeholder="Auto-Generated" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Phone Number</label>
+                  <input type="tel" value={newFaculty.phone} onChange={e => setNewFaculty({ ...newFaculty, phone: e.target.value })}
+                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:bg-white focus:border-emerald-400 transition-all text-sm font-medium"
+                    placeholder="+1 234 567 8900" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Designation</label>
+                  <select value={newFaculty.designation} onChange={e => setNewFaculty({ ...newFaculty, designation: e.target.value })}
+                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:bg-white focus:border-emerald-400 transition-all text-sm font-medium">
+                    <option value="">Select Designation...</option>
+                    <option value="Professor">Professor</option>
+                    <option value="Assistant Professor">Assistant Professor</option>
+                    <option value="Associate Professor">Associate Professor</option>
+                    <option value="Lecturer">Lecturer</option>
+                    <option value="Teaching Assistant">Teaching Assistant</option>
+                  </select>
+                </div>
+                {isSuperAdmin && (
                   <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Full Name *</label>
-                    <input type="text" value={newFaculty.name} onChange={e => setNewFaculty({...newFaculty, name: e.target.value})} required
-                      className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:bg-white focus:border-emerald-400 transition-all text-sm font-medium" 
-                      placeholder="Jane Doe" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Email *</label>
-                    <input type="email" value={newFaculty.email} onChange={e => setNewFaculty({...newFaculty, email: e.target.value})} required
-                      className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:bg-white focus:border-emerald-400 transition-all text-sm font-medium" 
-                      placeholder="jane@university.edu" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Employee ID *</label>
-                    <input type="text" value={newFaculty.employeeId} readOnly
-                      className="w-full px-5 py-4 bg-gray-100 border border-gray-200 text-gray-500 rounded-2xl outline-none focus:bg-gray-100 transition-all text-sm font-medium font-mono" 
-                      placeholder="Auto-Generated" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Phone Number</label>
-                    <input type="tel" value={newFaculty.phone} onChange={e => setNewFaculty({...newFaculty, phone: e.target.value})}
-                      className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:bg-white focus:border-emerald-400 transition-all text-sm font-medium" 
-                      placeholder="+1 234 567 8900" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Designation</label>
-                    <select value={newFaculty.designation} onChange={e => setNewFaculty({...newFaculty, designation: e.target.value})}
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Department *</label>
+                    <select value={newFaculty.departmentId || ''} onChange={e => setNewFaculty({ ...newFaculty, departmentId: e.target.value })} required
                       className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:bg-white focus:border-emerald-400 transition-all text-sm font-medium">
-                        <option value="">Select Designation...</option>
-                        <option value="Professor">Professor</option>
-                        <option value="Assistant Professor">Assistant Professor</option>
-                        <option value="Associate Professor">Associate Professor</option>
-                        <option value="Lecturer">Lecturer</option>
-                        <option value="Teaching Assistant">Teaching Assistant</option>
+                      <option value="">Select Department...</option>
+                      {departments.filter(d => d.id !== 'All').map(d => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
                     </select>
                   </div>
-                  {isSuperAdmin && (
+                )}
+              </div>
+
+              {/* Password Setup Section */}
+              <div className="pt-4 border-t border-gray-100">
+                <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-widest mb-4">Password Setup</h4>
+
+                <div className="flex gap-6 mb-6">
+                  <label className="flex items-center gap-3 text-sm text-gray-700 cursor-pointer font-medium">
+                    <input
+                      type="radio"
+                      name="passwordMode"
+                      value="auto"
+                      checked={passwordMode === 'auto'}
+                      onChange={() => setPasswordMode('auto')}
+                      className="text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+                    />
+                    <span>Auto Generate Password</span>
+                  </label>
+                  <label className="flex items-center gap-3 text-sm text-gray-700 cursor-pointer font-medium">
+                    <input
+                      type="radio"
+                      name="passwordMode"
+                      value="manual"
+                      checked={passwordMode === 'manual'}
+                      onChange={() => setPasswordMode('manual')}
+                      className="text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+                    />
+                    <span>Create Password Manually</span>
+                  </label>
+                </div>
+
+                {passwordMode === 'manual' && (
+                  <div className="space-y-5 bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
                     <div>
-                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Department *</label>
-                      <select value={newFaculty.departmentId || ''} onChange={e => setNewFaculty({...newFaculty, departmentId: e.target.value})} required
-                        className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:bg-white focus:border-emerald-400 transition-all text-sm font-medium">
-                          <option value="">Select Department...</option>
-                          {departments.filter(d => d.id !== 'All').map(d => (
-                            <option key={d.id} value={d.id}>{d.name}</option>
-                          ))}
-                      </select>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Password</label>
+                      <div className="relative">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          className="w-full border border-gray-200 rounded-xl pl-5 pr-12 py-3 focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium bg-white"
+                          value={manualPassword} onChange={e => setManualPassword(e.target.value)}
+                          placeholder="Enter secure password"
+                        />
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-3 text-gray-400 hover:text-gray-600 transition-colors">
+                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
                     </div>
-                  )}
-                </div>
 
-                {/* Password Setup Section */}
-                <div className="pt-4 border-t border-gray-100">
-                  <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-widest mb-4">Password Setup</h4>
-                  
-                  <div className="flex gap-6 mb-6">
-                    <label className="flex items-center gap-3 text-sm text-gray-700 cursor-pointer font-medium">
-                      <input 
-                        type="radio" 
-                        name="passwordMode" 
-                        value="auto"
-                        checked={passwordMode === 'auto'}
-                        onChange={() => setPasswordMode('auto')}
-                        className="text-emerald-600 focus:ring-emerald-500 w-4 h-4"
-                      />
-                      <span>Auto Generate Password</span>
-                    </label>
-                    <label className="flex items-center gap-3 text-sm text-gray-700 cursor-pointer font-medium">
-                      <input 
-                        type="radio" 
-                        name="passwordMode" 
-                        value="manual"
-                        checked={passwordMode === 'manual'}
-                        onChange={() => setPasswordMode('manual')}
-                        className="text-emerald-600 focus:ring-emerald-500 w-4 h-4"
-                      />
-                      <span>Create Password Manually</span>
-                    </label>
+                    <div>
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Confirm Password</label>
+                      <div className="relative">
+                        <input
+                          type={showConfirmPassword ? "text" : "password"}
+                          className="w-full border border-gray-200 rounded-xl pl-5 pr-12 py-3 focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium bg-white"
+                          value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                          placeholder="Confirm secure password"
+                        />
+                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-4 top-3 text-gray-400 hover:text-gray-600 transition-colors">
+                          {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                      {confirmPassword && manualPassword !== confirmPassword && (
+                        <p className="text-xs text-red-600 mt-2 font-medium flex items-center gap-1">⚠️ Passwords do not match.</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Strength</span>
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${strengthScore < 3 ? 'text-red-500' : strengthScore < 5 ? 'text-amber-500' : 'text-emerald-500'}`}>
+                          {strengthScore < 3 ? 'Weak' : strengthScore < 5 ? 'Medium' : 'Strong'}
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5 flex overflow-hidden">
+                        {[1, 2, 3, 4, 5].map(level => (
+                          <div
+                            key={level}
+                            className={`flex-1 h-full ${level <= strengthScore ? (strengthScore < 3 ? 'bg-red-500' : strengthScore < 5 ? 'bg-amber-500' : 'bg-emerald-500') : 'bg-transparent border-r border-white border-opacity-50 last:border-0'}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-medium pt-2">
+                      <span className={`flex items-center gap-1.5 ${manualPassword.length >= 8 && manualPassword.length <= 32 ? 'text-emerald-600' : 'text-gray-400'}`}>
+                        {manualPassword.length >= 8 && manualPassword.length <= 32 ? '✓' : '✗'} 8-32 characters
+                      </span>
+                      <span className={`flex items-center gap-1.5 ${/[A-Z]/.test(manualPassword) ? 'text-emerald-600' : 'text-gray-400'}`}>
+                        {/[A-Z]/.test(manualPassword) ? '✓' : '✗'} Uppercase letter
+                      </span>
+                      <span className={`flex items-center gap-1.5 ${/[a-z]/.test(manualPassword) ? 'text-emerald-600' : 'text-gray-400'}`}>
+                        {/[a-z]/.test(manualPassword) ? '✓' : '✗'} Lowercase letter
+                      </span>
+                      <span className={`flex items-center gap-1.5 ${/[0-9]/.test(manualPassword) ? 'text-emerald-600' : 'text-gray-400'}`}>
+                        {/[0-9]/.test(manualPassword) ? '✓' : '✗'} Number
+                      </span>
+                      <span className={`flex items-center gap-1.5 ${/[^A-Za-z0-9]/.test(manualPassword) ? 'text-emerald-600' : 'text-gray-400'}`}>
+                        {/[^A-Za-z0-9]/.test(manualPassword) ? '✓' : '✗'} Special character
+                      </span>
+                    </div>
                   </div>
+                )}
+              </div>
 
-                  {passwordMode === 'manual' && (
-                    <div className="space-y-5 bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
-                      <div>
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Password</label>
-                        <div className="relative">
-                          <input 
-                            type={showPassword ? "text" : "password"} 
-                            className="w-full border border-gray-200 rounded-xl pl-5 pr-12 py-3 focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium bg-white"
-                            value={manualPassword} onChange={e => setManualPassword(e.target.value)}
-                            placeholder="Enter secure password"
-                          />
-                          <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-3 text-gray-400 hover:text-gray-600 transition-colors">
-                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                          </button>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Confirm Password</label>
-                        <div className="relative">
-                          <input 
-                            type={showConfirmPassword ? "text" : "password"} 
-                            className="w-full border border-gray-200 rounded-xl pl-5 pr-12 py-3 focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-medium bg-white"
-                            value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
-                            placeholder="Confirm secure password"
-                          />
-                          <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-4 top-3 text-gray-400 hover:text-gray-600 transition-colors">
-                            {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                          </button>
-                        </div>
-                        {confirmPassword && manualPassword !== confirmPassword && (
-                          <p className="text-xs text-red-600 mt-2 font-medium flex items-center gap-1">⚠️ Passwords do not match.</p>
-                        )}
-                      </div>
-                      
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Strength</span>
-                          <span className={`text-[10px] font-black uppercase tracking-widest ${strengthScore < 3 ? 'text-red-500' : strengthScore < 5 ? 'text-amber-500' : 'text-emerald-500'}`}>
-                            {strengthScore < 3 ? 'Weak' : strengthScore < 5 ? 'Medium' : 'Strong'}
-                          </span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-1.5 flex overflow-hidden">
-                          {[1, 2, 3, 4, 5].map(level => (
-                            <div 
-                              key={level} 
-                              className={`flex-1 h-full ${level <= strengthScore ? (strengthScore < 3 ? 'bg-red-500' : strengthScore < 5 ? 'bg-amber-500' : 'bg-emerald-500') : 'bg-transparent border-r border-white border-opacity-50 last:border-0'}`} 
-                            />
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-medium pt-2">
-                        <span className={`flex items-center gap-1.5 ${manualPassword.length >= 8 && manualPassword.length <= 32 ? 'text-emerald-600' : 'text-gray-400'}`}>
-                          {manualPassword.length >= 8 && manualPassword.length <= 32 ? '✓' : '✗'} 8-32 characters
-                        </span>
-                        <span className={`flex items-center gap-1.5 ${/[A-Z]/.test(manualPassword) ? 'text-emerald-600' : 'text-gray-400'}`}>
-                          {/[A-Z]/.test(manualPassword) ? '✓' : '✗'} Uppercase letter
-                        </span>
-                        <span className={`flex items-center gap-1.5 ${/[a-z]/.test(manualPassword) ? 'text-emerald-600' : 'text-gray-400'}`}>
-                          {/[a-z]/.test(manualPassword) ? '✓' : '✗'} Lowercase letter
-                        </span>
-                        <span className={`flex items-center gap-1.5 ${/[0-9]/.test(manualPassword) ? 'text-emerald-600' : 'text-gray-400'}`}>
-                          {/[0-9]/.test(manualPassword) ? '✓' : '✗'} Number
-                        </span>
-                        <span className={`flex items-center gap-1.5 ${/[^A-Za-z0-9]/.test(manualPassword) ? 'text-emerald-600' : 'text-gray-400'}`}>
-                          {/[^A-Za-z0-9]/.test(manualPassword) ? '✓' : '✗'} Special character
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex gap-4 pt-4">
-                  <button type="button" onClick={() => setShowProvisionModal(false)} disabled={submitting}
-                    className="flex-1 py-4 bg-gray-50 text-gray-400 font-black text-[10px] uppercase tracking-widest rounded-2xl hover:bg-gray-100 transition-all">
-                    Cancel
-                  </button>
-                  <button type="submit" disabled={submitting || (passwordMode === 'manual' && (strengthScore < 5 || manualPassword !== confirmPassword || !confirmPassword))}
-                    className="flex-1 py-4 bg-emerald-600 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-lg hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-50">
-                    {submitting ? '⏳ Processing...' : 'Create Account'}
-                  </button>
-                </div>
-              </form>
-           </div>
+              <div className="flex gap-4 pt-4">
+                <button type="button" onClick={() => setShowProvisionModal(false)} disabled={submitting}
+                  className="flex-1 py-4 bg-gray-50 text-gray-400 font-black text-[10px] uppercase tracking-widest rounded-2xl hover:bg-gray-100 transition-all">
+                  Cancel
+                </button>
+                <button type="submit" disabled={submitting || (passwordMode === 'manual' && (strengthScore < 5 || manualPassword !== confirmPassword || !confirmPassword))}
+                  className="flex-1 py-4 bg-emerald-600 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-lg hover:bg-emerald-700 transition-all active:scale-95 disabled:opacity-50">
+                  {submitting ? '⏳ Processing...' : 'Create Account'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
-      {}
+      { }
       {generatedCreds && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-gray-100 text-center animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center text-2xl mx-auto mb-5 shadow-inner"><Key className="w-8 h-8"/></div>
+            <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center text-2xl mx-auto mb-5 shadow-inner"><Key className="w-8 h-8" /></div>
             <h3 className="text-xl font-black text-gray-900 tracking-tight mb-2">Credentials Generated</h3>
             <p className="text-gray-500 text-sm font-medium leading-relaxed mb-6">{generatedCreds.message || 'Please securely copy these credentials for the faculty member.'}</p>
-            
+
             <div className="bg-gray-50 rounded-xl p-4 text-left mb-6 border border-gray-100">
               {generatedCreds.username && (
                 <div className="mb-3">
@@ -641,15 +660,15 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
         </div>
       )}
 
-      {}
+      { }
       {subjectModal.isOpen && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-200 max-h-[80vh] flex flex-col">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2"><BookOpen className="w-5 h-5 text-indigo-500"/> Manage Subjects</h3>
-              <button onClick={() => setSubjectModal({ isOpen: false, teacherId: null, assignedIds: [] })} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5"/></button>
+              <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2"><BookOpen className="w-5 h-5 text-indigo-500" /> Manage Subjects</h3>
+              <button onClick={() => setSubjectModal({ isOpen: false, teacherId: null, assignedIds: [] })} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto mb-6 pr-2">
               {departmentSubjects.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">No subjects available in your department.</p>
@@ -659,13 +678,13 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
                     const isAssigned = subjectModal.assignedIds.includes(subject.id);
                     return (
                       <label key={subject.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${isAssigned ? 'border-indigo-500 bg-indigo-50/50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                        <input type="checkbox" 
+                        <input type="checkbox"
                           checked={isAssigned}
                           onChange={(e) => {
                             if (e.target.checked) {
-                              setSubjectModal({...subjectModal, assignedIds: [...subjectModal.assignedIds, subject.id]});
+                              setSubjectModal({ ...subjectModal, assignedIds: [...subjectModal.assignedIds, subject.id] });
                             } else {
-                              setSubjectModal({...subjectModal, assignedIds: subjectModal.assignedIds.filter(id => id !== subject.id)});
+                              setSubjectModal({ ...subjectModal, assignedIds: subjectModal.assignedIds.filter(id => id !== subject.id) });
                             }
                           }}
                           className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
@@ -689,17 +708,17 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
         </div>
       )}
 
-      {}
+      { }
       {drawerTeacher && (
         <div className="fixed inset-0 z-[300] bg-gray-900/20 backdrop-blur-sm flex justify-end animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-md h-full shadow-2xl overflow-y-auto animate-in slide-in-from-right duration-300">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white/80 backdrop-blur-md z-10">
               <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Faculty Profile</h2>
-              <button onClick={() => setDrawerTeacher(null)} className="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"><X className="w-5 h-5"/></button>
+              <button onClick={() => setDrawerTeacher(null)} className="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors"><X className="w-5 h-5" /></button>
             </div>
-            
+
             <div className="p-6 space-y-8">
-              {}
+              { }
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-2xl border border-emerald-100 uppercase shadow-sm">
                   {drawerTeacher.name?.[0]}
@@ -714,29 +733,29 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
                 </div>
               </div>
 
-              {}
+              { }
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <div className="flex items-center gap-1.5 text-gray-400 mb-1"><Mail className="w-3.5 h-3.5"/><span className="text-[10px] font-bold uppercase tracking-widest">Email</span></div>
+                  <div className="flex items-center gap-1.5 text-gray-400 mb-1"><Mail className="w-3.5 h-3.5" /><span className="text-[10px] font-bold uppercase tracking-widest">Email</span></div>
                   <p className="text-xs font-medium text-gray-900 truncate" title={drawerTeacher.email}>{drawerTeacher.email}</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <div className="flex items-center gap-1.5 text-gray-400 mb-1"><ShieldCheck className="w-3.5 h-3.5"/><span className="text-[10px] font-bold uppercase tracking-widest">Emp ID</span></div>
+                  <div className="flex items-center gap-1.5 text-gray-400 mb-1"><ShieldCheck className="w-3.5 h-3.5" /><span className="text-[10px] font-bold uppercase tracking-widest">Emp ID</span></div>
                   <p className="text-xs font-mono font-bold text-gray-900">{drawerTeacher.facultyId}</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <div className="flex items-center gap-1.5 text-gray-400 mb-1"><Phone className="w-3.5 h-3.5"/><span className="text-[10px] font-bold uppercase tracking-widest">Phone</span></div>
+                  <div className="flex items-center gap-1.5 text-gray-400 mb-1"><Phone className="w-3.5 h-3.5" /><span className="text-[10px] font-bold uppercase tracking-widest">Phone</span></div>
                   <p className="text-xs font-medium text-gray-900">{drawerTeacher.phone || 'N/A'}</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <div className="flex items-center gap-1.5 text-gray-400 mb-1"><Calendar className="w-3.5 h-3.5"/><span className="text-[10px] font-bold uppercase tracking-widest">Experience</span></div>
+                  <div className="flex items-center gap-1.5 text-gray-400 mb-1"><Calendar className="w-3.5 h-3.5" /><span className="text-[10px] font-bold uppercase tracking-widest">Experience</span></div>
                   <p className="text-xs font-medium text-gray-900">{drawerTeacher.experience ? `${drawerTeacher.experience} Years` : 'N/A'}</p>
                 </div>
               </div>
 
-              {}
+              { }
               <div>
-                <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3 flex items-center gap-2"><Book className="w-4 h-4 text-indigo-500"/> Allocated Subjects</h4>
+                <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3 flex items-center gap-2"><Book className="w-4 h-4 text-indigo-500" /> Allocated Subjects</h4>
                 <div className="flex flex-wrap gap-2">
                   {drawerTeacher.subjectsTeaching?.length > 0 ? (
                     drawerTeacher.subjectsTeaching.map(s => (
@@ -749,24 +768,24 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
                 </div>
               </div>
 
-              {}
+              { }
               <div>
-                <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3 flex items-center gap-2"><Activity className="w-4 h-4 text-emerald-500"/> Exam Statistics</h4>
+                <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3 flex items-center gap-2"><Activity className="w-4 h-4 text-emerald-500" /> Exam Statistics</h4>
                 <div className="flex gap-4">
-                   <div className="flex-1 bg-emerald-50/50 p-3 rounded-xl border border-emerald-100 text-center">
-                     <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Exams Created</p>
-                     <p className="text-xl font-black text-emerald-700">{drawerTeacher._count?.examsCreated || 0}</p>
-                   </div>
-                   <div className="flex-1 bg-emerald-50/50 p-3 rounded-xl border border-emerald-100 text-center">
-                     <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Submissions</p>
-                     <p className="text-xl font-black text-emerald-700">{drawerTeacher._count?.submissions || 0}</p>
-                   </div>
+                  <div className="flex-1 bg-emerald-50/50 p-3 rounded-xl border border-emerald-100 text-center">
+                    <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Exams Created</p>
+                    <p className="text-xl font-black text-emerald-700">{drawerTeacher._count?.examsCreated || 0}</p>
+                  </div>
+                  <div className="flex-1 bg-emerald-50/50 p-3 rounded-xl border border-emerald-100 text-center">
+                    <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Submissions</p>
+                    <p className="text-xl font-black text-emerald-700">{drawerTeacher._count?.submissions || 0}</p>
+                  </div>
                 </div>
               </div>
 
-              {}
+              { }
               <div>
-                <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3 flex items-center gap-2"><Clock className="w-4 h-4 text-blue-500"/> Recent Logins</h4>
+                <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3 flex items-center gap-2"><Clock className="w-4 h-4 text-blue-500" /> Recent Logins</h4>
                 <div className="space-y-3">
                   {teacherLoginHistory.length > 0 ? teacherLoginHistory.map(log => (
                     <div key={log.id} className="flex gap-3 text-sm">
@@ -777,9 +796,9 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
                       <div className="pb-3 w-full">
                         <p className="font-bold text-gray-900 text-xs">{new Date(log.loginTime).toLocaleString()}</p>
                         <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-[10px] text-gray-500 font-medium">
-                          <span className="flex items-center gap-1"><Monitor className="w-3 h-3"/> {log.deviceType || 'Desktop'} / {log.os || 'Unknown OS'}</span>
-                          <span className="flex items-center gap-1"><Globe className="w-3 h-3"/> {log.browser || 'Unknown Browser'}</span>
-                          <span className="flex items-center gap-1"><HardDrive className="w-3 h-3"/> {log.ipAddress || 'Unknown IP'}</span>
+                          <span className="flex items-center gap-1"><Monitor className="w-3 h-3" /> {log.deviceType || 'Desktop'} / {log.os || 'Unknown OS'}</span>
+                          <span className="flex items-center gap-1"><Globe className="w-3 h-3" /> {log.browser || 'Unknown Browser'}</span>
+                          <span className="flex items-center gap-1"><HardDrive className="w-3 h-3" /> {log.ipAddress || 'Unknown IP'}</span>
                         </div>
                       </div>
                     </div>
@@ -787,9 +806,9 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
                 </div>
               </div>
 
-              {}
+              { }
               <div>
-                <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3 flex items-center gap-2"><Activity className="w-4 h-4 text-purple-500"/> Activity Timeline</h4>
+                <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-3 flex items-center gap-2"><Activity className="w-4 h-4 text-purple-500" /> Activity Timeline</h4>
                 <div className="space-y-3">
                   {teacherActivity.length > 0 ? teacherActivity.map(act => (
                     <div key={act.id} className="flex gap-3 text-sm">
