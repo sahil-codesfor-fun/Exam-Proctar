@@ -299,7 +299,16 @@ export const getDepartmentCourses = async (req, res) => {
 
 export const getAllCourses = async (req, res) => {
   try {
+    const where = {};
+    if (req.user?.departmentId) {
+      where.OR = [
+        { departmentId: req.user.departmentId },
+        { departmentId: null }
+      ];
+    }
+
     const courses = await prisma.hubCourse.findMany({
+      where,
       include: {
         department: { select: { name: true, code: true } },
         modules: {

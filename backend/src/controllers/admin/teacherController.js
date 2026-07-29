@@ -2,6 +2,9 @@ import teacherService from '../../services/teacherService.js';
 
 export const getTeachers = async (req, res) => {
   try {
+    if (!req.user.departmentId) {
+      return res.status(403).json({ success: false, message: 'Admin does not belong to any department' });
+    }
     const result = await teacherService.getTeachers(req.user.departmentId, req.query);
     res.status(200).json(result);
   } catch (error) {
@@ -11,6 +14,9 @@ export const getTeachers = async (req, res) => {
 
 export const provisionTeacher = async (req, res) => {
   try {
+    if (!req.user.departmentId) {
+      return res.status(403).json({ success: false, message: 'Admin does not belong to any department' });
+    }
     const result = await teacherService.provisionTeacher(req.body, req.user.departmentId, req.user.id);
     res.status(201).json(result);
   } catch (error) {
@@ -20,6 +26,9 @@ export const provisionTeacher = async (req, res) => {
 
 export const getTeacherDetails = async (req, res) => {
   try {
+    if (!req.user.departmentId) {
+      return res.status(403).json({ success: false, message: 'Admin does not belong to any department' });
+    }
     const result = await teacherService.getTeacherDetails(req.params.id, req.user.departmentId);
     res.status(200).json(result);
   } catch (error) {
@@ -29,6 +38,9 @@ export const getTeacherDetails = async (req, res) => {
 
 export const updateTeacher = async (req, res) => {
   try {
+    if (!req.user.departmentId) {
+      return res.status(403).json({ success: false, message: 'Admin does not belong to any department' });
+    }
     const result = await teacherService.updateTeacher(req.params.id, req.user.departmentId, req.body, req.user.id);
     res.status(200).json(result);
   } catch (error) {
@@ -38,6 +50,9 @@ export const updateTeacher = async (req, res) => {
 
 export const assignSubjects = async (req, res) => {
   try {
+    if (!req.user.departmentId) {
+      return res.status(403).json({ success: false, message: 'Admin does not belong to any department' });
+    }
     const { subjectIds } = req.body;
     const result = await teacherService.assignSubjects(req.params.id, req.user.departmentId, subjectIds || [], req.user.id);
     res.status(200).json(result);
@@ -48,6 +63,9 @@ export const assignSubjects = async (req, res) => {
 
 export const getTeacherLoginHistory = async (req, res) => {
   try {
+    if (!req.user.departmentId) {
+      return res.status(403).json({ success: false, message: 'Admin does not belong to any department' });
+    }
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
@@ -65,6 +83,9 @@ export const getTeacherLoginHistory = async (req, res) => {
 
 export const getTeacherActivity = async (req, res) => {
   try {
+    if (!req.user.departmentId) {
+      return res.status(403).json({ success: false, message: 'Admin does not belong to any department' });
+    }
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
@@ -82,6 +103,9 @@ export const getTeacherActivity = async (req, res) => {
 
 export const resetPassword = async (req, res) => {
   try {
+    if (!req.user.departmentId) {
+      return res.status(403).json({ success: false, message: 'Admin does not belong to any department' });
+    }
     const result = await teacherService.resetPassword(req.params.id, req.user.departmentId, req.user.id);
     res.status(200).json(result);
   } catch (error) {
@@ -91,6 +115,9 @@ export const resetPassword = async (req, res) => {
 
 export const deleteTeacher = async (req, res) => {
   try {
+    if (!req.user.departmentId) {
+      return res.status(403).json({ success: false, message: 'Admin does not belong to any department' });
+    }
     const result = await teacherService.deleteTeacher(req.params.id, req.user.departmentId, req.user.id);
     res.status(200).json(result);
   } catch (error) {
@@ -100,6 +127,9 @@ export const deleteTeacher = async (req, res) => {
 
 export const hardDeleteTeacher = async (req, res) => {
   try {
+    if (!req.user.departmentId) {
+      return res.status(403).json({ success: false, message: 'Admin does not belong to any department' });
+    }
     const result = await teacherService.hardDeleteTeacher(req.params.id, req.user.departmentId, req.user.id);
     res.status(200).json(result);
   } catch (error) {

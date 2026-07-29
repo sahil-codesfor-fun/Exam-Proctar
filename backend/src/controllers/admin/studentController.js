@@ -2,7 +2,10 @@ import studentService from '../../services/studentService.js';
 
 export const getStudents = async (req, res) => {
   try {
-    const result = await studentService.getStudents(req.query);
+    if (!req.user.departmentId) {
+      return res.status(403).json({ success: false, message: 'Admin does not belong to any department' });
+    }
+    const result = await studentService.getStudents(req.user.departmentId, req.query);
     res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -11,7 +14,10 @@ export const getStudents = async (req, res) => {
 
 export const getStudentDetails = async (req, res) => {
   try {
-    const result = await studentService.getStudentDetails(req.params.id);
+    if (!req.user.departmentId) {
+      return res.status(403).json({ success: false, message: 'Admin does not belong to any department' });
+    }
+    const result = await studentService.getStudentDetails(req.params.id, req.user.departmentId);
     res.status(200).json(result);
   } catch (error) {
     res.status(404).json({ success: false, message: error.message });
@@ -20,7 +26,10 @@ export const getStudentDetails = async (req, res) => {
 
 export const updateStudent = async (req, res) => {
   try {
-    const result = await studentService.updateStudent(req.params.id, req.body, req.user.id);
+    if (!req.user.departmentId) {
+      return res.status(403).json({ success: false, message: 'Admin does not belong to any department' });
+    }
+    const result = await studentService.updateStudent(req.params.id, req.user.departmentId, req.body, req.user.id);
     res.status(200).json(result);
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
@@ -46,6 +55,9 @@ export const getStudentLoginHistory = async (req, res) => {
 
 export const getStudentActivity = async (req, res) => {
   try {
+    if (!req.user.departmentId) {
+      return res.status(403).json({ success: false, message: 'Admin does not belong to any department' });
+    }
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
@@ -72,7 +84,10 @@ export const resetPassword = async (req, res) => {
 
 export const deleteStudent = async (req, res) => {
   try {
-    const result = await studentService.deleteStudent(req.params.id, req.user.id);
+    if (!req.user.departmentId) {
+      return res.status(403).json({ success: false, message: 'Admin does not belong to any department' });
+    }
+    const result = await studentService.deleteStudent(req.params.id, req.user.departmentId, req.user.id);
     res.status(200).json(result);
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
@@ -81,7 +96,10 @@ export const deleteStudent = async (req, res) => {
 
 export const hardDeleteStudent = async (req, res) => {
   try {
-    const result = await studentService.hardDeleteStudent(req.params.id, req.user.id);
+    if (!req.user.departmentId) {
+      return res.status(403).json({ success: false, message: 'Admin does not belong to any department' });
+    }
+    const result = await studentService.hardDeleteStudent(req.params.id, req.user.departmentId, req.user.id);
     res.status(200).json(result);
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });

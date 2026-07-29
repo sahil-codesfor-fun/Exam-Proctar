@@ -5,21 +5,27 @@ import studentRepository from '../repositories/studentRepository.js';
 import cacheService from './cache.service.js';
 
 class StudentService {
-  async getStudents(query) {
+  async getStudents(departmentId, query) {
     const page = parseInt(query.page) || 1;
     const limit = parseInt(query.limit) || 50;
     const search = query.search || '';
     const status = query.status || '';
     const course = query.course || '';
     const section = query.section || '';
+    const reqDepartmentId = query.department || '';
+
+    const effectiveDepartmentId = departmentId || reqDepartmentId || undefined;
 
     const skip = (page - 1) * limit;
 
-    const cacheKey = `users:students:${page}:${limit}:${search}:${status}:${course}:${section}`;
+    const cacheKey = `users:students:${effectiveDepartmentId || 'all'}:${page}:${limit}:${search}:${status}:${course}:${section}`;
     const cachedData = await cacheService.get(cacheKey);
     if (cachedData) return cachedData;
 
     const where = {};
+    if (effectiveDepartmentId) {
+      where.departmentId = effectiveDepartmentId;
+    }
     if (status) {
       where.status = status;
     } else {
