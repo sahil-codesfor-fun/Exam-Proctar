@@ -88,7 +88,7 @@ function App() {
 
   return (
     <AuthProvider>
-      <div className={`min-h-screen font-sans flex flex-col ${isLiveExam || isCompiler ? 'bg-gray-950 text-white' : 'bg-gray-50 text-gray-900'}`}>
+      <div className={`${isDashboard || isLiveExam || isCompiler || isAdmin || isSuperAdmin ? 'h-screen overflow-hidden' : 'min-h-screen'} w-full font-sans flex flex-col ${isLiveExam || isCompiler ? 'bg-gray-950 text-white' : 'bg-gray-50 text-gray-900'}`}>
         
         {!isLiveExam && !isCompiler && !isAuthPage && !isAdmin && !isChangePass && !isSuperAdmin && !isDashboard && (
           <header className="px-4 md:px-6 py-4 bg-white border-b border-gray-200 flex justify-between items-center sticky top-0 z-50">
@@ -99,7 +99,7 @@ function App() {
           </header>
         )}
 
-        <main className={`flex-grow ${isLiveExam || isCompiler || isAuthPage || isAdmin || isChangePass || isSuperAdmin || isDashboard ? '' : 'p-4 md:p-8'}`}>
+        <main className={`flex-grow flex flex-col ${isDashboard || isLiveExam || isCompiler || isAdmin || isSuperAdmin ? 'overflow-hidden' : ''} ${isLiveExam || isCompiler || isAuthPage || isAdmin || isChangePass || isSuperAdmin || isDashboard ? '' : 'p-4 md:p-8'}`}>
           <Suspense fallback={
             <div className="h-screen flex items-center justify-center bg-gray-50 text-gray-900">
               <div className="flex flex-col items-center gap-3">
