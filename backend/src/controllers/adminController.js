@@ -16,10 +16,13 @@ export const getFacultyList = async (req, res) => {
   try {
     const { search, department } = req.query;
     
-    // 🚨 PRISMA FILTERING
     let whereClause = {
       role: { in: ['teacher', 'faculty'] }
     };
+
+    if (req.user?.role === 'admin' || req.user?.role === 'department_head') {
+      whereClause.departmentId = req.user.departmentId;
+    }
     
     if (search) {
       whereClause.OR = [
@@ -28,7 +31,9 @@ export const getFacultyList = async (req, res) => {
         { facultyId: { contains: search } }
       ];
     }
-    if (department && department !== 'All') whereClause.department = department;
+    if (req.user?.role !== 'admin' && req.user?.role !== 'department_head') {
+      if (department && department !== 'All') whereClause.department = department;
+    }
 
     const faculty = await prisma.user.findMany({
       where: whereClause,
@@ -54,6 +59,13 @@ export const createFaculty = async (req, res) => {
     const facultyId = await generateFacultyId();
     const hashedPassword = bcrypt.hashSync(password, 10);
     
+    let assignedDeptId = null;
+    if (req.user?.role === 'admin' || req.user?.role === 'department_head') {
+      assignedDeptId = req.user.departmentId;
+    } else {
+      assignedDeptId = req.body.departmentId || null;
+    }
+
     // 🚨 PRISMA CREATE
     await prisma.user.create({
       data: {
@@ -61,6 +73,7 @@ export const createFaculty = async (req, res) => {
         email,
         facultyId,
         department,
+        departmentId: assignedDeptId,
         password: hashedPassword,
         role: 'faculty', 
         isActive: true,

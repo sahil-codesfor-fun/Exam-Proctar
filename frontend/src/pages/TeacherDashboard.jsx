@@ -576,7 +576,7 @@ export const TeacherDashboard = () => {
   };
 
   return (
-    <div className="flex h-screen w-full bg-gray-50 overflow-hidden font-sans relative">
+    <div className="flex h-screen w-full max-w-[100vw] bg-gray-50 overflow-hidden font-sans relative">
       {modal && renderModal()}
 
       {toast && (

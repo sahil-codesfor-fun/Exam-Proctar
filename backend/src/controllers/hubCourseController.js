@@ -300,7 +300,9 @@ export const getDepartmentCourses = async (req, res) => {
 export const getAllCourses = async (req, res) => {
   try {
     const where = {};
-    if (req.user?.departmentId) {
+    if (req.user?.role === 'admin' || req.user?.role === 'department_head') {
+      where.departmentId = req.user.departmentId;
+    } else if (req.user?.departmentId) {
       where.OR = [
         { departmentId: req.user.departmentId },
         { departmentId: null }

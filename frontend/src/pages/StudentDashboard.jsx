@@ -120,7 +120,7 @@ export const StudentDashboard = () => {
   });
 
   return (
-    <div className="flex h-screen bg-gray-50/50 overflow-hidden font-sans relative">
+    <div className="flex h-screen w-full max-w-[100vw] bg-gray-50/50 overflow-hidden font-sans relative">
       
       {isSidebarOpen && <div className="fixed inset-0 bg-gray-900/50 z-40 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
       <button onClick={() => setIsSidebarOpen(true)} className="md:hidden absolute top-4 left-4 z-30 p-2 bg-white rounded-lg shadow-md border border-gray-200 text-gray-700">
@@ -168,7 +168,7 @@ export const StudentDashboard = () => {
       </div>
 
       {/* 🚀 THE MAIN CONTENT AREA */}
-      <div className="flex-1 min-w-0 h-full overflow-y-auto p-6 pt-16 md:pt-10 relative">
+      <div className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden p-6 pt-16 md:pt-10 relative">
         <div className="max-w-6xl mx-auto w-full">
           
           {}

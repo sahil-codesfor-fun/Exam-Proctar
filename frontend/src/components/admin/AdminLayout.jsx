@@ -8,7 +8,7 @@ const AdminLayout = () => {
   const { user } = useAuth();
 
   return (
-    <div className="flex h-screen bg-gray-50 font-sans text-gray-900">
+    <div className="flex h-screen w-full max-w-[100vw] overflow-hidden bg-gray-50 font-sans text-gray-900">
       <AdminSidebar />
       <div className="flex-1 flex flex-col md:ml-64 overflow-hidden">
         <header className="py-4 border-b border-gray-200 bg-white flex items-center px-6 sticky top-0 z-30">
@@ -28,7 +28,7 @@ const AdminLayout = () => {
           </div>
         </header>
         
-        <main className="flex-1 overflow-y-auto bg-gray-50">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-gray-50">
           <Outlet />
         </main>
       </div>
