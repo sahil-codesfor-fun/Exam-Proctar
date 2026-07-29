@@ -663,7 +663,7 @@ export const TeacherDashboard = () => {
         </div>
       </div>
 
-      <div className="flex-1 min-w-0 overflow-y-auto bg-gray-50/50 p-4 pt-16 md:p-8 lg:p-12 pb-24 relative w-full md:w-auto">
+      <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden bg-gray-50/50 p-4 pt-16 md:p-8 lg:p-12 pb-24 relative w-full md:w-auto">
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none transform translate-x-1/3 -translate-y-1/3"></div>
         <Outlet context={{ exams, subs, loadSubs, loading, setModal, openEditModal, toggleStatus, deleteExam, showConfirm, isUpdating }} />
       </div>
