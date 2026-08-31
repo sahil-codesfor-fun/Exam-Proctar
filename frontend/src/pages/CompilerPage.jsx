@@ -99,7 +99,6 @@ export function CompilerPage() {
   const questionId = searchParams.get('questionId');
   const [question, setQuestion] = useState(null);
   const [loadingQuestion, setLoadingQuestion] = useState(false);
-  const [questionsCache, setQuestionsCache] = useState({});
   const [questionStatuses, setQuestionStatuses] = useState([]);
   const [socket, setSocket] = useState(null);
   
@@ -200,33 +199,25 @@ export function CompilerPage() {
     fetchConfigs();
   }, []);
 
-  // 🚀 Fast 0ms Question Load via Cache
   useEffect(() => {
-    if (!questionId) return;
-
-    if (questionsCache[questionId]) {
-      setQuestion(questionsCache[questionId]);
-      setLoadingQuestion(false);
-      return;
+    if (questionId) {
+      const fetchQuestion = async () => {
+        setLoadingQuestion(true);
+        try {
+          const res = await api.get(`/practice/question/${questionId}`);
+          if (res.data.success) {
+            setQuestion(res.data.question);
+          }
+        } catch (err) { console.error("Failed to fetch question:", err); } 
+        finally { setLoadingQuestion(false); }
+      };
+      fetchQuestion();
     }
-
-    const fetchQuestion = async () => {
-      setLoadingQuestion(true);
-      try {
-        const res = await api.get(`/practice/question/${questionId}`);
-        if (res.data.success && res.data.question) {
-          setQuestion(res.data.question);
-          setQuestionsCache(prev => ({ ...prev, [questionId]: res.data.question }));
-        }
-      } catch (err) { console.error("Failed to fetch question:", err); } 
-      finally { setLoadingQuestion(false); }
-    };
-    fetchQuestion();
-  }, [questionId, questionsCache]);
+  }, [questionId]);
 
   const moduleId = searchParams.get('moduleId');
   
-  // 🚀 Pre-fetch and cache module / practice sheet questions
+  // Fetch practice sheets or the specific module
   useEffect(() => {
     const fetchSheets = async () => {
       try {
@@ -245,15 +236,6 @@ export function CompilerPage() {
             };
             setPracticeSheets([formattedSheet]);
             
-            // Populate cache with full question details
-            const newCache = {};
-            mod.questions.forEach(q => {
-              if (q.id) {
-                newCache[q.id] = q;
-              }
-            });
-            setQuestionsCache(prev => ({ ...prev, ...newCache }));
-
             const mappedStatuses = mod.questions.map(q => ({
               questionId: q.id,
               status: q.isSolved ? 'Accepted' : 'Not Started',
@@ -267,18 +249,6 @@ export function CompilerPage() {
             const sheets = res.data.sheets || res.data.data || [];
             setPracticeSheets(sheets);
             if (res.data.questionStatuses) setQuestionStatuses(res.data.questionStatuses);
-
-            // Populate cache with any nested question data from sheets
-            const newCache = {};
-            sheets.forEach(sheet => {
-              sheet.questions?.forEach(psq => {
-                const qData = psq.question;
-                if (qData && qData.id) {
-                  newCache[qData.id] = qData;
-                }
-              });
-            });
-            setQuestionsCache(prev => ({ ...prev, ...newCache }));
 
             if (!questionId && sheets.length > 0 && sheets[0].questions?.length > 0) {
               setSearchParams(prev => { prev.set('questionId', sheets[0].questions[0].questionId); return prev; });
