@@ -421,10 +421,31 @@ export const getModuleContent = async (req, res) => {
           select: {
             id: true,
             title: true,
+            type: true,
+            description: true,
             difficulty: true,
             companyTags: true,
             category: true,
-            sourceUrl: true
+            sourceUrl: true,
+            constraints: true,
+            points: true,
+            topic: true,
+            topics: true,
+            sampleInput: true,
+            sampleOutput: true,
+            explanation: true,
+            stubJava: true,
+            stubPython: true,
+            stubC: true,
+            stubCpp: true,
+            testCases: {
+              select: {
+                id: true,
+                input: true,
+                expectedOutput: true,
+                isHidden: true
+              }
+            }
           }
         },
         articles: {
@@ -441,6 +462,7 @@ export const getModuleContent = async (req, res) => {
       return res.status(404).json({ error: 'Module not found.' });
     }
 
+    const solvedSet = new Set();
     if (studentId && moduleContent.questions && moduleContent.questions.length > 0) {
       const questionIds = moduleContent.questions.map(q => q.id);
       
@@ -454,13 +476,19 @@ export const getModuleContent = async (req, res) => {
         distinct: ['questionId']
       });
       
-      const solvedSet = new Set(solvedSubmissions.map(s => s.questionId));
-      
-      moduleContent.questions = moduleContent.questions.map(q => ({
-        ...q,
-        isSolved: solvedSet.has(q.id)
-      }));
+      solvedSubmissions.forEach(s => solvedSet.add(s.questionId));
     }
+
+    moduleContent.questions = (moduleContent.questions || []).map(q => {
+      const safeTestCases = (q.testCases || []).map(tc => 
+        tc.isHidden ? { id: tc.id, input: tc.input, expectedOutput: 'Hidden', isHidden: true } : tc
+      );
+      return {
+        ...q,
+        testCases: safeTestCases,
+        isSolved: solvedSet.has(q.id)
+      };
+    });
 
     res.json({ success: true, module: moduleContent });
   } catch (error) {
