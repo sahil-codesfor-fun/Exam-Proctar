@@ -491,13 +491,18 @@ export function CompilerPage() {
                           Q{(activeSheet?.questions?.findIndex(q => q.questionId === questionId) ?? 0) + 1}
                         </span>
                         <span className="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-3 py-1 rounded-lg">{question.points || 10} pts</span>
-                        <span className={`text-xs font-bold px-3 py-1 rounded-lg ${
-                          question.difficulty?.toLowerCase() === 'easy' ? 'bg-emerald-500/20 text-emerald-400' :
-                          question.difficulty?.toLowerCase() === 'medium' ? 'bg-amber-500/20 text-amber-400' :
-                          'bg-red-500/20 text-red-400'
-                        }`}>
-                          {question.difficulty ? question.difficulty.charAt(0).toUpperCase() + question.difficulty.slice(1).toLowerCase() : 'Medium'}
-                        </span>
+                        {(() => {
+                          const d = (question.difficulty || '').toLowerCase().trim();
+                          const isEasy = d === 'easy';
+                          const isHard = d === 'hard';
+                          const style = isEasy ? 'bg-emerald-500/20 text-emerald-400' : isHard ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400';
+                          const label = isEasy ? 'Easy' : isHard ? 'Hard' : 'Medium';
+                          return (
+                            <span className={`text-xs font-bold px-3 py-1 rounded-lg ${style}`}>
+                              {label}
+                            </span>
+                          );
+                        })()}
                     </div>
                     
                     <h2 className="text-xl font-bold mb-3 text-white">{question.title}</h2>

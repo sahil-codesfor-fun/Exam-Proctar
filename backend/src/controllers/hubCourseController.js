@@ -124,6 +124,16 @@ export const uploadCourseCsv = async (req, res) => {
               const companies = normalizedData['companies'] || normalizedData['companytags'];
               const category = normalizedData['category'] || 'Practice';
               
+              let cleanTitle = (problem_name || '').trim();
+              if (!cleanTitle || (/^[\d\s\-]+$/.test(cleanTitle) && cleanTitle.length > 5)) {
+                cleanTitle = 'Practice Problem';
+              }
+
+              let cleanDifficulty = (complexity || 'medium').toLowerCase().trim();
+              if (!['easy', 'medium', 'hard'].includes(cleanDifficulty)) {
+                cleanDifficulty = 'medium';
+              }
+
               let companyTags = [];
               if (companies) companyTags = companies.split(',').map(tag => tag.trim());
 
@@ -159,9 +169,9 @@ export const uploadCourseCsv = async (req, res) => {
               allQuestions.push({
                 id: questionId,
                 type: 'Programming',
-                title: problem_name || 'Untitled Problem',
+                title: cleanTitle,
                 description: formattedDesc,
-                difficulty: complexity || 'medium',
+                difficulty: cleanDifficulty,
                 constraints: problem_data_constraints || '',
                 points: 10,
                 sourceUrl: problem_link || null,
@@ -604,3 +614,67 @@ export const getFacultyStudentProgress = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch student progress.' });
   }
 };
+
+export const cleanupCorruptedData = async (req, res) => {
+  try {
+    const questions = await prisma.question.findMany();
+    const corruptedIds = [];
+
+    for (const q of questions) {
+      const titleTrimmed = (q.title || '').trim();
+      const diffTrimmed = (q.difficulty || '').toLowerCase().trim();
+
+      const isTitleNumbers = /^[\d\s\-]+$/.test(titleTrimmed) && titleTrimmed.length > 5;
+      const isTitleSuspicious = titleTrimmed.includes('-12') || titleTrimmed.includes('-7');
+      const isDiffSuspicious = diffTrimmed.includes('-12') || diffTrimmed.includes('-7') || /^[\d\s\-]+$/.test(diffTrimmed);
+      const isDiffInvalid = !['easy', 'medium', 'hard'].includes(diffTrimmed);
+
+      if (isTitleNumbers || isTitleSuspicious || isDiffSuspicious) {
+        corruptedIds.push(q.id);
+      } else if (isDiffInvalid && q.difficulty) {
+        await prisma.question.update({
+          where: { id: q.id },
+          data: { difficulty: 'medium' }
+        });
+      }
+    }
+
+    let deletedQuestionsCount = 0;
+    if (corruptedIds.length > 0) {
+      await prisma.testCase.deleteMany({
+        where: { questionId: { in: corruptedIds } }
+      });
+      const delRes = await prisma.question.deleteMany({
+        where: { id: { in: corruptedIds } }
+      });
+      deletedQuestionsCount = delRes.count;
+    }
+
+    const modules = await prisma.hubModule.findMany();
+    const badModuleIds = [];
+    for (const mod of modules) {
+      const titleTrimmed = (mod.title || '').trim();
+      if (/^[\d\s\-]+$/.test(titleTrimmed) && titleTrimmed.length > 5) {
+        badModuleIds.push(mod.id);
+      }
+    }
+    let deletedModulesCount = 0;
+    if (badModuleIds.length > 0) {
+      const delMod = await prisma.hubModule.deleteMany({
+        where: { id: { in: badModuleIds } }
+      });
+      deletedModulesCount = delMod.count;
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Database audit and cleanup completed.',
+      deletedQuestions: deletedQuestionsCount,
+      deletedModules: deletedModulesCount
+    });
+  } catch (error) {
+    console.error('Error during DB cleanup:', error);
+    return res.status(500).json({ error: 'Failed to execute DB cleanup', details: error.message });
+  }
+};
+

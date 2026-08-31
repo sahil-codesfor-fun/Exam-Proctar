@@ -59,12 +59,31 @@ const StudentModule = () => {
 
   const getCategoryQuestions = (category) => {
     if (!module?.questions) return [];
-    if (category === 'Trainer') return module.questions.filter(q => q.category?.toLowerCase() === 'trainer');
-    if (category === 'Labs') return module.questions.filter(q => q.category?.toLowerCase() === 'labs' || q.category?.toLowerCase() === 'lab');
-    return module.questions.filter(q => q.category?.toLowerCase() === 'practice' || (!q.category?.toLowerCase().includes('trainer') && !q.category?.toLowerCase().includes('lab')));
+    
+    // Filter out corrupted questions with raw testcase number strings as title
+    const validQuestions = module.questions.filter(q => {
+      const title = String(q.title || '').trim();
+      const isCorruptedTitle = /^[\d\s\-]+$/.test(title) && title.length > 5;
+      return !isCorruptedTitle;
+    });
+
+    if (category === 'Trainer') return validQuestions.filter(q => q.category?.toLowerCase() === 'trainer');
+    if (category === 'Labs') return validQuestions.filter(q => q.category?.toLowerCase() === 'labs' || q.category?.toLowerCase() === 'lab');
+    return validQuestions.filter(q => q.category?.toLowerCase() === 'practice' || (!q.category?.toLowerCase().includes('trainer') && !q.category?.toLowerCase().includes('lab')));
   };
 
   const currentQuestions = getCategoryQuestions(activeCategory);
+
+  const getDifficultyBadge = (diff) => {
+    const d = String(diff || '').toLowerCase().trim();
+    if (d === 'easy') {
+      return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-green-100 text-green-700">Easy</span>;
+    }
+    if (d === 'hard') {
+      return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-red-100 text-red-700">Hard</span>;
+    }
+    return <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-amber-100 text-amber-700">Medium</span>;
+  };
 
   return (
     <div className="space-y-8 mt-6 max-w-5xl mx-auto">
@@ -139,13 +158,7 @@ const StudentModule = () => {
                       <h3 className="font-semibold text-lg text-slate-800">{q.title}</h3>
                       
                       <div className="flex flex-wrap items-center gap-3 mt-2 text-sm">
-                        <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${
-                          q.difficulty?.toLowerCase() === 'easy' ? 'bg-green-100 text-green-700' : 
-                          q.difficulty?.toLowerCase() === 'medium' ? 'bg-amber-100 text-amber-700' : 
-                          'bg-red-100 text-red-700'
-                        }`}>
-                          {q.difficulty ? q.difficulty.charAt(0).toUpperCase() + q.difficulty.slice(1).toLowerCase() : 'Medium'}
-                        </span>
+                        {getDifficultyBadge(q.difficulty)}
                         
                         {q.companyTags && String(q.companyTags) !== '[]' && String(q.companyTags).trim() !== '' && (
                           <span className="flex items-center gap-1 text-slate-500">

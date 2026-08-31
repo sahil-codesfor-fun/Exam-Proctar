@@ -1,7 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import rateLimit from 'express-rate-limit';
-import { uploadCourseCsv, getDepartmentCourses, getAllCourses, assignCourseToDepartment, createCourse, createModule, getModuleContent, deleteCourse, getFacultyStudentProgress } from '../controllers/hubCourseController.js';
+import { uploadCourseCsv, getDepartmentCourses, getAllCourses, assignCourseToDepartment, createCourse, createModule, getModuleContent, deleteCourse, getFacultyStudentProgress, cleanupCorruptedData } from '../controllers/hubCourseController.js';
 import { protect, adminOnly, teacherOnly } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -47,6 +47,8 @@ router.post('/admin/assign', protect, adminOnly, assignCourseToDepartment);
 router.post('/admin/create-course', protect, adminOnly, createCourse);
 router.post('/admin/create-module', protect, adminOnly, createModule);
 router.delete('/admin/course/:courseId', protect, adminOnly, deleteCourse);
+router.post('/admin/cleanup-corrupted', protect, adminOnly, cleanupCorruptedData);
+router.get('/admin/cleanup-corrupted', protect, adminOnly, cleanupCorruptedData);
 
 export default router;
 
