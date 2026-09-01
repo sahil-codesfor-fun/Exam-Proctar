@@ -42,24 +42,27 @@ const StudentOverview = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const ticketRes = await api.get('/tickets/my');
-        setMyTickets(ticketRes.data.data || []);
-      } catch (err) {
-        console.error('Failed to fetch appeals', err);
-      }
+        const [ticketRes, subRes] = await Promise.allSettled([
+          api.get('/tickets/my'),
+          api.get('/submissions/my')
+        ]);
 
-      try {
-        const subRes = await api.get(`/submissions/my?t=${Date.now()}`);
-        const subMap = {};
-        (subRes.data.data || []).forEach(s => {
-          subMap[s.examId || s.exam?._id || s.exam?.id] = s.status;
-        });
-        setAttemptedExams(subMap);
-      } catch (err) {
-        console.error('Failed to fetch submissions', err);
-      }
+        if (ticketRes.status === 'fulfilled') {
+          setMyTickets(ticketRes.value.data?.data || []);
+        }
 
-      setLoadingTickets(false);
+        if (subRes.status === 'fulfilled') {
+          const subMap = {};
+          (subRes.value.data?.data || []).forEach(s => {
+            subMap[s.examId || s.exam?._id || s.exam?.id] = s.status;
+          });
+          setAttemptedExams(subMap);
+        }
+      } catch (err) {
+        console.error('Failed to load overview data', err);
+      } finally {
+        setLoadingTickets(false);
+      }
     };
     fetchData();
   }, []);

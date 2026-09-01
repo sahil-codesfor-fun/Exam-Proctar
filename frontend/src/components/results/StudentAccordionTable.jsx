@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import api from '../../services/api';
@@ -11,8 +11,132 @@ const statusConfig = {
   in_progress: { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100', label: 'In Progress' },
 };
 
-// 🚀 UPDATED GRID CLASS: Perfectly balanced for the high-level data
 const TABLE_GRID_CLASS = "grid-cols-[32px_1fr_100px_120px_100px_80px_80px_100px]";
+
+const StudentRow = memo(({
+  r,
+  isExpanded,
+  isLoading,
+  reportData,
+  toggleExpand,
+  onGradeUpdate,
+  onRefreshResults,
+  fetchReport,
+  reportCache
+}) => {
+  const config = statusConfig[r.status] || statusConfig.in_progress;
+
+  return (
+    <div className="bg-white">
+      {/* ─── Desktop Row ─── */}
+      <div
+        onClick={() => toggleExpand(r.submissionId)}
+        className={`hidden lg:grid ${TABLE_GRID_CLASS} gap-0 items-center py-4 px-4 cursor-pointer transition-all duration-200 ${isExpanded ? 'bg-gray-50 border-l-2 border-l-[#4B775E]' : 'hover:bg-gray-50/50 border-l-2 border-l-transparent'}`}
+      >
+        <div>
+          <ChevronDown
+            size={14}
+            className={`text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-[#4B775E]' : ''}`}
+          />
+        </div>
+
+        <div className="px-2 min-w-0">
+          <p className="font-bold text-sm text-gray-900 truncate">{r.studentName}</p>
+          <p className="text-[10px] text-gray-400 font-mono truncate">{r.studentEmail}</p>
+        </div>
+
+        <div className="px-2 text-xs font-bold text-gray-500 truncate">{r.studentRollNo}</div>
+
+        <div className="px-2 text-xs font-medium text-gray-500 truncate">{r.examTitle}</div>
+
+        <div className="px-2 text-center">
+          <span className="font-black text-sm text-gray-700">{r.totalScore}</span>
+          <span className="text-gray-300 mx-0.5">/</span>
+          <span className="text-xs text-gray-400">{r.maxScore}</span>
+        </div>
+
+        <div className="px-2 text-center">
+          <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${r.percentage >= 33.33 ? 'text-emerald-600' : 'text-red-500'}`}>
+            {r.percentage}%
+          </span>
+        </div>
+
+        <div className="px-2 text-center">
+          <span className={`text-[11px] font-black ${r.violationCount > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+            {r.violationCount}
+          </span>
+        </div>
+
+        <div className="px-2 text-center flex justify-center">
+          <span className={`text-[8px] font-black px-2 py-1 rounded-lg uppercase tracking-wider ${config.bg} ${config.text} border ${config.border}`}>
+            {config.label}
+          </span>
+        </div>
+      </div>
+
+      {/* ─── Mobile/Tablet Card ─── */}
+      <div
+        onClick={() => toggleExpand(r.submissionId)}
+        className={`lg:hidden p-4 cursor-pointer transition-all duration-200 ${isExpanded ? 'bg-gray-50 border-l-2 border-l-[#4B775E]' : 'hover:bg-gray-50/50 border-l-2 border-l-transparent'}`}
+      >
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <ChevronDown
+              size={14}
+              className={`text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-[#4B775E]' : ''}`}
+            />
+            <div>
+              <p className="font-bold text-sm text-gray-900">{r.studentName}</p>
+              <p className="text-[10px] text-gray-400 font-mono">{r.studentRollNo}</p>
+            </div>
+          </div>
+          <span className={`text-[8px] font-black px-2 py-1 rounded-lg uppercase tracking-wider ${config.bg} ${config.text} border ${config.border}`}>
+            {config.label}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-3 flex-wrap mt-2 pl-6">
+          <div className="flex items-center gap-1">
+            <span className="font-black text-sm text-gray-700">{r.totalScore}</span>
+            <span className="text-gray-300">/</span>
+            <span className="text-xs text-gray-400">{r.maxScore}</span>
+          </div>
+          <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${r.percentage >= 33.33 ? 'text-emerald-600' : 'text-red-500'}`}>
+            {r.percentage}%
+          </span>
+          
+          {r.violationCount > 0 && (
+            <span className="text-[10px] font-black text-red-500">{r.violationCount} infractions</span>
+          )}
+        </div>
+      </div>
+
+      {/* ─── Expanded Report Dropdown ─── */}
+      <div
+        className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? 'max-h-[10000px] opacity-100' : 'max-h-0 opacity-0'}`}
+      >
+        {isExpanded && (
+          <div className="border-t border-gray-200 bg-gray-50/30">
+            <StudentReport
+              report={reportData[r.submissionId]}
+              loading={isLoading}
+              onGradeUpdate={async (questionId, score, remarks) => {
+                if (onGradeUpdate) {
+                  await onGradeUpdate(r.submissionId, questionId, score, remarks);
+                  delete reportCache.current[r.submissionId];
+                  await fetchReport(r.submissionId);
+                  if (onRefreshResults) onRefreshResults();
+                }
+              }}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
+StudentRow.displayName = 'StudentRow';
 
 const StudentAccordionTable = ({ results, examId, examTitle, onGradeUpdate, onRefreshResults }) => {
   const { submissionId: expandedId } = useParams();
@@ -66,7 +190,6 @@ const StudentAccordionTable = ({ results, examId, examTitle, onGradeUpdate, onRe
 
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200">
-      {}
       <div className="bg-gray-50/80 border-b border-gray-200 hidden lg:block">
         <div className={`grid ${TABLE_GRID_CLASS} gap-0 text-[9px] font-black text-gray-400 uppercase tracking-widest py-3 px-4`}>
           <div></div>
@@ -80,134 +203,24 @@ const StudentAccordionTable = ({ results, examId, examTitle, onGradeUpdate, onRe
         </div>
       </div>
 
-      {}
       <div className="divide-y divide-gray-100">
-        {results.map((r) => {
-          const isExpanded = expandedId === r.submissionId;
-          const isLoading = loadingId === r.submissionId;
-          const config = statusConfig[r.status] || statusConfig.in_progress;
-
-          return (
-            <div key={r.submissionId} className="bg-white">
-              {/* ─── Desktop Row ─── */}
-              <div
-                onClick={() => toggleExpand(r.submissionId)}
-                className={`hidden lg:grid ${TABLE_GRID_CLASS} gap-0 items-center py-4 px-4 cursor-pointer transition-all duration-200 ${isExpanded ? 'bg-gray-50 border-l-2 border-l-[#4B775E]' : 'hover:bg-gray-50/50 border-l-2 border-l-transparent'}`}
-              >
-                {}
-                <div>
-                  <ChevronDown
-                    size={14}
-                    className={`text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-[#4B775E]' : ''}`}
-                  />
-                </div>
-
-                {}
-                <div className="px-2 min-w-0">
-                  <p className="font-bold text-sm text-gray-900 truncate">{r.studentName}</p>
-                  <p className="text-[10px] text-gray-400 font-mono truncate">{r.studentEmail}</p>
-                </div>
-
-                {}
-                <div className="px-2 text-xs font-bold text-gray-500 truncate">{r.studentRollNo}</div>
-
-                {}
-                <div className="px-2 text-xs font-medium text-gray-500 truncate">{r.examTitle}</div>
-
-                {}
-                <div className="px-2 text-center">
-                  <span className="font-black text-sm text-gray-700">{r.totalScore}</span>
-                  <span className="text-gray-300 mx-0.5">/</span>
-                  <span className="text-xs text-gray-400">{r.maxScore}</span>
-                </div>
-
-                {}
-                <div className="px-2 text-center">
-                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${r.percentage >= 33.33 ? 'text-emerald-600' : 'text-red-500'}`}>
-                    {r.percentage}%
-                  </span>
-                </div>
-
-                {}
-                <div className="px-2 text-center">
-                  <span className={`text-[11px] font-black ${r.violationCount > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
-                    {r.violationCount}
-                  </span>
-                </div>
-
-                {}
-                <div className="px-2 text-center flex justify-center">
-                  <span className={`text-[8px] font-black px-2 py-1 rounded-lg uppercase tracking-wider ${config.bg} ${config.text} border ${config.border}`}>
-                    {config.label}
-                  </span>
-                </div>
-              </div>
-
-              {/* ─── Mobile/Tablet Card ─── */}
-              <div
-                onClick={() => toggleExpand(r.submissionId)}
-                className={`lg:hidden p-4 cursor-pointer transition-all duration-200 ${isExpanded ? 'bg-gray-50 border-l-2 border-l-[#4B775E]' : 'hover:bg-gray-50/50 border-l-2 border-l-transparent'}`}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <ChevronDown
-                      size={14}
-                      className={`text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-[#4B775E]' : ''}`}
-                    />
-                    <div>
-                      <p className="font-bold text-sm text-gray-900">{r.studentName}</p>
-                      <p className="text-[10px] text-gray-400 font-mono">{r.studentRollNo}</p>
-                    </div>
-                  </div>
-                  <span className={`text-[8px] font-black px-2 py-1 rounded-lg uppercase tracking-wider ${config.bg} ${config.text} border ${config.border}`}>
-                    {config.label}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-3 flex-wrap mt-2 pl-6">
-                  <div className="flex items-center gap-1">
-                    <span className="font-black text-sm text-gray-700">{r.totalScore}</span>
-                    <span className="text-gray-300">/</span>
-                    <span className="text-xs text-gray-400">{r.maxScore}</span>
-                  </div>
-                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${r.percentage >= 33.33 ? 'text-emerald-600' : 'text-red-500'}`}>
-                    {r.percentage}%
-                  </span>
-                  
-                  {r.violationCount > 0 && (
-                    <span className="text-[10px] font-black text-red-500">{r.violationCount} infractions</span>
-                  )}
-                </div>
-              </div>
-
-              {/* ─── Expanded Report Dropdown ─── */}
-              <div
-                className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? 'max-h-[10000px] opacity-100' : 'max-h-0 opacity-0'}`}
-              >
-                {isExpanded && (
-                  <div className="border-t border-gray-200 bg-gray-50/30">
-                    <StudentReport
-                      report={reportData[r.submissionId]}
-                      loading={isLoading}
-                      onGradeUpdate={async (questionId, score, remarks) => {
-                        if (onGradeUpdate) {
-                          await onGradeUpdate(r.submissionId, questionId, score, remarks);
-                          delete reportCache.current[r.submissionId];
-                          await fetchReport(r.submissionId);
-                          if (onRefreshResults) onRefreshResults();
-                        }
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+        {results.map((r) => (
+          <StudentRow
+            key={r.submissionId}
+            r={r}
+            isExpanded={expandedId === r.submissionId}
+            isLoading={loadingId === r.submissionId}
+            reportData={reportData}
+            toggleExpand={toggleExpand}
+            onGradeUpdate={onGradeUpdate}
+            onRefreshResults={onRefreshResults}
+            fetchReport={fetchReport}
+            reportCache={reportCache}
+          />
+        ))}
       </div>
     </div>
   );
 };
-
 
 export default StudentAccordionTable;

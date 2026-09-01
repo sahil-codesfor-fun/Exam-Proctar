@@ -37,6 +37,23 @@ export const getFacultyList = async (req, res) => {
 
     const faculty = await prisma.user.findMany({
       where: whereClause,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        facultyId: true,
+        department: true,
+        departmentId: true,
+        role: true,
+        designation: true,
+        qualification: true,
+        experience: true,
+        phone: true,
+        isActive: true,
+        lastLogin: true,
+        createdAt: true,
+        updatedAt: true
+      },
       orderBy: { createdAt: 'desc' }
     });
 

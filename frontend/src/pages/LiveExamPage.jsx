@@ -1,11 +1,13 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import { connectSocket, disconnectSocket, getSocket } from '../services/socket';
 import useProctoring from '../hooks/useProctoring';
 import useDebounce from '../hooks/useDebounce';
-import Editor from '@monaco-editor/react';
+import { asyncGetItem, asyncSetItem } from '../utils/asyncStorage';
+
+const Editor = lazy(() => import('@monaco-editor/react'));
 
 const LANGS = [
   { id: 'javascript', name: 'JavaScript', m: 'javascript' }, { id: 'typescript', name: 'TypeScript', m: 'typescript' },
@@ -346,19 +348,19 @@ export const LiveExamPage = () => {
     }
   };
 
-  const handlePrev = async () => {
-    await forceSaveAllAnswers();
+  const handlePrev = useCallback(() => {
     setCurrentQ(p => Math.max(0, p - 1));
     setRunResult(null);
     setJudgeResult(null);
-  };
+    forceSaveAllAnswers().catch(() => {});
+  }, []);
 
-  const handleNext = async () => {
-    await forceSaveAllAnswers();
+  const handleNext = useCallback(() => {
     setCurrentQ(p => Math.min((exam?.questions?.length || 1) - 1, p + 1));
     setRunResult(null);
     setJudgeResult(null);
-  };
+    forceSaveAllAnswers().catch(() => {});
+  }, [exam?.questions?.length]);
 
   const performForceSubmit = async (reason) => {
     submittedRef.current = true;
@@ -433,10 +435,13 @@ export const LiveExamPage = () => {
   }, [updateLines, phase, answers]);
 
   const enterFullscreen = () => {
-    const handleSuccess = () => {
+    const handleSuccess = async () => {
       const subId = submissionRef.current?._id || submissionRef.current?.id;
-      if (subId && !localStorage.getItem(`exam_started_${subId}`)) {
-        localStorage.setItem(`exam_started_${subId}`, Date.now().toString());
+      if (subId) {
+        const started = await asyncGetItem(`exam_started_${subId}`);
+        if (!started) {
+          await asyncSetItem(`exam_started_${subId}`, Date.now().toString());
+        }
       }
       setPhase('exam');
     };
@@ -914,29 +919,31 @@ export const LiveExamPage = () => {
                     </div>
 
                     <div className="flex-1">
-                      <Editor height="100%" language={(LANGS.find(l => l.id === (ans.language || 'python'))?.m) || 'python'}
-                        value={ans.code || ''} theme="vs-dark"
-                        onChange={v => updateAnswer(qIdSafe, 'code', v || '')}
-                        onMount={(editor) => {
-                          editor.onKeyDown((e) => {
-                            const ctrl = e.ctrlKey || e.metaKey;
-                            const key = e.browserEvent.key.toLowerCase();
-                            if (ctrl && ['c', 'v', 'x', 'a'].includes(key)) {
-                              e.preventDefault();
-                              e.stopPropagation();
+                      <Suspense fallback={<div className="h-full w-full flex items-center justify-center bg-[#1e1e1e] text-gray-500 font-mono text-xs">Loading Editor Environment…</div>}>
+                        <Editor height="100%" language={(LANGS.find(l => l.id === (ans.language || 'python'))?.m) || 'python'}
+                          value={ans.code || ''} theme="vs-dark"
+                          onChange={v => updateAnswer(qIdSafe, 'code', v || '')}
+                          onMount={(editor) => {
+                            editor.onKeyDown((e) => {
+                              const ctrl = e.ctrlKey || e.metaKey;
+                              const key = e.browserEvent.key.toLowerCase();
+                              if (ctrl && ['c', 'v', 'x', 'a'].includes(key)) {
+                                e.preventDefault();
+                                e.stopPropagation();
 
-                              const type = key === 'v' ? 'PASTE' : key === 'c' ? 'COPY' : key === 'x' ? 'CUT' : 'SELECT_ALL';
-                              showToast(`${type} shortcut is disabled.`, 'error');
-                              proctoring.logViolation(`${type}_SHORTCUT`, 'medium', `Attempted ${type} via keyboard shortcut.`);
-                            }
-                          });
-                        }}
-                        options={{
-                          fontSize: 14, fontFamily: "'JetBrains Mono',monospace", minimap: { enabled: false },
-                          scrollBeyondLastLine: false, automaticLayout: true, padding: { top: 12 },
-                          lineNumbers: 'on', wordWrap: 'on', tabSize: 2, cursorBlinking: 'smooth', smoothScrolling: true,
-                          contextmenu: false, dragAndDrop: false, copyWithSyntaxHighlighting: false,
-                        }} />
+                                const type = key === 'v' ? 'PASTE' : key === 'c' ? 'COPY' : key === 'x' ? 'CUT' : 'SELECT_ALL';
+                                showToast(`${type} shortcut is disabled.`, 'error');
+                                proctoring.logViolation(`${type}_SHORTCUT`, 'medium', `Attempted ${type} via keyboard shortcut.`);
+                              }
+                            });
+                          }}
+                          options={{
+                            fontSize: 14, fontFamily: "'JetBrains Mono',monospace", minimap: { enabled: false },
+                            scrollBeyondLastLine: false, automaticLayout: true, padding: { top: 12 },
+                            lineNumbers: 'on', wordWrap: 'on', tabSize: 2, cursorBlinking: 'smooth', smoothScrolling: true,
+                            contextmenu: false, dragAndDrop: false, copyWithSyntaxHighlighting: false,
+                          }} />
+                      </Suspense>
                     </div>
 
                     <div className="h-48 border-t border-gray-800 bg-[#0d1117] overflow-auto p-4 flex-shrink-0">

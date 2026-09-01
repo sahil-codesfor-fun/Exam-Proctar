@@ -19,12 +19,23 @@ export const createPracticeSheet = async (req, res) => {
       }
     });
 
-    if (questions && Array.isArray(questions)) {
+    if (questions && Array.isArray(questions) && questions.length > 0) {
+      const sheetQuestionsData = [];
+
       for (let i = 0; i < questions.length; i++) {
-        let q = questions[i];
+        const q = questions[i];
         let questionId = q.id;
-        
+
         if (String(q.id).startsWith('temp_')) {
+          const testCasesToCreate = (q.testCases && Array.isArray(q.testCases))
+            ? q.testCases.map(tc => ({
+                input: tc.input || '',
+                expectedOutput: tc.expectedOutput || '',
+                isHidden: tc.isHidden || false,
+                points: 0
+              }))
+            : [];
+
           const newQ = await prisma.question.create({
             data: {
               title: q.title || 'Untitled',
@@ -32,32 +43,23 @@ export const createPracticeSheet = async (req, res) => {
               type: q.type || 'coding',
               difficulty: q.difficulty || 'medium',
               topic: q.topic || 'General',
-              points: q.points || 10
+              points: q.points || 10,
+              testCases: testCasesToCreate.length > 0 ? { create: testCasesToCreate } : undefined
             }
           });
           questionId = newQ.id;
-          
-          if (q.testCases && Array.isArray(q.testCases)) {
-            for (const tc of q.testCases) {
-              await prisma.testCase.create({
-                data: {
-                  questionId: questionId,
-                  input: tc.input || '',
-                  expectedOutput: tc.expectedOutput || '',
-                  isHidden: tc.isHidden || false,
-                  points: 0
-                }
-              });
-            }
-          }
         }
 
-        await prisma.practiceSheetQuestion.create({
-          data: {
-            practiceSheetId: sheet.id,
-            questionId: questionId,
-            order: i
-          }
+        sheetQuestionsData.push({
+          practiceSheetId: sheet.id,
+          questionId: questionId,
+          order: i
+        });
+      }
+
+      if (sheetQuestionsData.length > 0) {
+        await prisma.practiceSheetQuestion.createMany({
+          data: sheetQuestionsData
         });
       }
     }

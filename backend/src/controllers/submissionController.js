@@ -246,7 +246,8 @@ export const submitExam = async (req, res) => {
 const aggregatePerformance = async (examId) => {
   try {
     const submissions = await prisma.submission.findMany({
-      where: { examId, status: { in: ['submitted', 'auto_submitted', 'force_submitted'] } }
+      where: { examId, status: { in: ['submitted', 'auto_submitted', 'force_submitted'] } },
+      select: { percentage: true }
     });
     
     if (submissions.length === 0) return;
@@ -287,7 +288,32 @@ export const getMySubmissions = async (req, res) => {
   try {
     const subs = await prisma.submission.findMany({
       where: { studentId: req.user.id },
-      include: { exam: { select: { title: true, status: true, course: true, schedule: { select: { durationMinutes: true, startDate: true, endDate: true } } } } },
+      select: {
+        id: true,
+        examId: true,
+        studentId: true,
+        totalScore: true,
+        maxScore: true,
+        percentage: true,
+        violationCount: true,
+        status: true,
+        submittedAt: true,
+        createdAt: true,
+        exam: {
+          select: {
+            title: true,
+            status: true,
+            course: true,
+            schedule: {
+              select: {
+                durationMinutes: true,
+                startDate: true,
+                endDate: true
+              }
+            }
+          }
+        }
+      },
       orderBy: { createdAt: 'desc' }
     });
     res.json({ success: true, data: subs.map(s => ({ ...s, _id: s.id, exam: { ...s.exam, _id: s.examId, durationMinutes: s.exam?.schedule?.durationMinutes, startTime: s.exam?.schedule?.startDate, endTime: s.exam?.schedule?.endDate } })) });

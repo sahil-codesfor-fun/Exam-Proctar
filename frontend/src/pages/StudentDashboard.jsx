@@ -41,25 +41,22 @@ export const StudentDashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        let fetchedExams = [];
-        let fetchedSubs = [];
+        const [eResult, sResult] = await Promise.allSettled([
+          api.get('/exams'),
+          api.get('/submissions/my')
+        ]);
 
-        try {
-          const eRes = await api.get('/exams');
-          fetchedExams = eRes.data?.data || [];
-        } catch (e) {
-          console.error("Exams fetch failed, falling back", e);
+        if (eResult.status === 'fulfilled') {
+          setExams(eResult.value.data?.data || []);
+        } else {
+          console.error("Exams fetch failed", eResult.reason);
         }
 
-        try {
-          const sRes = await api.get(`/submissions/my?t=${Date.now()}`);
-          fetchedSubs = sRes.data?.data || [];
-        } catch (e) {
-          console.error("Submissions fetch failed, falling back", e);
+        if (sResult.status === 'fulfilled') {
+          setSubmissions(sResult.value.data?.data || []);
+        } else {
+          console.error("Submissions fetch failed", sResult.reason);
         }
-
-        setExams(fetchedExams);
-        setSubmissions(fetchedSubs);
       } finally {
         setLoading(false);
       }

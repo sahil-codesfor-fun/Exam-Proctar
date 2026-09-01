@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import Editor from '@monaco-editor/react';
 import { io } from 'socket.io-client';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+
+const Editor = lazy(() => import('@monaco-editor/react'));
 
 const LANGUAGES = [
   { id: 'javascript', name: 'JavaScript',  monacoLang: 'javascript' },
@@ -572,37 +573,39 @@ export function CompilerPage() {
 
           {}
           <div className="flex-1 relative">
-            <Editor
-              height="100%"
-              language={currentLang.monacoLang}
-              value={code}
-              theme="vs-dark"
-              onChange={v => setCode(v || '')}
-              onMount={(editor, monaco) => {
-                editor.onKeyDown((e) => {
-                  if ((e.ctrlKey || e.metaKey) && (e.keyCode === monaco.KeyCode.KeyC || e.keyCode === monaco.KeyCode.KeyV || e.keyCode === monaco.KeyCode.KeyX)) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }
-                });
-              }}
-              options={{ 
-                  fontSize, 
-                  fontFamily: "'JetBrains Mono','Fira Code',monospace", 
-                  minimap: { enabled: false }, 
-                  scrollBeyondLastLine: false, 
-                  automaticLayout: true, 
-                  padding: { top: 12, bottom: 12 }, 
-                  lineNumbers: 'on', 
-                  wordWrap: 'on', 
-                  tabSize: 2, 
-                  renderLineHighlight: 'all', 
-                  cursorBlinking: 'smooth', 
-                  smoothScrolling: true, 
-                  suggest: { showKeywords: true },
-                  contextmenu: false
-              }}
-            />
+            <Suspense fallback={<div className="h-full w-full flex items-center justify-center bg-[#1e1e1e] text-gray-500 font-mono text-xs">Loading Editor Environment…</div>}>
+              <Editor
+                height="100%"
+                language={currentLang.monacoLang}
+                value={code}
+                theme="vs-dark"
+                onChange={v => setCode(v || '')}
+                onMount={(editor, monaco) => {
+                  editor.onKeyDown((e) => {
+                    if ((e.ctrlKey || e.metaKey) && (e.keyCode === monaco.KeyCode.KeyC || e.keyCode === monaco.KeyCode.KeyV || e.keyCode === monaco.KeyCode.KeyX)) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }
+                  });
+                }}
+                options={{ 
+                    fontSize, 
+                    fontFamily: "'JetBrains Mono','Fira Code',monospace", 
+                    minimap: { enabled: false }, 
+                    scrollBeyondLastLine: false, 
+                    automaticLayout: true, 
+                    padding: { top: 12, bottom: 12 }, 
+                    lineNumbers: 'on', 
+                    wordWrap: 'on', 
+                    tabSize: 2, 
+                    renderLineHighlight: 'all', 
+                    cursorBlinking: 'smooth', 
+                    smoothScrolling: true, 
+                    suggest: { showKeywords: true },
+                    contextmenu: false
+                }}
+              />
+            </Suspense>
           </div>
 
           {}

@@ -60,7 +60,10 @@ export const getExams = async (req, res) => {
     if (['teacher', 'faculty', 'admin', 'superadmin'].includes(req.user.role)) {
       filter = { creatorId: req.user.id };
     } else {
-      const student = await prisma.user.findUnique({ where: { id: req.user.id } });
+      const student = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { studentId: true, course: true, section: true }
+      });
       const batch = student?.studentId && student.studentId.length >= 2 ? '20' + student.studentId.substring(0, 2) : null;
 
       const studentCourse = student?.course || '';
@@ -79,9 +82,19 @@ export const getExams = async (req, res) => {
       };
     }
 
+    const isStudent = req.user.role === 'student';
     const exams = await prisma.exam.findMany({
       where: filter,
-      include: { creator: { select: { id: true, name: true, email: true } }, department: { select: { id: true, name: true } }, subject: { select: { id: true, name: true } }, questions: { include: { options: true, testCases: true, matchingPairs: true } }, settings: true, schedule: true },
+      include: {
+        creator: { select: { id: true, name: true, email: true } },
+        department: { select: { id: true, name: true } },
+        subject: { select: { id: true, name: true } },
+        questions: isStudent
+          ? { select: { id: true, points: true, type: true } }
+          : { include: { options: true, testCases: true, matchingPairs: true } },
+        settings: true,
+        schedule: true
+      },
       orderBy: { createdAt: 'desc' }
     });
 
