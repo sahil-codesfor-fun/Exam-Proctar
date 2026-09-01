@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import { globalLimiter, compilerLimiter } from './middlewares/rateLimiter.js';
+
 import authRoutes from './routes/auth.routes.js';
 import compilerRoutes from './routes/compiler.routes.js';
 import examRoutes from './routes/exam.routes.js';
@@ -44,7 +46,9 @@ app.use(cors({
   credentials: true
 }));
 
+app.use(compression());
 app.use(express.json({ limit: '5mb' }));
+
 
 app.use('/api/', globalLimiter);
 

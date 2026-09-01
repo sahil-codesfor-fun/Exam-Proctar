@@ -3,8 +3,9 @@ import { useNavigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 // 🚀 ADDED 'Code' icon here
-import { Plus, X, Trash2, CheckCircle2, LayoutGrid, FileText, ShieldAlert, Upload, Edit, Users, Code, BookOpen, Activity } from 'lucide-react';
+import { Plus, X, Trash2, CheckCircle2, LayoutGrid, FileText, ShieldAlert, Upload, Edit, Users, Code, BookOpen, Activity, Award } from 'lucide-react';
 import * as XLSX from 'xlsx'; 
+
 
 const EMPTY_Q = { 
   type: 'mcq', title: '', description: '', points: 10, 
@@ -641,8 +642,10 @@ export const TeacherDashboard = () => {
             { icon: <BookOpen size={18}/>, label: 'COURSE PROGRESS', to: 'course-progress' },
             { icon: <BookOpen size={18}/>, label: 'PRACTICE MANAGER', to: 'practice-manager' },
             { icon: <Code size={18}/>, label: 'CODING PROGRESS', to: 'coding-progress' },
+            { icon: <Award size={18}/>, label: 'RESULTS', to: 'results' },
             { icon: <Activity size={18}/>, label: 'PROFILE', to: 'profile' }
           ].map(item => {
+
             const isActive = location.pathname.includes(item.to);
             return (
             <NavLink key={item.label} to={item.to} onClick={() => setIsSidebarOpen(false)}

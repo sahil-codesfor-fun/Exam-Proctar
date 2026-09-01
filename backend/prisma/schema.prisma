@@ -83,7 +83,11 @@ model User {
   platformsLastSyncedAt DateTime @default(now())
 
   @@index([departmentId])
+  @@index([role])
+  @@index([status])
+  @@index([studentId])
 }
+
 
 model Department {
   id          String   @id @default(uuid())
@@ -479,7 +483,10 @@ model Submission {
 
   @@index([examId])
   @@index([studentId])
+  @@index([examId, studentId])
+  @@index([status])
 }
+
 
 model ExamResult {
   id             String      @id @default(uuid())

@@ -141,28 +141,110 @@ const CodingDetail = ({ question }) => {
 };
 
 // ─── Subjective Detail ───────────────────────────────────────
-const SubjectiveDetail = ({ question }) => {
+const SubjectiveDetail = ({ question, onGradeUpdate }) => {
   const d = question.details || {};
+  const wordCount = (d.textAnswer || '').trim().split(/\s+/).filter(Boolean).length;
+  
+  const [score, setScore] = useState(question.obtainedMarks || 0);
+  const [remarks, setRemarks] = useState(d.facultyRemarks || '');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setScore(question.obtainedMarks || 0);
+    setRemarks(d.facultyRemarks || '');
+  }, [question.obtainedMarks, d.facultyRemarks]);
+
+  const handleSaveGrade = async () => {
+    if (!onGradeUpdate) return;
+    setSaving(true);
+    setSaved(false);
+    try {
+      const validScore = Math.max(0, Math.min(Number(score) || 0, question.maxMarks || 10));
+      await onGradeUpdate(question.questionId, validScore, remarks);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (e) {
+      console.error('Failed to grade:', e);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <div className="space-y-3">
-      <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Question</p>
-        <p className="text-sm text-gray-700 font-medium leading-relaxed">{question.description || question.title}</p>
+    <div className="space-y-4">
+      <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 flex justify-between items-start">
+        <div>
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Question</p>
+          <p className="text-sm text-gray-700 font-medium leading-relaxed">{question.description || question.title}</p>
+        </div>
+        <span className="bg-gray-200 text-gray-700 text-[10px] font-bold px-2.5 py-1 rounded-md shrink-0 ml-3">
+          Max: {question.maxMarks} pts
+        </span>
       </div>
 
-      <div className="bg-blue-50/30 rounded-xl p-4 border border-blue-100">
-        <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-2">Student Answer</p>
+      <div className="bg-blue-50/30 rounded-xl p-4 border border-blue-100 space-y-2">
+        <div className="flex justify-between items-center">
+          <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Student Response</p>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${wordCount >= 1500 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+            Word Count: {wordCount} {wordCount >= 1500 ? '(✓ Target Met)' : '(Min 1500 target)'}
+          </span>
+        </div>
         <p className="text-sm text-gray-700 font-medium leading-relaxed whitespace-pre-wrap">
           {d.textAnswer || <span className="italic text-gray-400">No answer submitted</span>}
         </p>
       </div>
 
-      {d.facultyRemarks && (
-        <div className="bg-emerald-50/30 rounded-xl p-4 border border-emerald-100">
-          <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-2">Faculty Evaluation</p>
-          <p className="text-sm text-gray-700">{d.facultyRemarks}</p>
+      {onGradeUpdate ? (
+        <div className="bg-emerald-50/40 rounded-xl p-4 border border-emerald-200/60 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Teacher Manual Evaluation</p>
+            {saved && <span className="text-xs font-bold text-emerald-600 animate-pulse">✓ Saved!</span>}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+            <label className="flex flex-col gap-1 text-xs font-bold text-gray-700 sm:col-span-1">
+              <span>Marks (0 to {question.maxMarks})</span>
+              <input
+                type="number"
+                min="0"
+                max={question.maxMarks}
+                step="0.5"
+                value={score}
+                onChange={e => setScore(e.target.value)}
+                className="px-3 py-2 bg-white rounded-lg border border-emerald-300 font-bold text-emerald-900 outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </label>
+
+            <label className="flex flex-col gap-1 text-xs font-bold text-gray-700 sm:col-span-2">
+              <span>Faculty Remarks / Feedback</span>
+              <input
+                type="text"
+                value={remarks}
+                onChange={e => setRemarks(e.target.value)}
+                placeholder="Add evaluation feedback..."
+                className="px-3 py-2 bg-white rounded-lg border border-emerald-300 font-medium text-gray-800 outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </label>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              onClick={handleSaveGrade}
+              disabled={saving}
+              className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider px-5 py-2 rounded-lg shadow-sm transition-all"
+            >
+              {saving ? 'Saving Grade...' : 'Save Evaluation'}
+            </button>
+          </div>
         </div>
+      ) : (
+        d.facultyRemarks && (
+          <div className="bg-emerald-50/30 rounded-xl p-4 border border-emerald-100">
+            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-2">Faculty Evaluation</p>
+            <p className="text-sm text-gray-700">{d.facultyRemarks}</p>
+          </div>
+        )
       )}
 
       <div className="flex items-center gap-4 pt-2 border-t border-gray-100">
@@ -237,7 +319,7 @@ const MatchingDetail = ({ question }) => {
 };
 
 // ─── Main Question Accordion ─────────────────────────────────
-const QuestionAccordion = ({ question }) => {
+const QuestionAccordion = ({ question, onGradeUpdate }) => {
   const [expanded, setExpanded] = useState(false);
   const config = statusConfig[question.status] || statusConfig.skipped;
   const typeIcon = typeIcons[question.type] || <FileText size={14} />;
@@ -283,7 +365,7 @@ const QuestionAccordion = ({ question }) => {
         <div className="px-4 pb-4 pt-1 border-t border-gray-100">
           {question.type === 'mcq' && <MCQDetail question={question} />}
           {question.type === 'coding' && <CodingDetail question={question} />}
-          {question.type === 'subjective' && <SubjectiveDetail question={question} />}
+          {question.type === 'subjective' && <SubjectiveDetail question={question} onGradeUpdate={onGradeUpdate} />}
           {question.type === 'matching' && <MatchingDetail question={question} />}
           {!['mcq', 'coding', 'subjective', 'matching'].includes(question.type) && (
             <div className="text-sm text-gray-500 italic py-2">
@@ -295,5 +377,6 @@ const QuestionAccordion = ({ question }) => {
     </div>
   );
 };
+
 
 export default QuestionAccordion;

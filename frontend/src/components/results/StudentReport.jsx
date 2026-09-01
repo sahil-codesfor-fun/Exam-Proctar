@@ -1,16 +1,12 @@
 import React from 'react';
-import { User, BookOpen, BarChart3, ClipboardList, MessageSquare } from 'lucide-react';
+import { BarChart3, ClipboardList } from 'lucide-react';
 import QuestionAccordion from './QuestionAccordion';
 
 // ─── Skeleton Loader ─────────────────────────────────────────
 const ReportSkeleton = () => (
   <div className="p-6 space-y-6 animate-pulse">
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div className="h-48 bg-gray-100 rounded-2xl" />
-      <div className="h-48 bg-gray-100 rounded-2xl" />
-    </div>
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      {[...Array(8)].map((_, i) => <div key={i} className="h-20 bg-gray-100 rounded-xl" />)}
+      {[...Array(4)].map((_, i) => <div key={i} className="h-20 bg-gray-100 rounded-xl" />)}
     </div>
     <div className="h-64 bg-gray-100 rounded-2xl" />
   </div>
@@ -34,78 +30,19 @@ const SectionHeader = ({ icon, title }) => (
   </div>
 );
 
-// ─── Info Row ────────────────────────────────────────────────
-const InfoRow = ({ label, value }) => (
-  <div className="flex items-start justify-between py-1.5 border-b border-gray-50 last:border-0">
-    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider shrink-0">{label}</span>
-    <span className="text-xs font-bold text-gray-700 text-right ml-3">{value || '—'}</span>
-  </div>
-);
-
 // ─── Student Report ──────────────────────────────────────────
-const StudentReport = ({ report, loading }) => {
+const StudentReport = ({ report, loading, onGradeUpdate }) => {
   if (loading) return <ReportSkeleton />;
   if (!report) return <div className="p-6 text-center text-gray-400 text-sm italic">No report data available.</div>;
 
   const perf = report.performance || {};
-  const student = report.student || {};
-  const exam = report.exam || {};
 
   return (
     <div className="p-6 space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
-      
-      {/* ─── Student & Exam Info (Two Cards) ─── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {}
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
-          <SectionHeader icon={<User size={16} />} title="Student Information" />
-          <div className="space-y-0.5">
-            <InfoRow label="Name" value={student.name} />
-            <InfoRow label="Roll No" value={student.rollNumber} />
-            <InfoRow label="Reg No" value={student.registrationNumber} />
-            <InfoRow label="Email" value={student.email} />
-            <InfoRow label="Department" value={student.department} />
-            <InfoRow label="Semester" value={student.semester} />
-            <InfoRow label="Section" value={student.section} />
-            <InfoRow label="Batch" value={student.batch} />
-          </div>
-        </div>
-
-        {}
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
-          <SectionHeader icon={<BookOpen size={16} />} title="Exam Information" />
-          <div className="space-y-0.5">
-            <InfoRow label="Exam" value={exam.name} />
-            <InfoRow label="Subject" value={exam.subject} />
-            <InfoRow label="Faculty" value={exam.faculty} />
-            <InfoRow label="Exam Date" value={exam.examDate ? new Date(exam.examDate).toLocaleDateString() : '—'} />
-            <InfoRow label="Start" value={exam.startTime ? new Date(exam.startTime).toLocaleString() : '—'} />
-            <InfoRow label="End" value={exam.endTime ? new Date(exam.endTime).toLocaleString() : '—'} />
-            <InfoRow label="Duration" value={exam.duration ? `${exam.duration} min` : '—'} />
-            <InfoRow label="Submitted" value={exam.submissionTime ? new Date(exam.submissionTime).toLocaleString() : '—'} />
-            <InfoRow label="Auto Submit" value={exam.autoSubmitted ? 'Yes' : 'No'} />
-            <InfoRow
-              label="Status"
-              value={
-                <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-widest ${
-                  exam.submissionStatus === 'submitted' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
-                  exam.submissionStatus === 'auto_submitted' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
-                  exam.submissionStatus === 'force_submitted' ? 'bg-red-50 text-red-500 border border-red-100' :
-                  'bg-blue-50 text-blue-600 border border-blue-100'
-                }`}>
-                  {(exam.submissionStatus || '—').replace('_', ' ')}
-                </span>
-              }
-            />
-          </div>
-        </div>
-      </div>
-
       {/* ─── Performance Summary ─── */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
         <SectionHeader icon={<BarChart3 size={16} />} title="Performance Summary" />
 
-        {}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
           <StatCard label="Maximum Marks" value={perf.maxMarks} />
           <StatCard
@@ -125,7 +62,6 @@ const StudentReport = ({ report, loading }) => {
           <StatCard label="Questions" value={perf.totalQuestions} />
         </div>
 
-        {}
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
           <StatCard label="Attempted" value={perf.attempted} small />
           <StatCard
@@ -178,31 +114,9 @@ const StudentReport = ({ report, loading }) => {
         ) : (
           <div className="space-y-2">
             {report.questions.map((q, i) => (
-              <QuestionAccordion key={q.questionId || i} question={q} />
+              <QuestionAccordion key={q.questionId || i} question={q} onGradeUpdate={onGradeUpdate} />
             ))}
           </div>
-        )}
-      </div>
-
-      {/* ─── Faculty Remarks ─── */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
-        <SectionHeader icon={<MessageSquare size={16} />} title="Faculty Remarks" />
-
-        {report.facultyRemarks?.generalFeedback ? (
-          <div className="space-y-3">
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">General Feedback</p>
-              <p className="text-sm text-gray-700">{report.facultyRemarks.generalFeedback}</p>
-            </div>
-            {report.facultyRemarks.recommendation && (
-              <div className="bg-blue-50/30 rounded-xl p-4 border border-blue-100">
-                <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-2">Recommendation</p>
-                <p className="text-sm text-gray-700">{report.facultyRemarks.recommendation}</p>
-              </div>
-            )}
-          </div>
-        ) : (
-          <p className="text-sm text-gray-400 italic text-center py-6">No faculty remarks have been provided yet.</p>
         )}
       </div>
     </div>
@@ -210,3 +124,5 @@ const StudentReport = ({ report, loading }) => {
 };
 
 export default StudentReport;
+
+

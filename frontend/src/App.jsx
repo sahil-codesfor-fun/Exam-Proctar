@@ -22,7 +22,9 @@ const TeacherCodingProgress = lazy(() => import('./pages/teacher/TeacherCodingPr
 const TeacherCourseProgress = lazy(() => import('./pages/teacher/TeacherCourseProgress').then(module => ({ default: module.TeacherCourseProgress })));
 const PracticeManager = lazy(() => import('./pages/teacher/PracticeManager'));
 const ExamDetail = lazy(() => import('./pages/teacher/ExamDetail'));
+const TeacherResults = lazy(() => import('./pages/teacher/TeacherResults'));
 const CompilerPage = lazy(() => import('./pages/CompilerPage').then(module => ({ default: module.CompilerPage })));
+
 const LiveExamPage = lazy(() => import('./pages/LiveExamPage').then(module => ({ default: module.LiveExamPage })));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
@@ -145,7 +147,11 @@ function App() {
                 <Route path="practice-manager/*" element={<PracticeManager />} />
                 <Route path="exams/:examId" element={<ExamDetail />} />
                 <Route path="exams/:examId/submissions/:submissionId" element={<ExamDetail />} />
+                <Route path="results" element={<TeacherResults />} />
+                <Route path="results/:examId" element={<TeacherResults />} />
+                <Route path="results/:examId/submissions/:submissionId" element={<TeacherResults />} />
               </Route>
+
 
               {/* ── Admin Dashboard ───────────────────────────────── */}
               <Route path="/admin" element={

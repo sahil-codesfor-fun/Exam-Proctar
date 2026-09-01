@@ -491,3 +491,78 @@ export const exportExcel = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// ─── PUT /api/trainer/results/:examId/grade/:submissionId ────────────────────
+export const gradeSubjectiveAnswers = async (req, res) => {
+  try {
+    const { examId, submissionId } = req.params;
+    const { questionGrades, questionId, score, facultyRemarks } = req.body;
+
+    const exam = await prisma.exam.findUnique({
+      where: { id: examId },
+      include: { questions: true }
+    });
+
+    if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
+    if (exam.creatorId !== req.user.id) return res.status(403).json({ success: false, message: 'Not authorized' });
+
+    const submission = await prisma.submission.findUnique({
+      where: { id: submissionId }
+    });
+
+    if (!submission) return res.status(404).json({ success: false, message: 'Submission not found' });
+    if (submission.examId !== examId) return res.status(400).json({ success: false, message: 'Submission does not belong to this exam' });
+
+    let gradesToApply = [];
+    if (Array.isArray(questionGrades) && questionGrades.length > 0) {
+      gradesToApply = questionGrades;
+    } else if (questionId !== undefined) {
+      gradesToApply = [{ questionId, score, facultyRemarks }];
+    } else {
+      return res.status(400).json({ success: false, message: 'No grade data provided' });
+    }
+
+    let answers = Array.isArray(submission.answers) ? [...submission.answers] : [];
+
+    for (const g of gradesToApply) {
+      const q = exam.questions.find(item => item.id === g.questionId);
+      const maxScore = q ? Number(q.points) : 10;
+      const targetScore = Math.max(0, Math.min(Number(g.score) || 0, maxScore));
+
+      const ansIndex = answers.findIndex(a => a.questionId === g.questionId);
+      if (ansIndex !== -1) {
+        answers[ansIndex] = {
+          ...answers[ansIndex],
+          score: targetScore,
+          facultyRemarks: g.facultyRemarks !== undefined ? g.facultyRemarks : (answers[ansIndex].facultyRemarks || ''),
+          evaluated: true,
+          evaluatedAt: new Date().toISOString()
+        };
+      }
+    }
+
+    const totalScore = answers.reduce((sum, a) => sum + (Number(a.score) || 0), 0);
+    const maxScore = Number(submission.maxScore) || 1;
+    const percentage = Math.round((totalScore / maxScore) * 100);
+
+    const updatedSubmission = await prisma.submission.update({
+      where: { id: submissionId },
+      data: {
+        answers,
+        totalScore,
+        percentage
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Grades updated successfully',
+      data: updatedSubmission
+    });
+
+  } catch (err) {
+    console.error('gradeSubjectiveAnswers error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+

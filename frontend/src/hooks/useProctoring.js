@@ -106,27 +106,33 @@ export default function useProctoring({ examId, enabled = false, maxViolations =
     };
 
     const observer = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        for (const node of mutation.addedNodes) {
+      let suspiciousFound = false;
+      for (let i = 0; i < mutations.length; i++) {
+        const added = mutations[i].addedNodes;
+        for (let j = 0; j < added.length; j++) {
+          const node = added[j];
           if (node.nodeType === 1) { // ELEMENT_NODE
-            const nodeName = node.nodeName.toUpperCase();
-            const outerHTML = node.outerHTML ? node.outerHTML.toLowerCase() : '';
-            const zIndex = window.getComputedStyle(node).zIndex;
-            
-            if (
-              nodeName === 'IFRAME' ||
-              outerHTML.includes('grammarly') ||
-              outerHTML.includes('chatgpt') ||
-              outerHTML.includes('solver') ||
-              (zIndex && zIndex !== 'auto' && parseInt(zIndex, 10) > 9999)
-            ) {
-              logViolation('unauthorized_extension', 'high', 'Suspicious DOM injection detected');
+            const name = node.nodeName;
+            if (name === 'IFRAME' || name.startsWith('GRAMMARLY-') || name.startsWith('CHATGPT-')) {
+              suspiciousFound = true;
+              break;
+            }
+            const idOrClass = (node.id + ' ' + node.className).toLowerCase();
+            if (idOrClass.includes('grammarly') || idOrClass.includes('chatgpt') || idOrClass.includes('solver')) {
+              suspiciousFound = true;
+              break;
             }
           }
         }
+        if (suspiciousFound) break;
+      }
+
+      if (suspiciousFound) {
+        logViolation('unauthorized_extension', 'high', 'Suspicious DOM injection detected');
       }
     });
     observer.observe(document.body, { childList: true, subtree: true });
+
 
     document.body.style.userSelect = 'none';
     document.body.style.webkitUserSelect = 'none';

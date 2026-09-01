@@ -125,7 +125,20 @@ const HistoricalSubmissions = ({ exam }) => {
 
   const hasActiveFilters = searchQuery || statusFilter || percentageFilter || infractionFilter;
 
-  // ─── Render ────────────────────────────────────────────────
+  const handleGradeUpdate = async (submissionId, questionId, score, remarks) => {
+    try {
+      await api.put(`/trainer/results/${examId}/grade/${submissionId}`, {
+        questionId,
+        score,
+        facultyRemarks: remarks
+      });
+      fetchResults();
+    } catch (err) {
+      console.error('Failed to grade question:', err);
+      throw err;
+    }
+  };
+
   return (
     <div className="bg-white rounded-3xl border shadow-sm overflow-hidden">
       {}
@@ -277,9 +290,12 @@ const HistoricalSubmissions = ({ exam }) => {
             results={paginatedResults}
             examId={examId}
             examTitle={examTitle}
+            onGradeUpdate={handleGradeUpdate}
+            onRefreshResults={fetchResults}
           />
         )}
       </div>
+
 
       {}
       {!loading && filteredResults.length > 0 && (

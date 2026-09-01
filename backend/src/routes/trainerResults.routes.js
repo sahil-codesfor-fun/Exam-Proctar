@@ -4,7 +4,8 @@ import {
   getExamResultsSummary,
   getDetailedReport,
   exportCSV,
-  exportExcel
+  exportExcel,
+  gradeSubjectiveAnswers
 } from '../controllers/trainerResultsController.js';
 
 const router = express.Router();
@@ -16,4 +17,7 @@ router.get('/results/:examId/export/excel',   protect, teacherOnly, exportExcel)
 
 router.get('/results/:examId/:submissionId',  protect, teacherOnly, getDetailedReport);
 
+router.put('/results/:examId/grade/:submissionId', protect, teacherOnly, gradeSubjectiveAnswers);
+
 export default router;
+

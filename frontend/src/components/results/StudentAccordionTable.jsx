@@ -14,7 +14,7 @@ const statusConfig = {
 // 🚀 UPDATED GRID CLASS: Perfectly balanced for the high-level data
 const TABLE_GRID_CLASS = "grid-cols-[32px_1fr_100px_120px_100px_80px_80px_100px]";
 
-const StudentAccordionTable = ({ results, examId, examTitle }) => {
+const StudentAccordionTable = ({ results, examId, examTitle, onGradeUpdate, onRefreshResults }) => {
   const { submissionId: expandedId } = useParams();
   const navigate = useNavigate();
   const [reportData, setReportData] = useState({});
@@ -189,6 +189,14 @@ const StudentAccordionTable = ({ results, examId, examTitle }) => {
                     <StudentReport
                       report={reportData[r.submissionId]}
                       loading={isLoading}
+                      onGradeUpdate={async (questionId, score, remarks) => {
+                        if (onGradeUpdate) {
+                          await onGradeUpdate(r.submissionId, questionId, score, remarks);
+                          delete reportCache.current[r.submissionId];
+                          await fetchReport(r.submissionId);
+                          if (onRefreshResults) onRefreshResults();
+                        }
+                      }}
                     />
                   </div>
                 )}
@@ -200,5 +208,6 @@ const StudentAccordionTable = ({ results, examId, examTitle }) => {
     </div>
   );
 };
+
 
 export default StudentAccordionTable;
