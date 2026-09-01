@@ -48,7 +48,7 @@ export default function useProctoring({ examId, enabled = false, maxViolations =
     const handleDrag = preventEvent('Drag');
     const handleDrop = preventEvent('Drop');
 
-    const handleContext = (e) => { e.preventDefault(); logViolation('right_click', 'low', 'Right-click attempted'); };
+    const handleContext = (e) => { e.preventDefault(); };
 
     const handleKeydown = (e) => {
       const now = Date.now();

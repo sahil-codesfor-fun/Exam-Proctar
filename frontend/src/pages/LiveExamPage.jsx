@@ -177,10 +177,12 @@ export const LiveExamPage = () => {
       }
     };
 
+    const blockContextMenu = (e) => e.preventDefault();
+
     window.addEventListener('copy', blockAction);
     window.addEventListener('paste', blockAction);
     window.addEventListener('cut', blockAction);
-    window.addEventListener('contextmenu', blockAction);
+    window.addEventListener('contextmenu', blockContextMenu);
     window.addEventListener('keydown', blockShortcuts, true);
     window.addEventListener('dragover', blockAction);
     window.addEventListener('drop', blockAction);
@@ -189,7 +191,7 @@ export const LiveExamPage = () => {
       window.removeEventListener('copy', blockAction);
       window.removeEventListener('paste', blockAction);
       window.removeEventListener('cut', blockAction);
-      window.removeEventListener('contextmenu', blockAction);
+      window.removeEventListener('contextmenu', blockContextMenu);
       window.removeEventListener('keydown', blockShortcuts, true);
       window.removeEventListener('dragover', blockAction);
       window.removeEventListener('drop', blockAction);
