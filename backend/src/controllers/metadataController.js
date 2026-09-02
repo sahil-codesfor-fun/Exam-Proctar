@@ -87,12 +87,17 @@ export const getDepartmentCourses = async (req, res) => {
     
     const allocations = await prisma.departmentCourse.findMany({
       where: { departmentId: id },
-      include: { course: true },
+      select: {
+        course: { select: { name: true, code: true } }
+      },
       orderBy: { course: { name: 'asc' } }
     });
     
     if (allocations.length === 0) {
-      const dept = await prisma.department.findUnique({ where: { id } });
+      const dept = await prisma.department.findUnique({
+        where: { id },
+        select: { code: true, name: true }
+      });
       let defaultCourses = DEPARTMENT_MAPPINGS.default.courses;
       
       if (dept) {

@@ -15,7 +15,12 @@ class DashboardService {
       subjects,
       exams,
       courses,
-      allocatedCourses
+      allocatedCourses,
+      activeExams,
+      completedExams,
+      totalSubmissions,
+      allocatedCoursesCount,
+      allDepts
     ] = await Promise.all([
       prisma.department.count(),
       prisma.user.count({ where: { role: 'admin' } }),
@@ -24,16 +29,20 @@ class DashboardService {
       prisma.subject.count(),
       prisma.exam.count(),
       prisma.course.count(),
-      prisma.departmentCourse.count()
-    ]);
-
-    const allDepts = await prisma.department.findMany({
-      include: {
-        _count: {
-          select: { allocatedCourses: true }
+      prisma.departmentCourse.count(),
+      prisma.exam.count({ where: { status: 'published' } }),
+      prisma.exam.count({ where: { status: 'completed' } }),
+      prisma.submission.count(),
+      prisma.course.count({ where: { departments: { some: {} } } }),
+      prisma.department.findMany({
+        select: {
+          name: true,
+          _count: {
+            select: { allocatedCourses: true }
+          }
         }
-      }
-    });
+      })
+    ]);
 
     const departmentsWithoutCourses = allDepts.filter(d => d._count.allocatedCourses === 0).length;
     
@@ -50,15 +59,13 @@ class DashboardService {
         students,
         subjects,
         exams,
-        activeExams: await prisma.exam.count({ where: { status: 'published' } }),
-        completedExams: await prisma.exam.count({ where: { status: 'completed' } }),
-        totalSubmissions: await prisma.submission.count(),
+        activeExams,
+        completedExams,
+        totalSubmissions,
         
         totalCourses: courses,
         allocatedCourses,
-        unallocatedCourses: courses - (await prisma.course.count({
-          where: { departments: { some: {} } }
-        })),
+        unallocatedCourses: courses - allocatedCoursesCount,
         departmentsWithoutCourses,
         mostActiveDepartment: mostActiveDepartment ? mostActiveDepartment.name : null
       }

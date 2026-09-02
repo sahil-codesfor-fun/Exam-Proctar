@@ -192,6 +192,7 @@ export const removeQuestion = async (examId, questionId) => {
 export const getExamResults = async (examId) => {
   return prisma.examResult.findMany({
     where: { examId },
+    take: 100,
     include: {
       student: { select: { id: true, name: true, email: true, studentId: true } },
       attempt: true
@@ -204,19 +205,30 @@ export const getExamAnalytics = async (examId) => {
   const analytics = await prisma.examAnalytics.findUnique({ where: { examId } });
   if (analytics) return analytics;
 
-  const results = await getExamResults(examId);
-  const totalAttendees = results.length;
+  const [aggregates, passCount] = await Promise.all([
+    prisma.examResult.aggregate({
+      where: { examId },
+      _count: { id: true },
+      _avg: { marks: true },
+      _max: { marks: true },
+      _min: { marks: true }
+    }),
+    prisma.examResult.count({
+      where: { examId, passFail: 'PASS' }
+    })
+  ]);
+
+  const totalAttendees = aggregates._count.id;
   if (totalAttendees === 0) return null;
 
-  const averageScore = results.reduce((acc, curr) => acc + curr.marks, 0) / totalAttendees;
-  const passed = results.filter(r => r.passFail === 'PASS').length;
-  const passRate = (passed / totalAttendees) * 100;
+  const averageScore = aggregates._avg.marks || 0;
+  const passRate = (passCount / totalAttendees) * 100;
   
   return {
     totalAttendees,
     averageScore,
     passRate,
-    highestScore: Math.max(...results.map(r => r.marks)),
-    lowestScore: Math.min(...results.map(r => r.marks)),
-  }
+    highestScore: aggregates._max.marks ?? 0,
+    lowestScore: aggregates._min.marks ?? 0,
+  };
 };

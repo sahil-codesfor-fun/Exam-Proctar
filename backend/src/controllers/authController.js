@@ -16,7 +16,8 @@ export const registerUser = async (req, res) => {
           { email },
           ...(studentId && studentId.trim() !== '' ? [{ studentId }] : [])
         ]
-      }
+      },
+      select: { id: true }
     });
 
     if (userExists) {
@@ -133,7 +134,10 @@ export const loginUser = async (req, res) => {
 export const changePassword = async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   try {
-    const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { id: true, password: true }
+    });
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
     if (currentPassword) {
@@ -167,32 +171,33 @@ export const getPublicDepartments = async (req, res) => {
 
 export const getFacultyProfile = async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      include: {
-        departmentRel: { select: { name: true, code: true } },
-        subjectsTeaching: {
-          include: {
-            subject: true
-          }
-        },
-        _count: {
-          select: {
-            examsCreated: true,
-            practiceSheetsCreated: true
+    const [user, activeExams, draftedExams] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: req.user.id },
+        include: {
+          departmentRel: { select: { name: true, code: true } },
+          subjectsTeaching: {
+            include: {
+              subject: true
+            }
+          },
+          _count: {
+            select: {
+              examsCreated: true,
+              practiceSheetsCreated: true
+            }
           }
         }
-      }
-    });
+      }),
+      prisma.exam.count({
+        where: { creatorId: req.user.id, status: 'active' }
+      }),
+      prisma.exam.count({
+        where: { creatorId: req.user.id, status: 'draft' }
+      })
+    ]);
 
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-    
-    const activeExams = await prisma.exam.count({
-      where: { creatorId: req.user.id, status: 'active' }
-    });
-    const draftedExams = await prisma.exam.count({
-      where: { creatorId: req.user.id, status: 'draft' }
-    });
 
     res.json({
       success: true,

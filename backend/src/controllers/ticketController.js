@@ -4,11 +4,12 @@ export const createTicket = async (req, res) => {
   try {
     const { examId, reason } = req.body;
     
-    const exam = await prisma.exam.findUnique({ where: { id: examId } });
+    const exam = await prisma.exam.findUnique({ where: { id: examId }, select: { id: true } });
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
     
     const existingSubmission = await prisma.submission.findFirst({
-      where: { examId, studentId: req.user.id }
+      where: { examId, studentId: req.user.id },
+      select: { id: true }
     });
     if (existingSubmission) {
       return res.status(400).json({ success: false, message: 'You have already attempted this exam and cannot appeal.' });
@@ -19,6 +20,12 @@ export const createTicket = async (req, res) => {
         examId,
         studentId: req.user.id
       },
+      select: {
+        status: true,
+        isRescheduled: true,
+        rescheduledEndTime: true
+      },
+      take: 2,
       orderBy: { createdAt: 'desc' }
     });
     
@@ -70,6 +77,7 @@ export const getMyTickets = async (req, res) => {
   try {
     const tickets = await prisma.missedExamTicket.findMany({
       where: { studentId: req.user.id },
+      take: 50,
       include: {
         exam: { select: { title: true, examCode: true } }
       },
@@ -91,6 +99,7 @@ export const getAllTickets = async (req, res) => {
     
     const tickets = await prisma.missedExamTicket.findMany({
       where: query,
+      take: 100,
       include: {
         student: { select: { name: true, email: true, studentId: true } },
         exam: { select: { title: true, examCode: true } },
@@ -138,6 +147,7 @@ export const getApprovedRescheduleRequests = async (req, res) => {
         examId,
         status: 'approved'
       },
+      take: 100,
       include: {
         student: { select: { name: true, email: true, studentId: true } }
       },

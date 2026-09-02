@@ -176,7 +176,12 @@ export const judgeCode = async (req, res) => {
     if (questionId) {
       question = await prisma.question.findUnique({
         where: { id: questionId },
-        include: { testCases: true }
+        select: {
+          id: true,
+          difficulty: true,
+          topics: true,
+          testCases: true
+        }
       });
       if (!question) return res.status(404).json({ success: false, message: 'Question not found' });
       testCases = question.testCases;
@@ -308,7 +313,7 @@ export const judgeCode = async (req, res) => {
         }
       }
 
-      const stats = await prisma.studentCodingStatistics.upsert({
+      await prisma.studentCodingStatistics.upsert({
         where: { studentId },
         create: {
           studentId,
@@ -327,7 +332,8 @@ export const judgeCode = async (req, res) => {
 
       if (finalVerdict === 'accepted') {
         const hasSolvedBefore = await prisma.practiceSubmission.findFirst({
-          where: { studentId, questionId, verdict: 'accepted', isFirstAttempt: false }
+          where: { studentId, questionId, verdict: 'accepted', isFirstAttempt: false },
+          select: { id: true }
         });
 
         if (!hasSolvedBefore || isFirstAttempt) {
@@ -351,12 +357,16 @@ export const judgeCode = async (req, res) => {
 
           if (question.topics) {
             const topicList = question.topics.split(',').map(t => t.trim()).filter(Boolean);
-            for (const t of topicList) {
-              await prisma.topicProgress.upsert({
-                where: { studentId_topic: { studentId, topic: t } },
-                create: { studentId, topic: t, solvedCount: 1 },
-                update: { solvedCount: { increment: 1 } }
-              });
+            if (topicList.length > 0) {
+              await prisma.$transaction(
+                topicList.map(t =>
+                  prisma.topicProgress.upsert({
+                    where: { studentId_topic: { studentId, topic: t } },
+                    create: { studentId, topic: t, solvedCount: 1 },
+                    update: { solvedCount: { increment: 1 } }
+                  })
+                )
+              );
             }
           }
         }

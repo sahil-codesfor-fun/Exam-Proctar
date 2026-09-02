@@ -121,11 +121,27 @@ export const getDetailedReport = async (req, res) => {
 
     const exam = await prisma.exam.findUnique({
       where: { id: examId },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        course: true,
+        creatorId: true,
+        createdAt: true,
+        schedule: true,
+        creator: { select: { name: true, email: true } },
         questions: {
-          include: { options: true, testCases: true, matchingPairs: true }
-        },
-        creator: { select: { name: true, email: true } }
+          select: {
+            id: true,
+            type: true,
+            title: true,
+            description: true,
+            points: true,
+            constraints: true,
+            options: { select: { id: true, text: true, isCorrect: true } },
+            testCases: { select: { id: true, input: true, expectedOutput: true, isHidden: true } },
+            matchingPairs: { select: { id: true, leftItem: true, rightItem: true } }
+          }
+        }
       }
     });
 
@@ -500,14 +516,24 @@ export const gradeSubjectiveAnswers = async (req, res) => {
 
     const exam = await prisma.exam.findUnique({
       where: { id: examId },
-      include: { questions: true }
+      select: {
+        id: true,
+        creatorId: true,
+        questions: { select: { id: true, points: true } }
+      }
     });
 
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
     if (exam.creatorId !== req.user.id) return res.status(403).json({ success: false, message: 'Not authorized' });
 
     const submission = await prisma.submission.findUnique({
-      where: { id: submissionId }
+      where: { id: submissionId },
+      select: {
+        id: true,
+        examId: true,
+        maxScore: true,
+        answers: true
+      }
     });
 
     if (!submission) return res.status(404).json({ success: false, message: 'Submission not found' });

@@ -15,7 +15,21 @@ export const startSubmission = async (req, res) => {
     
     const exam = await prisma.exam.findUnique({ 
       where: { id: examId },
-      include: { questions: { include: { options: true, matchingPairs: true } }, schedule: true, settings: true } 
+      select: {
+        id: true,
+        status: true,
+        schedule: true,
+        settings: true,
+        questions: {
+          select: {
+            id: true,
+            type: true,
+            points: true,
+            options: { select: { id: true, text: true } },
+            matchingPairs: { select: { id: true, leftItem: true, rightItem: true } }
+          }
+        }
+      }
     });
 
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
@@ -28,6 +42,10 @@ export const startSubmission = async (req, res) => {
         studentId: req.user.id,
         isRescheduled: true,
         status: 'approved'
+      },
+      select: {
+        rescheduledStartTime: true,
+        rescheduledEndTime: true
       }
     });
 
@@ -128,7 +146,7 @@ export const startSubmission = async (req, res) => {
       sub = await prisma.submission.create({
         data: {
           examId: examId, studentId: req.user.id, answers: answers, 
-          maxScore: isRandomized ? dynamicMaxScore : (Number(exam.totalMarks) || dynamicMaxScore),
+          maxScore: dynamicMaxScore,
         }
       });
     }
@@ -141,7 +159,10 @@ export const startSubmission = async (req, res) => {
 
 export const saveAnswers = async (req, res) => {
   try {
-    const sub = await prisma.submission.findUnique({ where: { id: req.params.id } });
+    const sub = await prisma.submission.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, studentId: true, status: true }
+    });
     if (!sub) return res.status(404).json({ success: false, message: 'Submission not found' });
     if (sub.studentId !== req.user.id) return res.status(403).json({ success: false, message: 'Not authorized' });
     
@@ -154,13 +175,27 @@ export const saveAnswers = async (req, res) => {
 
 export const submitExam = async (req, res) => {
   try {
-    const sub = await prisma.submission.findUnique({ where: { id: req.params.id } });
+    const sub = await prisma.submission.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, studentId: true, examId: true, maxScore: true, answers: true }
+    });
     if (!sub) return res.status(404).json({ success: false, message: 'Submission not found' });
     if (sub.studentId !== req.user.id) return res.status(403).json({ success: false, message: 'Not authorized' });
 
     const exam = await prisma.exam.findUnique({ 
       where: { id: sub.examId },
-      include: { questions: { include: { options: true, matchingPairs: true } } } 
+      select: {
+        id: true,
+        questions: {
+          select: {
+            id: true,
+            type: true,
+            points: true,
+            options: { select: { id: true, text: true, isCorrect: true } },
+            matchingPairs: { select: { id: true, leftItem: true, rightItem: true } }
+          }
+        }
+      }
     });
     
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
@@ -288,6 +323,7 @@ export const getMySubmissions = async (req, res) => {
   try {
     const subs = await prisma.submission.findMany({
       where: { studentId: req.user.id },
+      take: 50,
       select: {
         id: true,
         examId: true,
@@ -324,6 +360,7 @@ export const getExamSubmissions = async (req, res) => {
   try {
     const subs = await prisma.submission.findMany({
       where: { examId: req.params.examId },
+      take: 100,
       include: { student: { select: { name: true, email: true, studentId: true } } },
       orderBy: { totalScore: 'desc' }
     });

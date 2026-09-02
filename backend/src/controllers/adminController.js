@@ -6,7 +6,7 @@ const generateFacultyId = async () => {
   let exists = true;
   while (exists) {
     id = `FAC${Math.floor(1000 + Math.random() * 9000)}`;
-    const user = await prisma.user.findUnique({ where: { facultyId: id } });
+    const user = await prisma.user.findUnique({ where: { facultyId: id }, select: { id: true } });
     if (!user) exists = false;
   }
   return id;
@@ -37,6 +37,7 @@ export const getFacultyList = async (req, res) => {
 
     const faculty = await prisma.user.findMany({
       where: whereClause,
+      take: 100,
       select: {
         id: true,
         name: true,
@@ -70,7 +71,7 @@ export const createFaculty = async (req, res) => {
     
     if (!password) return res.status(400).json({ success: false, message: 'Admin must manually provide a password.' });
 
-    const exists = await prisma.user.findUnique({ where: { email } });
+    const exists = await prisma.user.findUnique({ where: { email }, select: { id: true } });
     if (exists) return res.status(400).json({ success: false, message: 'Email already registered' });
 
     const facultyId = await generateFacultyId();
@@ -107,7 +108,7 @@ export const createFaculty = async (req, res) => {
 
 export const toggleFacultyStatus = async (req, res) => {
   try {
-    const faculty = await prisma.user.findUnique({ where: { id: req.params.id } });
+    const faculty = await prisma.user.findUnique({ where: { id: req.params.id }, select: { id: true, isActive: true } });
     if (!faculty) return res.status(404).json({ success: false, message: 'Faculty not found' });
 
     await prisma.user.update({
@@ -126,7 +127,7 @@ export const resetFacultyPassword = async (req, res) => {
     const { password } = req.body;
     if (!password) return res.status(400).json({ success: false, message: 'New password is required.' });
 
-    const faculty = await prisma.user.findUnique({ where: { id: req.params.id } });
+    const faculty = await prisma.user.findUnique({ where: { id: req.params.id }, select: { id: true } });
     if (!faculty) return res.status(404).json({ success: false, message: 'Faculty not found' });
 
     const hashedPassword = bcrypt.hashSync(password, 10);

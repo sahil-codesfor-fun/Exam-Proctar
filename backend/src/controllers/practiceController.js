@@ -75,8 +75,24 @@ export const createPracticeSheet = async (req, res) => {
 export const getPracticeSheets = async (req, res) => {
   try {
     const sheets = await prisma.practiceSheet.findMany({
+      take: 50,
       include: {
-        questions: { include: { question: true } },
+        questions: {
+          include: {
+            question: {
+              select: {
+                id: true,
+                title: true,
+                difficulty: true,
+                points: true,
+                topic: true,
+                type: true,
+                description: true
+              }
+            }
+          },
+          orderBy: { order: 'asc' }
+        },
         assignments: true
       },
       orderBy: { createdAt: 'desc' }
@@ -139,10 +155,10 @@ export const addQuestionToSheet = async (req, res) => {
   try {
     const { sheetId, questionId, order } = req.body;
     
-    const sheet = await prisma.practiceSheet.findUnique({ where: { id: sheetId } });
+    const sheet = await prisma.practiceSheet.findUnique({ where: { id: sheetId }, select: { id: true } });
     if (!sheet) return res.status(404).json({ success: false, message: 'Sheet not found' });
 
-    const question = await prisma.question.findUnique({ where: { id: questionId } });
+    const question = await prisma.question.findUnique({ where: { id: questionId }, select: { id: true } });
     if (!question) return res.status(404).json({ success: false, message: 'Question not found' });
 
     const sheetQuestion = await prisma.practiceSheetQuestion.create({
@@ -224,7 +240,34 @@ export const getPracticeSheetById = async (req, res) => {
         questions: { 
           include: { 
             question: {
-               include: { testCases: true }
+              select: {
+                id: true,
+                title: true,
+                description: true,
+                points: true,
+                difficulty: true,
+                topic: true,
+                topics: true,
+                type: true,
+                constraints: true,
+                inputFormat: true,
+                outputFormat: true,
+                sampleInput: true,
+                sampleOutput: true,
+                explanation: true,
+                stubJava: true,
+                stubPython: true,
+                stubC: true,
+                stubCpp: true,
+                testCases: {
+                  select: {
+                    id: true,
+                    input: true,
+                    expectedOutput: true,
+                    isHidden: true
+                  }
+                }
+              }
             } 
           },
           orderBy: { order: 'asc' }
@@ -271,10 +314,12 @@ export const getPracticeSheetById = async (req, res) => {
           userStatus = 'failed';
         }
       }
+      const safeTestCases = (q.testCases || []).map(tc => tc.isHidden ? { ...tc, expectedOutput: 'Hidden' } : tc);
       return {
         ...qLink,
         question: {
           ...q,
+          testCases: safeTestCases,
           userStatus
         }
       };
@@ -386,7 +431,37 @@ export const getCurrentPracticeSheet = async (req, res) => {
           include: {
             questions: {
               include: { 
-                question: { include: { testCases: true } }
+                question: {
+                  select: {
+                    id: true,
+                    title: true,
+                    description: true,
+                    points: true,
+                    difficulty: true,
+                    topic: true,
+                    topics: true,
+                    type: true,
+                    constraints: true,
+                    inputFormat: true,
+                    outputFormat: true,
+                    sampleInput: true,
+                    sampleOutput: true,
+                    explanation: true,
+                    stubJava: true,
+                    stubPython: true,
+                    stubC: true,
+                    stubCpp: true,
+                    testCases: {
+                      where: { isHidden: false },
+                      select: {
+                        id: true,
+                        input: true,
+                        expectedOutput: true,
+                        isHidden: true
+                      }
+                    }
+                  }
+                }
               },
               orderBy: { order: 'asc' }
             }
@@ -405,7 +480,37 @@ export const getCurrentPracticeSheet = async (req, res) => {
         include: {
           questions: {
             include: { 
-              question: { include: { testCases: true } }
+              question: {
+                select: {
+                  id: true,
+                  title: true,
+                  description: true,
+                  points: true,
+                  difficulty: true,
+                  topic: true,
+                  topics: true,
+                  type: true,
+                  constraints: true,
+                  inputFormat: true,
+                  outputFormat: true,
+                  sampleInput: true,
+                  sampleOutput: true,
+                  explanation: true,
+                  stubJava: true,
+                  stubPython: true,
+                  stubC: true,
+                  stubCpp: true,
+                  testCases: {
+                    where: { isHidden: false },
+                    select: {
+                      id: true,
+                      input: true,
+                      expectedOutput: true,
+                      isHidden: true
+                    }
+                  }
+                }
+              }
             },
             orderBy: { order: 'asc' }
           }
@@ -418,22 +523,49 @@ export const getCurrentPracticeSheet = async (req, res) => {
       return res.status(404).json({ success: false, message: 'No active practice sheet assigned.' });
     }
 
-    const questionStatuses = await Promise.all(sheet.questions.map(async (sq) => {
-      const latestSub = await prisma.practiceSubmission.findFirst({
-        where: { studentId, questionId: sq.questionId },
-        orderBy: { createdAt: 'desc' }
-      });
-      const draft = await prisma.codeDraft.findFirst({
-        where: { studentId, questionId: sq.questionId },
-        orderBy: { lastSavedAt: 'desc' }
-      });
+    const questionIds = (sheet.questions || []).map(sq => sq.questionId);
+
+    const [allSubmissions, allDrafts] = await Promise.all([
+      questionIds.length > 0
+        ? prisma.practiceSubmission.findMany({
+            where: { studentId, questionId: { in: questionIds } },
+            select: { questionId: true, status: true, createdAt: true },
+            orderBy: { createdAt: 'desc' }
+          })
+        : [],
+      questionIds.length > 0
+        ? prisma.codeDraft.findMany({
+            where: { studentId, questionId: { in: questionIds } },
+            select: { questionId: true, language: true, code: true, lastSavedAt: true },
+            orderBy: { lastSavedAt: 'desc' }
+          })
+        : []
+    ]);
+
+    const latestSubMap = {};
+    for (const sub of allSubmissions) {
+      if (!latestSubMap[sub.questionId]) {
+        latestSubMap[sub.questionId] = sub;
+      }
+    }
+
+    const latestDraftMap = {};
+    for (const draft of allDrafts) {
+      if (!latestDraftMap[draft.questionId]) {
+        latestDraftMap[draft.questionId] = draft;
+      }
+    }
+
+    const questionStatuses = sheet.questions.map((sq) => {
+      const latestSub = latestSubMap[sq.questionId];
+      const draft = latestDraftMap[sq.questionId];
 
       return {
         questionId: sq.questionId,
         status: latestSub ? latestSub.status : 'Not Started',
         draft: draft ? { language: draft.language, code: draft.code } : null
       };
-    }));
+    });
 
     res.status(200).json({ success: true, sheet, questionStatuses });
   } catch (error) {
@@ -482,6 +614,7 @@ export const getSubmissionHistory = async (req, res) => {
 
     const submissions = await prisma.practiceSubmission.findMany({
       where: { studentId, questionId },
+      take: 50,
       orderBy: { createdAt: 'desc' }
     });
 

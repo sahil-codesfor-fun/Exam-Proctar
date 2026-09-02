@@ -91,7 +91,7 @@ export const getExams = async (req, res) => {
         subject: { select: { id: true, name: true } },
         questions: isStudent
           ? { select: { id: true, points: true, type: true } }
-          : { include: { options: true, testCases: true, matchingPairs: true } },
+          : { select: { id: true, points: true, type: true, title: true, options: true, testCases: true, matchingPairs: true } },
         settings: true,
         schedule: true
       },
@@ -154,9 +154,46 @@ export const getExam = async (req, res) => {
       if (cached) return res.json({ success: true, data: JSON.parse(cached) });
     }
 
+    const isStudent = req.user.role === 'student';
     const exam = await prisma.exam.findUnique({
       where: { id: req.params.id },
-      include: { creator: { select: { id: true, name: true, email: true } }, department: { select: { id: true, name: true } }, subject: { select: { id: true, name: true } }, questions: { include: { options: true, testCases: true, matchingPairs: true } }, settings: true, schedule: true }
+      include: {
+        creator: { select: { id: true, name: true, email: true } },
+        department: { select: { id: true, name: true } },
+        subject: { select: { id: true, name: true } },
+        questions: isStudent
+          ? {
+              select: {
+                id: true,
+                type: true,
+                title: true,
+                description: true,
+                points: true,
+                difficulty: true,
+                topic: true,
+                constraints: true,
+                timeLimitSeconds: true,
+                inputFormat: true,
+                outputFormat: true,
+                sampleInput: true,
+                sampleOutput: true,
+                explanation: true,
+                stubJava: true,
+                stubPython: true,
+                stubC: true,
+                stubCpp: true,
+                options: { select: { id: true, text: true } },
+                testCases: {
+                  where: { isHidden: false },
+                  select: { id: true, input: true, expectedOutput: true, isHidden: true, points: true }
+                },
+                matchingPairs: { select: { id: true, leftItem: true, rightItem: true } }
+              }
+            }
+          : { include: { options: true, testCases: true, matchingPairs: true } },
+        settings: true,
+        schedule: true
+      }
     });
 
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
@@ -186,6 +223,7 @@ export const getExam = async (req, res) => {
     if (req.user.role === 'student') {
       const rescheduleTicket = await prisma.missedExamTicket.findFirst({
         where: { examId: exam.id, studentId: req.user.id, isRescheduled: true, status: 'approved' },
+        select: { rescheduledStartTime: true, rescheduledEndTime: true },
         orderBy: { createdAt: 'desc' }
       });
       if (rescheduleTicket && rescheduleTicket.rescheduledStartTime && rescheduleTicket.rescheduledEndTime) {
@@ -328,7 +366,7 @@ export const updateExam = async (req, res) => {
 
 export const deleteExam = async (req, res) => {
   try {
-    const exam = await prisma.exam.findUnique({ where: { id: req.params.id } });
+    const exam = await prisma.exam.findUnique({ where: { id: req.params.id }, select: { id: true, creatorId: true } });
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
     if (exam.creatorId !== req.user.id) return res.status(403).json({ success: false, message: 'Not authorized' });
 
@@ -350,7 +388,7 @@ export const deleteExam = async (req, res) => {
 export const updateExamStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    const exam = await prisma.exam.findUnique({ where: { id: req.params.id } });
+    const exam = await prisma.exam.findUnique({ where: { id: req.params.id }, select: { id: true, creatorId: true } });
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
     if (exam.creatorId !== req.user.id) return res.status(403).json({ success: false, message: 'Not authorized' });
 
