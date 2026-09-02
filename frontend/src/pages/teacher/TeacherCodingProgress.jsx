@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
+import useSWR from '../../hooks/useSWR';
 import api from '../../services/api'; 
-import { Users, Code2, Terminal, ChevronDown, ChevronUp, RefreshCw, AlertCircle, Search, Download } from 'lucide-react';
+import { Users, Code2, Terminal, ChevronDown, ChevronUp, RefreshCw, AlertCircle, Search, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 
-// 🌮 THE SALSA SWITCHER: Styles rows dynamically based on the platform!
+// Styles rows dynamically based on the platform
 const getPlatformStyling = (platformString) => {
   const platform = (platformString || 'LEETCODE').toUpperCase();
   
@@ -54,43 +55,51 @@ const getPlatformStyling = (platformString) => {
 };
 
 export const TeacherCodingProgress = () => {
-  const [groupedStudents, setGroupedStudents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(30);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
   const [expandedRows, setExpandedRows] = useState({});
-  
   const [isSyncingAll, setIsSyncingAll] = useState(false);
   const [syncWarning, setSyncWarning] = useState('');
-  
-  const [searchQuery, setSearchQuery] = useState('');
 
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const [downloadStep, setDownloadStep] = useState(1);
   const [selectedAcademicCourse, setSelectedAcademicCourse] = useState(null);
-  
-  const academicCourses = [...new Set(groupedStudents.map(s => s.course).filter(Boolean))];
-  const PLATFORMS = ['LEETCODE', 'HACKERRANK', 'NEXUS', 'CODECHEF'];
 
-  const fetchAllStats = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get('/platforms/faculty/student-metrics');
-      
-      if (res.data.success) {
-        // Backend now returns an array of students, each with a .platforms array
-        const sortedArray = (res.data.data || []).sort((a, b) => b.totalSolved - a.totalSolved);
-        setGroupedStudents(sortedArray);
-      } else {
-        setError('Failed to gather student metrics.');
-      }
-    } catch (err) {
-      console.error(err);
-      setError('Could not establish connection to aggregate analytics server.');
-    } finally {
-      setLoading(false);
-    }
+  // Debounce search query
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  const endpoint = `/platforms/faculty/student-metrics?page=${page}&limit=${limit}&search=${encodeURIComponent(debouncedSearch)}`;
+
+  const { data: response, loading, isValidating, error: swrError, revalidate } = useSWR(endpoint, {
+    staleTime: 60000
+  });
+
+  const groupedStudents = useMemo(() => {
+    const arr = response?.data || [];
+    return [...arr].sort((a, b) => (b.totalSolved || 0) - (a.totalSolved || 0));
+  }, [response]);
+
+  const pagination = response?.pagination || {
+    totalRecords: groupedStudents.length,
+    totalPages: 1,
+    currentPage: page,
+    limit
   };
+
+  const academicCourses = useMemo(() => {
+    return [...new Set(groupedStudents.map(s => s.course).filter(Boolean))];
+  }, [groupedStudents]);
+
+  const PLATFORMS = ['LEETCODE', 'HACKERRANK', 'NEXUS', 'CODECHEF'];
 
   const handleDownloadCSV = (platformId = null) => {
     let targetStudents = groupedStudents;
@@ -110,7 +119,7 @@ export const TeacherCodingProgress = () => {
 
     const rows = targetStudents.map(student => {
       const platformData = targetPlatforms.map(p => {
-        const pData = student.platforms.find(pl => pl.platform === p);
+        const pData = (student.platforms || []).find(pl => pl.platform === p);
         if (!pData) return `"Not Logged In","Not Logged In","Not Logged In","Not Logged In"`;
         return `${pData.easySolved || 0},${pData.mediumSolved || 0},${pData.hardSolved || 0},${pData.totalSolved || 0}`;
       }).join(',');
@@ -133,10 +142,6 @@ export const TeacherCodingProgress = () => {
     setShowDownloadMenu(false);
   };
 
-  useEffect(() => {
-    fetchAllStats();
-  }, []);
-
   const toggleRow = (studentId) => {
     setExpandedRows(prev => ({
       ...prev,
@@ -145,7 +150,6 @@ export const TeacherCodingProgress = () => {
   };
 
   const handleUniversalSync = async () => {
-    // 🛡️ COOLDOWN: Twice per 24 hours
     const syncDataStr = localStorage.getItem('global_sync_data');
     let syncData = syncDataStr ? JSON.parse(syncDataStr) : { count: 0, timestamp: Date.now() };
     
@@ -154,9 +158,9 @@ export const TeacherCodingProgress = () => {
     }
 
     if (syncData.count >= 2) {
-        setSyncWarning('¡Cálmate! Universal sync is limited to twice every 24 hours to protect our servers.');
-        setTimeout(() => setSyncWarning(''), 4000);
-        return;
+      setSyncWarning('¡Cálmate! Universal sync is limited to twice every 24 hours to protect our servers.');
+      setTimeout(() => setSyncWarning(''), 4000);
+      return;
     }
 
     setIsSyncingAll(true);
@@ -166,53 +170,45 @@ export const TeacherCodingProgress = () => {
       syncData.count += 1;
       localStorage.setItem('global_sync_data', JSON.stringify(syncData));
       
-      await fetchAllStats();
+      await revalidate();
     } catch (err) {
       if (err.response?.status === 429) {
-         setSyncWarning(err.response.data.message || 'Universal sync is limited to twice every 24 hours.');
-         setTimeout(() => setSyncWarning(''), 4000);
+        setSyncWarning(err.response.data.message || 'Universal sync is limited to twice every 24 hours.');
+        setTimeout(() => setSyncWarning(''), 4000);
       } else {
-         console.error('Universal sync failed', err);
+        console.error('Universal sync failed', err);
       }
     } finally {
       setIsSyncingAll(false);
     }
   };
 
-  if (loading && groupedStudents.length === 0) {
-    return (
-      <div className="h-64 flex flex-col items-center justify-center">
-        <div className="w-10 h-10 border-4 border-[#1A5F53] border-t-transparent rounded-full animate-spin mb-4"></div>
-        <span className="text-[#1A5F53] font-black text-sm uppercase tracking-widest animate-pulse">Loading Student Metrics...</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 border border-red-100 rounded-2xl p-6 text-center text-red-600 font-medium shadow-sm">
-        {error}
-      </div>
-    );
-  }
+  const startRecord = (pagination.currentPage - 1) * pagination.limit + 1;
+  const endRecord = Math.min(pagination.currentPage * pagination.limit, pagination.totalRecords);
 
   return (
     <div className="w-full animate-in fade-in duration-700 font-sans pb-12">
       
-      {/* Header Section with Universal Sync Button and Search */}
+      {/* Header Section */}
       <div className="mb-8 px-2 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-700 shrink-0">
             <Users size={24} strokeWidth={2.5} />
           </div>
           <div>
-            <h3 className="text-2xl font-black text-gray-900 tracking-tight uppercase">Coding Progress Monitor</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-2xl font-black text-gray-900 tracking-tight uppercase">Coding Progress Monitor</h3>
+              {isValidating && (
+                <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                  <RefreshCw size={10} className="animate-spin" /> Updating...
+                </span>
+              )}
+            </div>
             <p className="text-sm font-medium text-gray-400 mt-1">Real-time platform integrations across all active students.</p>
           </div>
         </div>
 
-        {}
-        <div className="flex flex-col items-end gap-3 sm:flex-row sm:items-center">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <input 
@@ -220,21 +216,21 @@ export const TeacherCodingProgress = () => {
               placeholder="Search students..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all w-full sm:w-64 shadow-sm"
+              className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all w-full sm:w-64 shadow-2xs"
             />
           </div>
 
-          <div className="flex flex-col items-end gap-2">
+          <div className="relative flex items-center">
             <button 
               onClick={handleUniversalSync}
               disabled={isSyncingAll}
-              className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-gray-900/20 disabled:opacity-50"
+              className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-gray-900/20 disabled:opacity-50 active:scale-95"
             >
               <RefreshCw size={14} className={isSyncingAll ? "animate-spin" : ""} />
               {isSyncingAll ? 'Syncing...' : 'Universal Sync'}
             </button>
             {syncWarning && (
-              <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest absolute -bottom-5 right-0 animate-in slide-in-from-top-1">
+              <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest absolute -bottom-5 right-0 animate-in slide-in-from-top-1 whitespace-nowrap">
                 <AlertCircle size={10} className="inline mr-1" /> {syncWarning}
               </span>
             )}
@@ -271,7 +267,7 @@ export const TeacherCodingProgress = () => {
                       {academicCourses.length > 0 && <div className="my-1 border-t border-gray-100"></div>}
                       <div className="max-h-60 overflow-y-auto">
                         {academicCourses.map(course => {
-                          const count = groupedStudents.filter(s => s.user?.course === course).length;
+                          const count = groupedStudents.filter(s => s.course === course).length;
                           return (
                             <button 
                               key={course}
@@ -313,7 +309,7 @@ export const TeacherCodingProgress = () => {
                             onClick={() => handleDownloadCSV(platform)}
                             className="w-full text-left px-3 py-2 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors truncate"
                           >
-                            {platform === 'NEXUS' ? 'Nexus Playground' : platform === 'LEETCODE' ? 'LeetCode' : 'HackerRank'}
+                            {platform === 'NEXUS' ? 'Nexus Playground' : platform === 'LEETCODE' ? 'LeetCode' : platform === 'CODECHEF' ? 'CodeChef' : 'HackerRank'}
                           </button>
                         ))}
                       </div>
@@ -326,149 +322,193 @@ export const TeacherCodingProgress = () => {
         </div>
       </div>
 
-      {/* 🚀 THE SLEEK ACCORDION UI */}
-      <div className="bg-white rounded-[2rem] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] overflow-hidden">
-        
-        {}
-        <div className="flex items-center py-4 px-8 bg-gray-50 border-b border-gray-100 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-          <div className="w-1/3">Student</div>
-          <div className="w-1/4">Combined Output</div>
-          <div className="w-1/4">Total Easy / Med / Hard</div>
-          <div className="w-1/6 text-right">Details</div>
+      {swrError && (
+        <div className="bg-red-50 border border-red-100 rounded-2xl p-6 text-center text-red-600 font-medium shadow-sm mb-6">
+          {swrError.response?.data?.message || swrError.message || 'Could not establish connection to aggregate analytics server.'}
         </div>
+      )}
 
-        {}
-        <div className="divide-y divide-gray-50">
-          {groupedStudents
-            .filter(student => 
-              (student.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-              (student.studentId || '').toLowerCase().includes(searchQuery.toLowerCase())
-            )
-            .map((student) => {
-            const sId = student.studentId || student.id || 'unknown';
-            const isExpanded = expandedRows[sId];
+      {loading && !response ? (
+        <div className="h-64 flex flex-col items-center justify-center">
+          <div className="w-10 h-10 border-4 border-[#1A5F53] border-t-transparent rounded-full animate-spin mb-4"></div>
+          <span className="text-[#1A5F53] font-black text-sm uppercase tracking-widest animate-pulse">Loading Student Metrics...</span>
+        </div>
+      ) : (
+        /* ACCORDION TABLE */
+        <div className="bg-white rounded-[2rem] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] overflow-hidden">
+          
+          <div className="flex items-center py-4 px-8 bg-gray-50 border-b border-gray-100 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            <div className="w-1/3">Student</div>
+            <div className="w-1/4">Combined Output</div>
+            <div className="w-1/4">Total Easy / Med / Hard</div>
+            <div className="w-1/6 text-right">Details</div>
+          </div>
 
-            return (
-              <React.Fragment key={sId}>
-                {}
-                <div 
-                  onClick={() => toggleRow(sId)}
-                  className={`flex items-center py-5 px-8 bg-white cursor-pointer transition-colors group ${isExpanded ? 'border-b border-gray-50' : 'border-b border-gray-100 hover:bg-gray-50/50'}`}
-                >
-                  {}
-                  <div className="w-1/3 pr-4">
-                    <h4 className="text-sm font-black text-gray-900 group-hover:text-[#1A5F53] transition-colors truncate">
-                      {student.name || 'Unknown Student'}
-                    </h4>
-                    <p className="text-[10px] text-gray-400 font-bold mt-0.5 font-mono uppercase tracking-widest">
-                      {student.studentId || 'N/A'} • {student.platforms.length} Platforms
-                    </p>
-                  </div>
+          <div className="divide-y divide-gray-50">
+            {groupedStudents.map((student) => {
+              const sId = student.studentId || student.id || 'unknown';
+              const isExpanded = expandedRows[sId];
+              const platforms = student.platforms || [];
 
-                  {}
-                  <div className="w-1/4 flex items-baseline gap-1.5">
-                    <span className="text-xl font-black text-[#1A5F53]">{student.totalSolved}</span>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Solved</span>
-                  </div>
+              return (
+                <React.Fragment key={sId}>
+                  <div 
+                    onClick={() => toggleRow(sId)}
+                    className={`flex items-center py-5 px-8 bg-white cursor-pointer transition-colors group ${isExpanded ? 'border-b border-gray-50' : 'border-b border-gray-100 hover:bg-gray-50/50'}`}
+                  >
+                    <div className="w-1/3 pr-4">
+                      <h4 className="text-sm font-black text-gray-900 group-hover:text-[#1A5F53] transition-colors truncate">
+                        {student.name || 'Unknown Student'}
+                      </h4>
+                      <p className="text-[10px] text-gray-400 font-bold mt-0.5 font-mono uppercase tracking-widest">
+                        {student.studentId || 'N/A'} • {platforms.length} Platforms
+                      </p>
+                    </div>
 
-                  {}
-                  <div className="w-1/4 flex items-center gap-4 text-sm font-black">
-                    <span className="text-[#00B8A3]">{student.platforms.reduce((acc, p) => acc + p.easySolved, 0)}</span>
-                    <span className="text-gray-200">/</span>
-                    <span className="text-[#FFC01E]">{student.platforms.reduce((acc, p) => acc + p.mediumSolved, 0)}</span>
-                    <span className="text-gray-200">/</span>
-                    <span className="text-[#EF4743]">{student.platforms.reduce((acc, p) => acc + p.hardSolved, 0)}</span>
-                  </div>
+                    <div className="w-1/4 flex items-baseline gap-1.5">
+                      <span className="text-xl font-black text-[#1A5F53]">{student.totalSolved || 0}</span>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Solved</span>
+                    </div>
 
-                  {}
-                  <div className="w-1/6 flex justify-end">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isExpanded ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'}`}>
-                      {isExpanded ? <ChevronUp size={16} strokeWidth={3} /> : <ChevronDown size={16} strokeWidth={3} />}
+                    <div className="w-1/4 flex items-center gap-4 text-sm font-black">
+                      <span className="text-[#00B8A3]">{platforms.reduce((acc, p) => acc + (p.easySolved || 0), 0)}</span>
+                      <span className="text-gray-200">/</span>
+                      <span className="text-[#FFC01E]">{platforms.reduce((acc, p) => acc + (p.mediumSolved || 0), 0)}</span>
+                      <span className="text-gray-200">/</span>
+                      <span className="text-[#EF4743]">{platforms.reduce((acc, p) => acc + (p.hardSolved || 0), 0)}</span>
+                    </div>
+
+                    <div className="w-1/6 flex justify-end">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isExpanded ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'}`}>
+                        {isExpanded ? <ChevronUp size={16} strokeWidth={3} /> : <ChevronDown size={16} strokeWidth={3} />}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* ⏬ EXPANDED PLATFORM DETAILS */}
-                {isExpanded && (
-                  <div className="bg-gray-50/50 border-b border-gray-100 shadow-inner">
-                    {student.platforms.map((m, index) => {
-                      const pInfo = getPlatformStyling(m.platform);
-                      
-                      return (
-                        <div key={m.id || index} className="flex items-center py-4 px-8 pl-16 border-t border-gray-100/50 hover:bg-white transition-colors">
-                          
-                          {}
-                          <div className="w-1/3 flex items-center gap-3">
-                            <div className={`w-7 h-7 rounded-md ${pInfo.bg} ${pInfo.text} flex items-center justify-center shrink-0`}>
-                              {pInfo.icon}
+                  {/* EXPANDED PLATFORM DETAILS */}
+                  {isExpanded && (
+                    <div className="bg-gray-50/50 border-b border-gray-100 shadow-inner">
+                      {platforms.map((m, index) => {
+                        const pInfo = getPlatformStyling(m.platform);
+                        
+                        return (
+                          <div key={m.id || index} className="flex items-center py-4 px-8 pl-16 border-t border-gray-100/50 hover:bg-white transition-colors">
+                            
+                            <div className="w-1/3 flex items-center gap-3">
+                              <div className={`w-7 h-7 rounded-md ${pInfo.bg} ${pInfo.text} flex items-center justify-center shrink-0`}>
+                                {pInfo.icon}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">{pInfo.name}</span>
+                                {m.platform.toUpperCase() !== 'CODECHEF' && (
+                                  <span className="text-[9px] font-bold text-gray-400 uppercase">
+                                    #{m.ranking?.toLocaleString() || '0'} Rank
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            <div className="flex flex-col">
-                              <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">{pInfo.name}</span>
-                              {m.platform.toUpperCase() !== 'CODECHEF' && (
-                                <span className="text-[9px] font-bold text-gray-400 uppercase">
-                                  #{m.ranking?.toLocaleString() || '0'} Rank
+
+                            <div className="w-1/4 flex items-baseline gap-1.5">
+                              <span className="text-sm font-black text-gray-700">{m.totalSolved || 0}</span>
+                              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Solved</span>
+                            </div>
+
+                            <div className="w-1/4 flex items-center gap-3 text-xs font-black">
+                              {m.platform.toUpperCase() === 'HACKERRANK' ? (
+                                <span className="text-gray-400 font-medium">Difficulty breakdown N/A</span>
+                              ) : m.platform.toUpperCase() === 'CODECHEF' ? (
+                                <span className="text-[#FFC01E] flex items-center gap-1">
+                                  {m.ranking || 0} <span className="text-xl leading-none">★</span>
                                 </span>
+                              ) : (
+                                <>
+                                  <span className={pInfo.easy}>{m.easySolved || 0}</span>
+                                  <span className="text-gray-200">/</span>
+                                  <span className={pInfo.medium}>{m.mediumSolved || 0}</span>
+                                  <span className="text-gray-200">/</span>
+                                  <span className={pInfo.hard}>{m.hardSolved || 0}</span>
+                                </>
                               )}
                             </div>
-                          </div>
 
-                          {}
-                          <div className="w-1/4 flex items-baseline gap-1.5">
-                            <span className="text-sm font-black text-gray-700">{m.totalSolved || 0}</span>
-                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Solved</span>
-                          </div>
-
-                          {}
-                          <div className="w-1/4 flex items-center gap-3 text-xs font-black">
-                            {m.platform.toUpperCase() === 'HACKERRANK' ? (
-                              <span className="text-gray-400 font-medium">Difficulty breakdown N/A</span>
-                            ) : m.platform.toUpperCase() === 'CODECHEF' ? (
-                              <span className="text-[#FFC01E] flex items-center gap-1">
-                                {m.ranking || 0} <span className="text-xl leading-none">★</span>
+                            <div className="w-1/6 flex flex-col items-end justify-center gap-1">
+                              <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest transition-all ${
+                                (m.thisWeek || 0) > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400'
+                              }`}>
+                                {(m.thisWeek || 0) > 0 ? `+${m.thisWeek} Wk` : '0 Wk'}
                               </span>
-                            ) : (
-                              <>
-                                <span className={pInfo.easy}>{m.easySolved || 0}</span>
-                                <span className="text-gray-200">/</span>
-                                <span className={pInfo.medium}>{m.mediumSolved || 0}</span>
-                                <span className="text-gray-200">/</span>
-                                <span className={pInfo.hard}>{m.hardSolved || 0}</span>
-                              </>
-                            )}
+                              <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest transition-all ${
+                                (m.thisMonth || 0) > 0 ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-400'
+                              }`}>
+                                {(m.thisMonth || 0) > 0 ? `+${m.thisMonth} Mo` : '0 Mo'}
+                              </span>
+                            </div>
+
                           </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            })}
 
-                          {}
-                          <div className="w-1/6 flex flex-col items-end justify-center gap-1">
-                             <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest transition-all ${
-                              m.thisWeek > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-400'
-                             }`}>
-                              {m.thisWeek > 0 ? `+${m.thisWeek} Wk` : '0 Wk'}
-                            </span>
-                            <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest transition-all ${
-                              m.thisMonth > 0 ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-400'
-                            }`}>
-                              {m.thisMonth > 0 ? `+${m.thisMonth} Mo` : '0 Mo'}
-                            </span>
-                          </div>
-
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </React.Fragment>
-            );
-          })}
-
-          {}
-          {groupedStudents.length === 0 && !loading && (
-             <div className="text-center py-20 bg-white">
+            {groupedStudents.length === 0 && !loading && (
+              <div className="text-center py-20 bg-white">
                 <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">No student metrics found in the database.</p>
-             </div>
+              </div>
+            )}
+          </div>
+
+          {/* Pagination Bar */}
+          {pagination.totalRecords > 0 && (
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-6 py-4 bg-slate-50 border-t border-slate-100 text-xs text-slate-600 font-medium">
+              <div className="flex items-center gap-3">
+                <span>Showing <strong className="text-slate-800">{startRecord}</strong> to <strong className="text-slate-800">{endRecord}</strong> of <strong className="text-slate-800">{pagination.totalRecords}</strong> students</span>
+                <div className="flex items-center gap-1.5 ml-2">
+                  <span className="text-slate-400">Rows:</span>
+                  <select
+                    value={limit}
+                    onChange={(e) => {
+                      setLimit(Number(e.target.value));
+                      setPage(1);
+                    }}
+                    className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  >
+                    <option value={10}>10</option>
+                    <option value={30}>30</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-2xs font-semibold"
+                >
+                  <ChevronLeft size={14} /> Previous
+                </button>
+                <span className="px-2 font-bold text-slate-700">
+                  Page {pagination.currentPage} of {pagination.totalPages}
+                </span>
+                <button
+                  onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
+                  disabled={page >= pagination.totalPages}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-2xs font-semibold"
+                >
+                  Next <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
           )}
         </div>
-      </div>
+      )}
 
     </div>
   );
 };
+
+export default TeacherCodingProgress;

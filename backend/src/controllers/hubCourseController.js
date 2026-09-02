@@ -1,9 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '../config/prisma.js';
+import cacheService from '../services/cache.service.js';
 import csv from 'csv-parser';
 import stream from 'stream';
 import crypto from 'crypto';
-
-const prisma = new PrismaClient();
 
 export const uploadCourseCsv = async (req, res) => {
   try {
@@ -523,39 +522,69 @@ export const deleteCourse = async (req, res) => {
 export const getFacultyStudentProgress = async (req, res) => {
   try {
     const departmentId = req.user?.departmentId;
+    const facultyId = req.user?.id || 'guest';
     if (!departmentId) {
       return res.status(403).json({ error: 'You are not assigned to a department.' });
     }
 
-    const students = await prisma.user.findMany({
-      where: {
-        departmentId,
-        role: 'student'
-      },
-      select: {
-        id: true,
-        name: true,
-        studentId: true,
-        email: true,
-        course: true,
-        section: true
-      },
-      orderBy: { studentId: 'asc' }
-    });
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 30));
+    const search = (req.query.search || '').trim();
+    const skip = (page - 1) * limit;
 
-    const courses = await prisma.hubCourse.findMany({
-      where: { departmentId },
-      include: {
-        modules: {
-          include: {
-            questions: {
-              select: { id: true }
+    const cacheKey = `cache:faculty:progress:${facultyId}:${departmentId}:${page}:${limit}:${search ? encodeURIComponent(search) : 'all'}`;
+
+    try {
+      const cached = await cacheService.get(cacheKey);
+      if (cached) {
+        return res.json(cached);
+      }
+    } catch (cacheErr) {
+      console.warn('Redis read fallback in getFacultyStudentProgress:', cacheErr.message);
+    }
+
+    const studentWhere = {
+      departmentId,
+      role: 'student',
+      ...(search ? {
+        OR: [
+          { name: { contains: search } },
+          { studentId: { contains: search } },
+          { email: { contains: search } }
+        ]
+      } : {})
+    };
+
+    const [totalRecords, students, courses] = await Promise.all([
+      prisma.user.count({ where: studentWhere }),
+      prisma.user.findMany({
+        where: studentWhere,
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          name: true,
+          studentId: true,
+          email: true,
+          course: true,
+          section: true
+        },
+        orderBy: { studentId: 'asc' }
+      }),
+      prisma.hubCourse.findMany({
+        where: { departmentId },
+        include: {
+          modules: {
+            include: {
+              questions: {
+                select: { id: true }
+              }
             }
           }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+        },
+        orderBy: { createdAt: 'desc' }
+      })
+    ]);
 
     const courseQuestionsMap = courses.map(course => {
       let totalQuestions = 0;
@@ -581,14 +610,14 @@ export const getFacultyStudentProgress = async (req, res) => {
     });
 
     const studentIds = students.map(s => s.id);
-    const submissions = await prisma.practiceSubmission.findMany({
+    const submissions = studentIds.length > 0 ? await prisma.practiceSubmission.findMany({
       where: {
         studentId: { in: studentIds },
         verdict: { in: ['accepted', 'Accepted'] }
       },
       select: { studentId: true, questionId: true },
       distinct: ['studentId', 'questionId']
-    });
+    }) : [];
 
     const studentSubmissionsMap = {};
     submissions.forEach(sub => {
@@ -636,7 +665,27 @@ export const getFacultyStudentProgress = async (req, res) => {
       };
     });
 
-    res.json({ success: true, data: result, courses: courseQuestionsMap.map(c => ({ id: c.id, title: c.title })) });
+    const totalPages = Math.ceil(totalRecords / limit) || 1;
+
+    const payload = {
+      success: true,
+      data: result,
+      courses: courseQuestionsMap.map(c => ({ id: c.id, title: c.title })),
+      pagination: {
+        totalRecords,
+        totalPages,
+        currentPage: page,
+        limit
+      }
+    };
+
+    try {
+      await cacheService.set(cacheKey, payload, 120);
+    } catch (cacheErr) {
+      console.warn('Redis write fallback in getFacultyStudentProgress:', cacheErr.message);
+    }
+
+    res.json(payload);
   } catch (error) {
     console.error('Error fetching faculty student progress:', error);
     res.status(500).json({ error: 'Failed to fetch student progress.' });

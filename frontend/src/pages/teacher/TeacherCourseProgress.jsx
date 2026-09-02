@@ -1,46 +1,48 @@
-import React, { useEffect, useState } from 'react';
-import api from '../../services/api'; 
-import { BookOpen, Download, AlertCircle, RefreshCw, Layers, ChevronDown, ChevronUp, Search } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import useSWR from '../../hooks/useSWR';
+import { BookOpen, Download, AlertCircle, RefreshCw, Layers, ChevronDown, ChevronUp, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export const TeacherCourseProgress = () => {
-  const [students, setStudents] = useState([]);
-  const [courses, setCourses] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [expandedStudentId, setExpandedStudentId] = useState(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(30);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [expandedStudentId, setExpandedStudentId] = useState(null);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const [downloadStep, setDownloadStep] = useState(1);
   const [selectedAcademicCourse, setSelectedAcademicCourse] = useState(null);
 
-  const academicCourses = [...new Set(students.map(s => s.course).filter(Boolean))];
+  // Debounce search query
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  const endpoint = `/hub-courses/faculty/student-progress?page=${page}&limit=${limit}&search=${encodeURIComponent(debouncedSearch)}`;
+
+  const { data: response, loading, isValidating, error: swrError, revalidate } = useSWR(endpoint, {
+    staleTime: 60000
+  });
+
+  const students = useMemo(() => response?.data || [], [response]);
+  const courses = useMemo(() => response?.courses || [], [response]);
+  const pagination = response?.pagination || {
+    totalRecords: students.length,
+    totalPages: 1,
+    currentPage: page,
+    limit
+  };
+
+  const academicCourses = useMemo(() => {
+    return [...new Set(students.map(s => s.course).filter(Boolean))];
+  }, [students]);
 
   const toggleStudent = (studentId) => {
     setExpandedStudentId(prev => prev === studentId ? null : studentId);
   };
-
-  const fetchProgress = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      const res = await api.get('/hub-courses/faculty/student-progress');
-      if (res.data.success) {
-        setStudents(res.data.data || []);
-        setCourses(res.data.courses || []);
-      } else {
-        setError('Failed to fetch student progress data.');
-      }
-    } catch (err) {
-      console.error(err);
-      setError('An error occurred while fetching progress data.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchProgress();
-  }, []);
 
   const handleDownloadCSV = (courseId = null) => {
     let targetStudents = students;
@@ -60,7 +62,7 @@ export const TeacherCourseProgress = () => {
 
     const rows = targetStudents.map(student => {
       const courseData = targetCourses.map(c => {
-        const cp = student.courseProgress.find(p => p.courseId === c.id);
+        const cp = (student.courseProgress || []).find(p => p.courseId === c.id);
         return cp ? cp.progress : 0;
       }).join(',');
       return `"${student.studentId || ''}","${student.name || ''}","${student.email || ''}","${student.course || ''}",${courseData}`;
@@ -81,53 +83,47 @@ export const TeacherCourseProgress = () => {
     setShowDownloadMenu(false);
   };
 
-  const filteredStudents = students.filter(s => 
-    (s.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (s.studentId || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (s.email || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  if (loading) {
-    return (
-      <div className="flex-1 h-[80vh] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-gray-400 font-bold uppercase tracking-widest text-xs">Loading progress...</span>
-        </div>
-      </div>
-    );
-  }
+  const startRecord = (pagination.currentPage - 1) * pagination.limit + 1;
+  const endRecord = Math.min(pagination.currentPage * pagination.limit, pagination.totalRecords);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-300">
-      <div className="flex justify-between items-end bg-white p-6 rounded-2xl border shadow-sm">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 bg-white p-6 rounded-2xl border shadow-sm">
         <div>
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
               <BookOpen size={24} />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Course Progress</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Course Progress</h1>
+              {isValidating && (
+                <span className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
+                  <RefreshCw size={10} className="animate-spin" /> Updating...
+                </span>
+              )}
+            </div>
           </div>
           <p className="text-gray-500 text-sm font-medium">Track your department's students across all available courses.</p>
         </div>
         
-        <div className="flex items-center gap-3">
-          <div className="relative">
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          <div className="relative flex-1 md:flex-initial">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
             <input 
               type="text"
               placeholder="Search students..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all w-64"
+              className="pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all w-full md:w-64"
             />
           </div>
 
           <button 
-            onClick={fetchProgress}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold text-xs uppercase tracking-widest rounded-xl transition-all border shadow-sm"
+            onClick={() => revalidate()}
+            disabled={loading || isValidating}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold text-xs uppercase tracking-widest rounded-xl transition-all border shadow-sm active:scale-95 disabled:opacity-60"
           >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
+            <RefreshCw size={14} className={isValidating ? 'animate-spin' : ''} /> Refresh
           </button>
           
           <div className="relative">
@@ -217,20 +213,27 @@ export const TeacherCourseProgress = () => {
         </div>
       </div>
 
-      {error && (
+      {swrError && (
         <div className="p-4 bg-red-50 text-red-600 rounded-xl flex items-center gap-2 font-medium border border-red-100">
           <AlertCircle size={18} />
-          {error}
+          {swrError.response?.data?.message || swrError.message || 'An error occurred while fetching progress data.'}
         </div>
       )}
 
-      {!error && students.length === 0 ? (
+      {loading && !response ? (
+        <div className="flex-1 h-[60vh] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <span className="text-gray-400 font-bold uppercase tracking-widest text-xs">Loading progress...</span>
+          </div>
+        </div>
+      ) : !swrError && students.length === 0 ? (
         <div className="bg-white p-12 rounded-2xl border shadow-sm text-center flex flex-col items-center justify-center">
           <div className="w-16 h-16 bg-gray-50 text-gray-400 rounded-full flex items-center justify-center mb-4">
             <Layers size={28} />
           </div>
           <h3 className="text-lg font-bold text-gray-800 mb-2">No Students Found</h3>
-          <p className="text-gray-500">There are currently no students in your department to track.</p>
+          <p className="text-gray-500">There are currently no students matching your filter criteria.</p>
         </div>
       ) : (
         <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
@@ -245,11 +248,11 @@ export const TeacherCourseProgress = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredStudents.map((student, idx) => {
+                {students.map((student) => {
                   const isExpanded = expandedStudentId === student.id;
                   
                   const totalProgressSum = courses.reduce((acc, course) => {
-                    const cp = student.courseProgress.find(p => p.courseId === course.id);
+                    const cp = (student.courseProgress || []).find(p => p.courseId === course.id);
                     return acc + (cp ? cp.progress : 0);
                   }, 0);
                   const avgProgress = courses.length ? Math.round(totalProgressSum / courses.length) : 0;
@@ -295,7 +298,6 @@ export const TeacherCourseProgress = () => {
                           </button>
                         </td>
                       </tr>
-                      {}
                       {isExpanded && (
                         <tr className="bg-slate-50/50 border-b border-slate-100 shadow-inner">
                           <td colSpan={4} className="p-0">
@@ -317,7 +319,7 @@ export const TeacherCourseProgress = () => {
                               ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                   {courses.map(course => {
-                                    const cp = student.courseProgress.find(p => p.courseId === course.id) || { progress: 0, solvedQuestions: 0, totalQuestions: course.totalQuestions || 0 };
+                                    const cp = (student.courseProgress || []).find(p => p.courseId === course.id) || { progress: 0, solvedQuestions: 0, totalQuestions: course.totalQuestions || 0 };
                                     return (
                                       <div key={course.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-2 transition-all hover:shadow-md hover:border-blue-200">
                                         <p className="font-bold text-sm text-slate-800 line-clamp-1" title={course.title}>
@@ -352,8 +354,55 @@ export const TeacherCourseProgress = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Bar */}
+          {pagination.totalRecords > 0 && (
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-6 py-4 bg-slate-50 border-t border-slate-200 text-xs text-slate-600 font-medium">
+              <div className="flex items-center gap-3">
+                <span>Showing <strong className="text-slate-800">{startRecord}</strong> to <strong className="text-slate-800">{endRecord}</strong> of <strong className="text-slate-800">{pagination.totalRecords}</strong> students</span>
+                <div className="flex items-center gap-1.5 ml-2">
+                  <span className="text-slate-400">Rows:</span>
+                  <select
+                    value={limit}
+                    onChange={(e) => {
+                      setLimit(Number(e.target.value));
+                      setPage(1);
+                    }}
+                    className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value={10}>10</option>
+                    <option value={30}>30</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-2xs font-semibold"
+                >
+                  <ChevronLeft size={14} /> Previous
+                </button>
+                <span className="px-2 font-bold text-slate-700">
+                  Page {pagination.currentPage} of {pagination.totalPages}
+                </span>
+                <button
+                  onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
+                  disabled={page >= pagination.totalPages}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-2xs font-semibold"
+                >
+                  Next <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 };
+
+export default TeacherCourseProgress;

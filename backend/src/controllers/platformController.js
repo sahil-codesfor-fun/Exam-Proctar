@@ -1,5 +1,6 @@
 import prisma from '../config/prisma.js';
 import { redisClient, isRedisConnected } from '../config/redis.js';
+import cacheService from '../services/cache.service.js';
 import { platformSyncQueue } from '../workers/masterCron.js';
 import codechefStrategy from '../services/platforms/codechefStrategy.js';
 import leetcodeStrategy from '../services/platforms/leetcodeStrategy.js';
@@ -114,42 +115,76 @@ export const queueGlobalRefresh = async (req, res) => {
 export const getFacultyStudentMetrics = async (req, res) => {
   try {
     const departmentId = req.user?.departmentId;
+    const facultyId = req.user?.id || 'guest';
     if (!departmentId) {
       return res.status(403).json({ error: 'You are not assigned to a department.' });
     }
 
-    const students = await prisma.user.findMany({
-      where: { departmentId, role: 'student' },
-      select: {
-        id: true,
-        name: true,
-        studentId: true,
-        email: true,
-        course: true,
-        codechefUsername: true, codechefTotalSolved: true, codechefStars: true,
-        leetcodeUsername: true, leetcodeTotalSolved: true,
-        leetcodeEasySolved: true, leetcodeMediumSolved: true, leetcodeHardSolved: true,
-        hackerrankUsername: true, hackerrankTotalSolved: true,
-        codingMetrics: true
-      },
-      orderBy: { studentId: 'asc' }
-    });
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 30));
+    const search = (req.query.search || '').trim();
+    const skip = (page - 1) * limit;
+
+    const cacheKey = `cache:faculty:metrics:${facultyId}:${departmentId}:${page}:${limit}:${search ? encodeURIComponent(search) : 'all'}`;
+
+    try {
+      const cached = await cacheService.get(cacheKey);
+      if (cached) {
+        return res.json(cached);
+      }
+    } catch (cacheErr) {
+      console.warn('Redis read fallback in getFacultyStudentMetrics:', cacheErr.message);
+    }
+
+    const studentWhere = {
+      departmentId,
+      role: 'student',
+      ...(search ? {
+        OR: [
+          { name: { contains: search } },
+          { studentId: { contains: search } },
+          { email: { contains: search } }
+        ]
+      } : {})
+    };
+
+    const [totalRecords, students] = await Promise.all([
+      prisma.user.count({ where: studentWhere }),
+      prisma.user.findMany({
+        where: studentWhere,
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          name: true,
+          studentId: true,
+          email: true,
+          course: true,
+          codechefUsername: true, codechefTotalSolved: true, codechefStars: true,
+          leetcodeUsername: true, leetcodeTotalSolved: true,
+          leetcodeEasySolved: true, leetcodeMediumSolved: true, leetcodeHardSolved: true,
+          hackerrankUsername: true, hackerrankTotalSolved: true,
+          codingMetrics: true
+        },
+        orderBy: { studentId: 'asc' }
+      })
+    ]);
 
     const studentIds = students.map(s => s.id);
-    const submissions = await prisma.practiceSubmission.findMany({
+    const submissions = studentIds.length > 0 ? await prisma.practiceSubmission.findMany({
       where: {
         studentId: { in: studentIds },
         verdict: { in: ['accepted', 'Accepted'] }
       },
       select: { studentId: true, questionId: true },
       distinct: ['studentId', 'questionId']
-    });
+    }) : [];
 
     const questionIds = [...new Set(submissions.map(s => s.questionId))];
-    const solvedQuestions = await prisma.question.findMany({
+    const solvedQuestions = questionIds.length > 0 ? await prisma.question.findMany({
       where: { id: { in: questionIds } },
       select: { id: true, difficulty: true }
-    });
+    }) : [];
 
     const qDiffMap = {};
     solvedQuestions.forEach(q => {
@@ -232,7 +267,26 @@ export const getFacultyStudentMetrics = async (req, res) => {
       };
     });
 
-    return res.status(200).json({ success: true, data: result });
+    const totalPages = Math.ceil(totalRecords / limit) || 1;
+
+    const payload = {
+      success: true,
+      data: result,
+      pagination: {
+        totalRecords,
+        totalPages,
+        currentPage: page,
+        limit
+      }
+    };
+
+    try {
+      await cacheService.set(cacheKey, payload, 120);
+    } catch (cacheErr) {
+      console.warn('Redis write fallback in getFacultyStudentMetrics:', cacheErr.message);
+    }
+
+    return res.status(200).json(payload);
   } catch (error) {
     console.error('Error fetching faculty student metrics:', error);
     return res.status(500).json({ error: 'Failed to fetch student metrics.' });
@@ -288,6 +342,8 @@ export const syncAllFacultyStudents = async (req, res) => {
         await redisClient.incr(redisKey);
       }
     }
+
+    await cacheService.invalidateFacultyCaches(departmentId);
 
     return res.status(200).json({ success: true, message: `Queued sync for ${students.length} students.` });
   } catch (error) {

@@ -97,6 +97,14 @@ class CacheService {
     await this.invalidatePattern('exams:*');
     await this.invalidatePattern('dashboard:*');
   }
+
+  async invalidateFacultyCaches(departmentId) {
+    if (departmentId) {
+      await this.invalidatePattern(`cache:faculty:*:${departmentId}:*`);
+    } else {
+      await this.invalidatePattern('cache:faculty:*');
+    }
+  }
 }
 
 export const cacheService = new CacheService();

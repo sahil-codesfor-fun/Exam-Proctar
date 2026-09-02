@@ -3,6 +3,7 @@ import { getPracticeIO } from '../sockets/practiceSocket.js';
 import dotenv from 'dotenv';
 import { runLocalCode } from '../services/compiler/localCompiler.service.js';
 import prisma from '../config/prisma.js';
+import cacheService from '../services/cache.service.js';
 dotenv.config();
 
 // ── Language Configuration ───────────────────────────────────────────────────
@@ -371,6 +372,8 @@ export const judgeCode = async (req, res) => {
           }
         }
       }
+
+      cacheService.invalidateFacultyCaches().catch(() => {});
     }
 
     res.json({ 
