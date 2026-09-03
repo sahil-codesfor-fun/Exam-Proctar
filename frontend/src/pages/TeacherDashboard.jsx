@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
-// 🚀 ADDED 'Code' icon here
-import { Plus, X, Trash2, CheckCircle2, LayoutGrid, FileText, ShieldAlert, Upload, Edit, Users, Code, BookOpen, Activity, Award } from 'lucide-react';
+import { Plus, X, Trash2, CheckCircle2, LayoutGrid, FileText, ShieldAlert, Upload, Download, Edit, Users, Code, BookOpen, Activity, Award } from 'lucide-react';
 import * as XLSX from 'xlsx'; 
 
 
@@ -205,6 +204,24 @@ export const TeacherDashboard = () => {
             const correctIndex = Number(row['Correct Option']) || 1;
             [1, 2, 3, 4].forEach(i => { if (row[`Option ${i}`]) q.options.push({ text: String(row[`Option ${i}`]), isCorrect: i === correctIndex }); });
             if (q.options.length === 0) q.options = [{text:'Option A', isCorrect:true}, {text:'Option B', isCorrect:false}];
+          } else if (type === 'matching' || type === 'match') {
+            q.type = 'matching';
+            for (let i = 1; i <= 10; i++) {
+              const left = row[`Pair${i}_Left`] ?? row[`Pair ${i} Left`] ?? row[`Pair_${i}_Left`] ?? row[`Match_Left_${i}`] ?? row[`Match${i}_Left`] ?? row[`Left ${i}`] ?? row[`Left_${i}`] ?? row[`Left${i}`];
+              const right = row[`Pair${i}_Right`] ?? row[`Pair ${i} Right`] ?? row[`Pair_${i}_Right`] ?? row[`Match_Right_${i}`] ?? row[`Match${i}_Right`] ?? row[`Right ${i}`] ?? row[`Right_${i}`] ?? row[`Right${i}`];
+              if (left !== undefined && right !== undefined && String(left).trim() !== '' && String(right).trim() !== '') {
+                q.matchingPairs.push({ leftItem: String(left).trim(), rightItem: String(right).trim() });
+              } else {
+                const combinedPair = row[`Pair ${i}`] || row[`Pair${i}`] || row[`Pair_${i}`] || row[`Option ${i}`] || row[`Option${i}`];
+                if (combinedPair && String(combinedPair).includes('|')) {
+                  const [l, r] = String(combinedPair).split('|').map(s => s.trim());
+                  if (l && r) q.matchingPairs.push({ leftItem: l, rightItem: r });
+                }
+              }
+            }
+            if (q.matchingPairs.length === 0) {
+              q.matchingPairs = [{ leftItem: '', rightItem: '' }, { leftItem: '', rightItem: '' }];
+            }
           } else if (type === 'coding') {
             q.constraints = row['Constraints'] || '';
             for (let i = 1; i <= 10; i++) {
@@ -257,7 +274,7 @@ export const TeacherDashboard = () => {
     e.target.value = null; setActiveTcIndex(null);
   };
 
-  const showFormatGuide = () => { showToast(`TEXT FORMAT: Use PAIR: Left Item | Right Item for matching questions! CSV FORMAT: Use columns TC1_IN, TC1_OUT, TC1_HIDDEN for bulk test cases.`, 'info'); };
+  const showFormatGuide = () => { showToast(`Formats: MCQ (Option 1-4, Correct Option), MATCHING (Pair1_Left, Pair1_Right ... Pair4_Left, Pair4_Right), CODING (TC1_IN, TC1_OUT, TC1_HIDDEN). TXT: PAIR: Left | Right`, 'info'); };
 
   const openEditModal = (examData) => {
     setEditingId(examData._id);
@@ -472,6 +489,7 @@ export const TeacherDashboard = () => {
             <div className="flex justify-between items-center flex-wrap gap-3">
               <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Questions ({form.questions.length})</h3>
               <div className="flex gap-2">
+                <a href="/Question_Bank_Template.xlsx" download="Question_Bank_Template.xlsx" className="text-xs font-bold text-emerald-700 flex items-center gap-1 bg-emerald-50 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-all border border-emerald-200 shadow-sm" title="Download Excel/CSV Question Template"><Download size={14} /> Download Template</a>
                 <button onClick={showFormatGuide} className="text-xs font-bold text-gray-500 flex items-center gap-1 bg-white px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-all border border-gray-200 shadow-sm">❔ Format Guide</button>
                 <input type="file" accept=".txt,.csv,.xlsx" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
                 <button onClick={() => fileInputRef.current?.click()} className="text-xs font-bold text-blue-600 flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-all border border-blue-100 shadow-sm"><Upload size={14} /> Bulk Upload Qs</button>

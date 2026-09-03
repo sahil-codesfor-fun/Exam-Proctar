@@ -1,0 +1,12 @@
+Type,Title,Description,Points,Option 1,Option 2,Option 3,Option 4,Correct Option,Pair1_Left,Pair1_Right,Pair2_Left,Pair2_Right,Pair3_Left,Pair3_Right,Pair4_Left,Pair4_Right,Constraints,TC1_IN,TC1_OUT,TC1_HIDDEN,TC2_IN,TC2_OUT,TC2_HIDDEN,TC3_IN,TC3_OUT,TC3_HIDDEN
+mcq,Time Complexity of Binary Search,What is the worst-case time complexity of binary search on a sorted array of size N?,5,O(1),O(log N),O(N),O(N log N),2,,,,,,,,,,,,,,,,,,
+mcq,JVM Memory Areas,Which memory area in JVM is used to store objects and instance variables?,5,Method Area,JVM Stack,Heap Memory,Native Method Stack,3,,,,,,,,,,,,,,,,,,
+matching,Match Protocols to Port Numbers,Match the networking protocol with its standardized default port number.,10,,,,,,HTTP,80,HTTPS,443,SSH,22,DNS,53,,,,,,,,,,
+matching,Match Data Structures with Average Search Time,Match each Data Structure on the left with its corresponding search time complexity on the right.,10,,,,,,Array (by index),O(1),Binary Search Tree,O(log N),Singly Linked List,O(N),Hash Table,O(1),,,,,,,,,,
+coding,Sum of Array Elements,"Given an array of N integers, calculate and print the sum of all elements.",10,,,,,,,,,,,,,,"1 <= N <= 10^5
+-10^9 <= A[i] <= 10^9","5
+1 2 3 4 5",15,false,"3
+10 20 30",60,false,"1
+100",100,true
+coding,Factorial of a Number,Write a program to compute the factorial of a given non-negative integer N.,10,,,,,,,,,,,,,,0 <= N <= 20,5,120,false,0,1,false,6,720,true
+subjective,Explain ACID Properties in DBMS,"Explain Atomicity, Consistency, Isolation, and Durability with real-world banking transaction examples.",15,,,,,,,,,,,,,,,,,,,,,,,
