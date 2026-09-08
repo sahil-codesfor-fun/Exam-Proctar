@@ -1002,12 +1002,12 @@ export const LiveExamPage = () => {
                     <div className="flex items-center justify-between">
                       <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-3 py-1 rounded-lg">Q{currentQ + 1} • {q.points} pts • SUBJECTIVE</span>
                       {(() => {
-                        const words = (ans.textAnswer || '').trim().split(/\s+/).filter(Boolean).length;
-                        const minWords = q.minWords || 1500;
-                        const isMet = words >= minWords;
+                        const chars = (ans.textAnswer || '').length;
+                        const minChars = q.minChars || 1500;
+                        const isMet = chars >= minChars;
                         return (
                           <span className={`text-xs font-black px-3 py-1 rounded-lg uppercase tracking-wider ${isMet ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}`}>
-                            {isMet ? '✓ Min Words Target Met' : `⚠️ ${words} / ${minWords} Words`}
+                            {isMet ? '✓ Min Characters Target Met' : `⚠️ ${chars} / ${minChars} Characters`}
                           </span>
                         );
                       })()}
@@ -1016,31 +1016,20 @@ export const LiveExamPage = () => {
                     {q.description && <p className="text-gray-400 mb-4 whitespace-pre-wrap leading-relaxed">{q.description}</p>}
 
                     {(() => {
-                      const words = (ans.textAnswer || '').trim().split(/\s+/).filter(Boolean).length;
-                      const minWords = q.minWords || 1500;
-                      const pct = Math.min(100, Math.round((words / minWords) * 100));
-                      const isMet = words >= minWords;
+                      const chars = (ans.textAnswer || '').length;
+                      const minChars = q.minChars || 1500;
+                      const isMet = chars >= minChars;
                       return (
-                        <div className="bg-gray-900/60 p-4 rounded-xl border border-gray-800 space-y-2">
-                          <div className="flex justify-between items-center text-xs font-bold">
-                            <span className="text-gray-400 uppercase tracking-wider font-mono">Subjective Word Count</span>
-                            <span className={isMet ? 'text-emerald-400' : 'text-amber-400'}>{words} / {minWords} words ({pct}%)</span>
-                          </div>
-                          <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
-                            <div className={`h-full transition-all duration-300 ${isMet ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${pct}%` }} />
-                          </div>
-                          {!isMet && (
-                            <p className="text-[11px] text-amber-400/90 italic mt-1">
-                              💡 Note: Minimum requirement is {minWords} words for full subjective evaluation.
-                            </p>
-                          )}
+                        <div className="flex items-center justify-between bg-gray-900/60 px-4 py-3 rounded-xl border border-gray-800 text-xs font-bold">
+                          <span className="text-gray-400 uppercase tracking-wider font-mono">Character Count</span>
+                          <span className={isMet ? 'text-emerald-400' : 'text-amber-400'}>{chars} / {minChars} characters</span>
                         </div>
                       );
                     })()}
 
                     <textarea value={ans.textAnswer || ''} onChange={e => updateAnswer(qIdSafe, 'textAnswer', e.target.value)}
                       className="w-full h-72 bg-gray-800 border border-gray-700 text-gray-200 p-4 rounded-xl outline-none resize-none font-medium focus:border-blue-500 transition-colors leading-relaxed"
-                      placeholder="Type your comprehensive answer here (minimum 1500 words)..." />
+                      placeholder="Type your comprehensive answer here (minimum 1500 characters)..." />
                   </div>
                 </div>
               )}

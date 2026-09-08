@@ -143,17 +143,18 @@ const CodingDetail = ({ question }) => {
 // ─── Subjective Detail ───────────────────────────────────────
 const SubjectiveDetail = ({ question, onGradeUpdate }) => {
   const d = question.details || {};
+  const charCount = (d.textAnswer || '').length;
   const wordCount = (d.textAnswer || '').trim().split(/\s+/).filter(Boolean).length;
   
   const [score, setScore] = useState(question.obtainedMarks || 0);
-  const [remarks, setRemarks] = useState(d.facultyRemarks || '');
+  const [remarks, setRemarks] = useState(d?.facultyRemarks || '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     setScore(question.obtainedMarks || 0);
-    setRemarks(d.facultyRemarks || '');
-  }, [question.obtainedMarks, d.facultyRemarks]);
+    setRemarks(d?.facultyRemarks || '');
+  }, [question.obtainedMarks, d?.facultyRemarks]);
 
   const handleSaveGrade = async () => {
     if (!onGradeUpdate) return;
@@ -184,11 +185,16 @@ const SubjectiveDetail = ({ question, onGradeUpdate }) => {
       </div>
 
       <div className="bg-blue-50/30 rounded-xl p-4 border border-blue-100 space-y-2">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center flex-wrap gap-2">
           <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Student Response</p>
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${wordCount >= 1500 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-            Word Count: {wordCount} {wordCount >= 1500 ? '(✓ Target Met)' : '(Min 1500 target)'}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${charCount >= 1500 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+              Characters: {charCount} / 1500 {charCount >= 1500 ? '(✓ Target Met)' : '(Min 1500)'}
+            </span>
+            <span className="text-[10px] font-medium text-gray-400">
+              ({wordCount} words)
+            </span>
+          </div>
         </div>
         <p className="text-sm text-gray-700 font-medium leading-relaxed whitespace-pre-wrap">
           {d.textAnswer || <span className="italic text-gray-400">No answer submitted</span>}

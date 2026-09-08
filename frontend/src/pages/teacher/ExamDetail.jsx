@@ -14,7 +14,8 @@ const ExamDetail = () => {
   const [liveStudents, setLiveStudents] = useState([]);
   const [activeTab, setActiveTab] = useState('submissions');
   
-  const exam = exams.find(e => e._id === examId);
+  const exam = exams?.find(e => (e._id || e.id) === examId);
+  const currentExamId = exam?._id || exam?.id;
 
   useEffect(() => {
     if (examId && loadSubs) {
@@ -27,7 +28,7 @@ const ExamDetail = () => {
     let socket;
     import('../../services/socket').then(({ connectSocket }) => {
       socket = connectSocket();
-      socket.emit('join_monitoring', { examId: exam._id });
+      socket.emit('join_monitoring', { examId: currentExamId });
 
       socket.on('active_students', (data) => {
         const uniqueStudents = Array.from(new Map(data.students.map(s => [s.studentId, s])).values());
@@ -58,14 +59,14 @@ const ExamDetail = () => {
         socket.off('violation_alert');
       }
     };
-  }, [exam]);
+  }, [exam, currentExamId]);
 
   const forceSubmit = (studentId) => {
     showConfirm('Are you sure you want to forcibly submit and lock this student out of the exam?', () => {
       import('../../services/socket').then(({ getSocket }) => {
         const socket = getSocket();
         if (socket) {
-          socket.emit('force_submit_student', { examId: exam._id, studentId, reason: 'Manual termination by proctor' });
+          socket.emit('force_submit_student', { examId: currentExamId, studentId, reason: 'Manual termination by proctor' });
         }
       });
     });
@@ -102,7 +103,7 @@ const ExamDetail = () => {
           {exam.status === 'published' && <button onClick={() => toggleStatus(exam, 'draft')} disabled={isUpdating} className={`bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200 px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}>Revoke</button>}
           {(exam.status === 'published' || exam.status === 'draft') && <button onClick={() => toggleStatus(exam, 'active')} disabled={isUpdating} className={`bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-600/20 ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}>FORCE START NOW</button>}
           {exam.status === 'active' && <button onClick={() => toggleStatus(exam, 'ended')} disabled={isUpdating} className={`bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-red-600/20 animate-pulse ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}>TERMINATE SESSION</button>}
-          <button onClick={() => { deleteExam(exam._id); navigate('/teacher-dashboard/overview'); }} className="bg-white text-red-500 hover:bg-red-50 border border-gray-200 hover:border-red-200 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1"><Trash2 size={14}/> Dump</button>
+          <button onClick={() => { deleteExam(currentExamId); navigate('/teacher-dashboard/overview'); }} className="bg-white text-red-500 hover:bg-red-50 border border-gray-200 hover:border-red-200 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1"><Trash2 size={14}/> Dump</button>
         </div>
       </div>
 
@@ -153,7 +154,7 @@ const ExamDetail = () => {
       </div>
 
       {activeTab === 'submissions' && <HistoricalSubmissions exam={exam} />}
-      {activeTab === 'reschedule' && <TeacherReschedulePanel examId={exam._id} />}
+      {activeTab === 'reschedule' && <TeacherReschedulePanel examId={currentExamId} />}
     </div>
   );
 };

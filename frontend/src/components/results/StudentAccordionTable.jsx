@@ -139,13 +139,14 @@ const StudentRow = memo(({
 StudentRow.displayName = 'StudentRow';
 
 const StudentAccordionTable = ({ results, examId, examTitle, onGradeUpdate, onRefreshResults }) => {
-  const { submissionId: expandedId } = useParams();
-  const navigate = useNavigate();
+  const { submissionId: routeSubmissionId } = useParams();
+  const [expandedId, setExpandedId] = useState(routeSubmissionId || null);
   const [reportData, setReportData] = useState({});
   const [loadingId, setLoadingId] = useState(null);
   const reportCache = useRef({});
 
   const fetchReport = useCallback(async (submissionId) => {
+    if (!submissionId || !examId) return;
     if (reportCache.current[submissionId]) {
       setReportData(prev => ({ ...prev, [submissionId]: reportCache.current[submissionId] }));
       return;
@@ -166,18 +167,21 @@ const StudentAccordionTable = ({ results, examId, examTitle, onGradeUpdate, onRe
   }, [examId]);
 
   const toggleExpand = useCallback((submissionId) => {
-    if (expandedId === submissionId) {
-      navigate(`/teacher-dashboard/exams/${examId}`);
-    } else {
-      navigate(`/teacher-dashboard/exams/${examId}/submissions/${submissionId}`);
-    }
-  }, [expandedId, examId, navigate]);
+    setExpandedId(prev => {
+      const nextId = prev === submissionId ? null : submissionId;
+      if (nextId) {
+        fetchReport(nextId);
+      }
+      return nextId;
+    });
+  }, [fetchReport]);
 
   useEffect(() => {
-    if (expandedId && !reportCache.current[expandedId]) {
-      fetchReport(expandedId);
+    if (routeSubmissionId) {
+      setExpandedId(routeSubmissionId);
+      fetchReport(routeSubmissionId);
     }
-  }, [expandedId, fetchReport]);
+  }, [routeSubmissionId, fetchReport]);
 
   if (results.length === 0) {
     return (
