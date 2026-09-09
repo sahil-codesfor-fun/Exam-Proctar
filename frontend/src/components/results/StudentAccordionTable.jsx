@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import api from '../../services/api';
 import StudentReport from './StudentReport';
+import ErrorBoundary from '../ErrorBoundary';
 
 const statusConfig = {
   submitted: { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-100', label: 'Submitted' },
@@ -117,18 +118,20 @@ const StudentRow = memo(({
       >
         {isExpanded && (
           <div className="border-t border-gray-200 bg-gray-50/30">
-            <StudentReport
-              report={reportData[r.submissionId]}
-              loading={isLoading}
-              onGradeUpdate={async (questionId, score, remarks) => {
-                if (onGradeUpdate) {
-                  await onGradeUpdate(r.submissionId, questionId, score, remarks);
-                  delete reportCache.current[r.submissionId];
-                  await fetchReport(r.submissionId);
-                  if (onRefreshResults) onRefreshResults();
-                }
-              }}
-            />
+            <ErrorBoundary>
+              <StudentReport
+                report={reportData[r.submissionId]}
+                loading={isLoading}
+                onGradeUpdate={async (questionId, score, remarks) => {
+                  if (onGradeUpdate) {
+                    await onGradeUpdate(r.submissionId, questionId, score, remarks);
+                    delete reportCache.current[r.submissionId];
+                    await fetchReport(r.submissionId);
+                    if (onRefreshResults) onRefreshResults();
+                  }
+                }}
+              />
+            </ErrorBoundary>
           </div>
         )}
       </div>

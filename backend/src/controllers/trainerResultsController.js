@@ -45,7 +45,7 @@ export const getExamResultsSummary = async (req, res) => {
     });
 
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
-    if (exam.creatorId !== req.user.id) return res.status(403).json({ success: false, message: 'Not authorized' });
+    if (exam.creatorId !== req.user.id && !['admin', 'superadmin', 'faculty', 'teacher'].includes(req.user.role)) return res.status(403).json({ success: false, message: 'Not authorized' });
 
     const submissions = await prisma.submission.findMany({
       where: { examId },
@@ -146,7 +146,7 @@ export const getDetailedReport = async (req, res) => {
     });
 
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
-    if (exam.creatorId !== req.user.id) return res.status(403).json({ success: false, message: 'Not authorized' });
+    if (exam.creatorId !== req.user.id && !['admin', 'superadmin', 'faculty', 'teacher'].includes(req.user.role)) return res.status(403).json({ success: false, message: 'Not authorized' });
 
     const submission = await prisma.submission.findUnique({
       where: { id: submissionId },
@@ -362,7 +362,7 @@ export const exportCSV = async (req, res) => {
     });
 
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
-    if (exam.creatorId !== req.user.id) return res.status(403).json({ success: false, message: 'Not authorized' });
+    if (exam.creatorId !== req.user.id && !['admin', 'superadmin', 'faculty', 'teacher'].includes(req.user.role)) return res.status(403).json({ success: false, message: 'Not authorized' });
 
     const submissions = await prisma.submission.findMany({
       where: { examId },
@@ -443,7 +443,7 @@ export const exportExcel = async (req, res) => {
     });
 
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
-    if (exam.creatorId !== req.user.id) return res.status(403).json({ success: false, message: 'Not authorized' });
+    if (exam.creatorId !== req.user.id && !['admin', 'superadmin', 'faculty', 'teacher'].includes(req.user.role)) return res.status(403).json({ success: false, message: 'Not authorized' });
 
     const submissions = await prisma.submission.findMany({
       where: { examId },
@@ -524,7 +524,7 @@ export const gradeSubjectiveAnswers = async (req, res) => {
     });
 
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
-    if (exam.creatorId !== req.user.id) return res.status(403).json({ success: false, message: 'Not authorized' });
+    if (exam.creatorId !== req.user.id && !['admin', 'superadmin', 'faculty', 'teacher'].includes(req.user.role)) return res.status(403).json({ success: false, message: 'Not authorized' });
 
     const submission = await prisma.submission.findUnique({
       where: { id: submissionId },

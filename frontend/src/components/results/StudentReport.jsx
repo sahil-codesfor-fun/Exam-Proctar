@@ -44,29 +44,29 @@ const StudentReport = ({ report, loading, onGradeUpdate }) => {
         <SectionHeader icon={<BarChart3 size={16} />} title="Performance Summary" />
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
-          <StatCard label="Maximum Marks" value={perf.maxMarks} />
+          <StatCard label="Maximum Marks" value={perf.maxMarks ?? 0} />
           <StatCard
             label="Marks Obtained"
-            value={perf.marksObtained}
-            color={perf.marksObtained > 0 ? 'text-emerald-600' : 'text-gray-900'}
+            value={perf.marksObtained ?? 0}
+            color={(perf.marksObtained || 0) > 0 ? 'text-emerald-600' : 'text-gray-900'}
             bgColor="bg-emerald-50/30"
             borderColor="border-emerald-100"
           />
           <StatCard
             label="Percentage"
-            value={`${perf.percentage}%`}
-            color={perf.percentage >= 33.33 ? 'text-emerald-600' : 'text-red-500'}
-            bgColor={perf.percentage >= 33.33 ? 'bg-emerald-50/30' : 'bg-red-50/30'}
-            borderColor={perf.percentage >= 33.33 ? 'border-emerald-100' : 'border-red-100'}
+            value={`${perf.percentage ?? 0}%`}
+            color={(perf.percentage || 0) >= 33.33 ? 'text-emerald-600' : 'text-red-500'}
+            bgColor={(perf.percentage || 0) >= 33.33 ? 'bg-emerald-50/30' : 'bg-red-50/30'}
+            borderColor={(perf.percentage || 0) >= 33.33 ? 'border-emerald-100' : 'border-red-100'}
           />
-          <StatCard label="Questions" value={perf.totalQuestions} />
+          <StatCard label="Questions" value={perf.totalQuestions ?? 0} />
         </div>
 
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-          <StatCard label="Attempted" value={perf.attempted} small />
+          <StatCard label="Attempted" value={perf.attempted ?? 0} small />
           <StatCard
             label="Correct"
-            value={perf.correct}
+            value={perf.correct ?? 0}
             color="text-emerald-600"
             bgColor="bg-emerald-50/30"
             borderColor="border-emerald-100"
@@ -74,7 +74,7 @@ const StudentReport = ({ report, loading, onGradeUpdate }) => {
           />
           <StatCard
             label="Wrong"
-            value={perf.wrong}
+            value={perf.wrong ?? 0}
             color="text-red-500"
             bgColor="bg-red-50/30"
             borderColor="border-red-100"
@@ -82,7 +82,7 @@ const StudentReport = ({ report, loading, onGradeUpdate }) => {
           />
           <StatCard
             label="Partial"
-            value={perf.partial}
+            value={perf.partial ?? 0}
             color="text-amber-600"
             bgColor="bg-amber-50/30"
             borderColor="border-amber-100"
@@ -90,16 +90,16 @@ const StudentReport = ({ report, loading, onGradeUpdate }) => {
           />
           <StatCard
             label="Skipped"
-            value={perf.skipped}
+            value={perf.skipped ?? 0}
             color="text-gray-400"
             small
           />
           <StatCard
             label="Infractions"
-            value={perf.infractions}
-            color={perf.infractions > 0 ? 'text-red-500' : 'text-emerald-600'}
-            bgColor={perf.infractions > 0 ? 'bg-red-50/30' : 'bg-gray-50'}
-            borderColor={perf.infractions > 0 ? 'border-red-100' : 'border-gray-100'}
+            value={perf.infractions ?? 0}
+            color={(perf.infractions || 0) > 0 ? 'text-red-500' : 'text-emerald-600'}
+            bgColor={(perf.infractions || 0) > 0 ? 'bg-red-50/30' : 'bg-gray-50'}
+            borderColor={(perf.infractions || 0) > 0 ? 'border-red-100' : 'border-gray-100'}
             small
           />
         </div>
