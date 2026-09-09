@@ -147,6 +147,7 @@ const SubjectiveDetail = ({ question, onGradeUpdate }) => {
   const d = question.details || {};
   const charCount = (d.textAnswer || '').length;
   const wordCount = (d.textAnswer || '').trim().split(/\s+/).filter(Boolean).length;
+  const minLimit = question.minChars || question.minWords || d.minChars || d.minWords || 500;
 
   const [score, setScore] = useState(question.obtainedMarks || 0);
   const [remarks, setRemarks] = useState(d?.facultyRemarks || '');
@@ -190,8 +191,8 @@ const SubjectiveDetail = ({ question, onGradeUpdate }) => {
         <div className="flex justify-between items-center flex-wrap gap-2">
           <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Student Response</p>
           <div className="flex items-center gap-2">
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${charCount >= 5 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-              Characters: {charCount} / 5 {charCount >= 5 ? '(✓ Target Met)' : '(Min 5)'}
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${charCount >= minLimit ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+              Characters: {charCount} / {minLimit} {charCount >= minLimit ? '(✓ Target Met)' : `(Min ${minLimit})`}
             </span>
             <span className="text-[10px] font-medium text-gray-400">
               ({wordCount} words)

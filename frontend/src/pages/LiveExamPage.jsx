@@ -967,7 +967,6 @@ export const LiveExamPage = () => {
                         </>
                       )}
 
-                      {}
                       {judging && <p className="text-gray-500 text-xs font-mono animate-pulse mt-2">⚖️ Judging against hidden test cases...</p>}
                       {judgeResult && (
                         <div className="animate-in slide-in-from-bottom-2 duration-300">
@@ -1003,7 +1002,7 @@ export const LiveExamPage = () => {
                       <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-3 py-1 rounded-lg">Q{currentQ + 1} • {q.points} pts • SUBJECTIVE</span>
                       {(() => {
                         const chars = (ans.textAnswer || '').length;
-                        const minChars = q.minChars || 1500;
+                        const minChars = q.minChars || 500;
                         const isMet = chars >= minChars;
                         return (
                           <span className={`text-xs font-black px-3 py-1 rounded-lg uppercase tracking-wider ${isMet ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}`}>
@@ -1017,7 +1016,7 @@ export const LiveExamPage = () => {
 
                     {(() => {
                       const chars = (ans.textAnswer || '').length;
-                      const minChars = q.minChars || 1500;
+                      const minChars = q.minChars || 500;
                       const isMet = chars >= minChars;
                       return (
                         <div className="flex items-center justify-between bg-gray-900/60 px-4 py-3 rounded-xl border border-gray-800 text-xs font-bold">
@@ -1029,13 +1028,11 @@ export const LiveExamPage = () => {
 
                     <textarea value={ans.textAnswer || ''} onChange={e => updateAnswer(qIdSafe, 'textAnswer', e.target.value)}
                       className="w-full h-72 bg-gray-800 border border-gray-700 text-gray-200 p-4 rounded-xl outline-none resize-none font-medium focus:border-blue-500 transition-colors leading-relaxed"
-                      placeholder="Type your comprehensive answer here (minimum 1500 characters)..." />
+                      placeholder="Type your comprehensive answer here (minimum 500 characters)..." />
                   </div>
                 </div>
               )}
 
-
-              {}
               <div className="flex items-center justify-between px-6 py-3 bg-gray-900 border-t border-gray-800 flex-shrink-0">
                 <button onClick={handlePrev}
                   disabled={currentQ === 0 || isForceSaving}

@@ -1,5 +1,4 @@
 import React, { useState, useRef, useCallback, useEffect, memo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import api from '../../services/api';
 import StudentReport from './StudentReport';
