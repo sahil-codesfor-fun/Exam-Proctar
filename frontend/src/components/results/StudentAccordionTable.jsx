@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect, memo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import api from '../../services/api';
 import StudentReport from './StudentReport';
@@ -104,7 +105,7 @@ const StudentRow = memo(({
           <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${r.percentage >= 33.33 ? 'text-emerald-600' : 'text-red-500'}`}>
             {r.percentage}%
           </span>
-          
+
           {r.violationCount > 0 && (
             <span className="text-[10px] font-black text-red-500">{r.violationCount} infractions</span>
           )}

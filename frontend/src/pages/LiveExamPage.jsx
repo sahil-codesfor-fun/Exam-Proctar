@@ -352,14 +352,14 @@ export const LiveExamPage = () => {
     setCurrentQ(p => Math.max(0, p - 1));
     setRunResult(null);
     setJudgeResult(null);
-    forceSaveAllAnswers().catch(() => {});
+    forceSaveAllAnswers().catch(() => { });
   }, []);
 
   const handleNext = useCallback(() => {
     setCurrentQ(p => Math.min((exam?.questions?.length || 1) - 1, p + 1));
     setRunResult(null);
     setJudgeResult(null);
-    forceSaveAllAnswers().catch(() => {});
+    forceSaveAllAnswers().catch(() => { });
   }, [exam?.questions?.length]);
 
   const performForceSubmit = async (reason) => {
@@ -687,8 +687,8 @@ export const LiveExamPage = () => {
                     else if (qq.type === 'matching') done = (a.studentMatches && Object.keys(a.studentMatches).length > 0);
 
                     if (qq.type === 'coding' && a.verdict) {
-                       if (a.verdict === 'accepted') passed = true;
-                       else failed = true;
+                      if (a.verdict === 'accepted') passed = true;
+                      else failed = true;
                     }
                   }
 
@@ -948,7 +948,7 @@ export const LiveExamPage = () => {
 
                     <div className="h-48 border-t border-gray-800 bg-[#0d1117] overflow-auto p-4 flex-shrink-0">
 
-                      {}
+                      { }
                       {!judgeResult && (
                         <>
                           <div className="flex items-center gap-2 mb-3">
@@ -967,6 +967,7 @@ export const LiveExamPage = () => {
                         </>
                       )}
 
+                      { }
                       {judging && <p className="text-gray-500 text-xs font-mono animate-pulse mt-2">⚖️ Judging against hidden test cases...</p>}
                       {judgeResult && (
                         <div className="animate-in slide-in-from-bottom-2 duration-300">
@@ -1002,7 +1003,7 @@ export const LiveExamPage = () => {
                       <span className="bg-blue-500/20 text-blue-400 text-xs font-bold px-3 py-1 rounded-lg">Q{currentQ + 1} • {q.points} pts • SUBJECTIVE</span>
                       {(() => {
                         const chars = (ans.textAnswer || '').length;
-                        const minChars = q.minChars || 500;
+                        const minChars = q.minChars || 1500;
                         const isMet = chars >= minChars;
                         return (
                           <span className={`text-xs font-black px-3 py-1 rounded-lg uppercase tracking-wider ${isMet ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}`}>
@@ -1016,7 +1017,7 @@ export const LiveExamPage = () => {
 
                     {(() => {
                       const chars = (ans.textAnswer || '').length;
-                      const minChars = q.minChars || 500;
+                      const minChars = q.minChars || 1500;
                       const isMet = chars >= minChars;
                       return (
                         <div className="flex items-center justify-between bg-gray-900/60 px-4 py-3 rounded-xl border border-gray-800 text-xs font-bold">
@@ -1028,11 +1029,13 @@ export const LiveExamPage = () => {
 
                     <textarea value={ans.textAnswer || ''} onChange={e => updateAnswer(qIdSafe, 'textAnswer', e.target.value)}
                       className="w-full h-72 bg-gray-800 border border-gray-700 text-gray-200 p-4 rounded-xl outline-none resize-none font-medium focus:border-blue-500 transition-colors leading-relaxed"
-                      placeholder="Type your comprehensive answer here (minimum 500 characters)..." />
+                      placeholder="Type your comprehensive answer here (minimum 1500 characters)..." />
                   </div>
                 </div>
               )}
 
+
+              { }
               <div className="flex items-center justify-between px-6 py-3 bg-gray-900 border-t border-gray-800 flex-shrink-0">
                 <button onClick={handlePrev}
                   disabled={currentQ === 0 || isForceSaving}
@@ -1051,7 +1054,7 @@ export const LiveExamPage = () => {
         </div>
       )}
 
-      {}
+      { }
       {confirmModal && (
         <div className="fixed inset-0 z-[400] flex items-center justify-center bg-gray-900/60 backdrop-blur-md animate-in fade-in duration-300">
           <div className="bg-white rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl border border-gray-100 text-center animate-in zoom-in-95 duration-300">
@@ -1060,17 +1063,17 @@ export const LiveExamPage = () => {
             <p className="text-gray-500 font-medium leading-relaxed mb-10 px-4">{confirmModal.message}</p>
             <div className="flex gap-4">
               <button disabled={isConfirming} onClick={() => setConfirmModal(null)} className="flex-1 px-6 py-4 bg-gray-100 hover:bg-gray-200 text-gray-600 font-black text-[10px] uppercase tracking-widest rounded-2xl transition-all disabled:opacity-50">Go Back</button>
-              <button 
+              <button
                 disabled={isConfirming}
-                onClick={async () => { 
+                onClick={async () => {
                   setIsConfirming(true);
                   try {
-                    await confirmModal.onConfirm(); 
+                    await confirmModal.onConfirm();
                   } finally {
                     setIsConfirming(false);
                     setConfirmModal(null);
                   }
-                }} 
+                }}
                 className="flex-1 px-6 py-4 bg-[#1A5F53] hover:bg-[#134d42] text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-lg shadow-emerald-900/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isConfirming ? (
@@ -1085,12 +1088,12 @@ export const LiveExamPage = () => {
         </div>
       )}
 
-      {}
+      { }
       {toast && (
         <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[300] animate-in slide-in-from-top-10 duration-500">
           <div className={`px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-4 border backdrop-blur-md ${toast.type === 'error' ? 'bg-red-600/90 border-red-400 text-white' :
-              toast.type === 'success' ? 'bg-emerald-600/90 border-emerald-400 text-white' :
-                'bg-gray-900/90 border-gray-700 text-white'
+            toast.type === 'success' ? 'bg-emerald-600/90 border-emerald-400 text-white' :
+              'bg-gray-900/90 border-gray-700 text-white'
             }`}>
             <span className="font-bold text-sm">{toast.message}</span>
             <button onClick={() => setToast(null)} className="hover:opacity-70 transition-opacity font-bold">×</button>
