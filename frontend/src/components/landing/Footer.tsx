@@ -34,6 +34,11 @@ export function Footer() {
                 </Link>
               </li>
               <li>
+                <Link to="/courses" className="transition-colors hover:text-primary">
+                  Courses
+                </Link>
+              </li>
+              <li>
                 <Link to="/about" className="transition-colors hover:text-primary">
                   About
                 </Link>
@@ -41,6 +46,16 @@ export function Footer() {
               <li>
                 <Link to="/contact" className="transition-colors hover:text-primary">
                   Contact
+                </Link>
+              </li>
+              <li>
+                <Link to="/privacy-policy" className="transition-colors hover:text-primary">
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link to="/terms" className="transition-colors hover:text-primary">
+                  Terms & Conditions
                 </Link>
               </li>
             </ul>
@@ -69,8 +84,13 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 border-t border-border pt-6 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()} Code Nexus. All rights reserved.
+        <div className="mt-12 border-t border-border pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+          <div>© {new Date().getFullYear()} Code Nexus & Geeta University. All rights reserved.</div>
+          <div className="flex items-center gap-6">
+            <Link to="/privacy-policy" className="hover:text-primary transition-colors">Privacy Policy</Link>
+            <Link to="/terms" className="hover:text-primary transition-colors">Terms of Service</Link>
+            <Link to="/contact" className="hover:text-primary transition-colors">Support</Link>
+          </div>
         </div>
       </div>
     </footer>

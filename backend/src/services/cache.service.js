@@ -1,75 +1,179 @@
 import { createClient } from 'redis';
 
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-
-let redisErrorLogged = false;
-
-const client = createClient({
-  url: redisUrl,
-  socket: {
-    reconnectStrategy: false
+/**
+ * High-Performance In-Memory Store with TTL & Pattern Invalidation
+ * Ensures zero-failure, sub-millisecond caching even without Redis.
+ */
+class MemoryCacheStore {
+  constructor(defaultTTL = 300, maxKeys = 2000) {
+    this.store = new Map();
+    this.defaultTTL = defaultTTL;
+    this.maxKeys = maxKeys;
+    // Sweep expired keys every 60 seconds
+    setInterval(() => this.cleanup(), 60000).unref();
   }
-});
 
-client.on('error', (err) => {
-  if (!redisErrorLogged) {
-    console.log('Redis Client Error: Make sure Redis is running. Cache will be disabled.');
-    redisErrorLogged = true;
+  set(key, data, ttl = this.defaultTTL) {
+    // Hard LRU safety cap: If memory store reaches limit, drop oldest entry
+    if (this.store.size >= this.maxKeys) {
+      const oldestKey = this.store.keys().next().value;
+      if (oldestKey) this.store.delete(oldestKey);
+    }
+    const expiresAt = Date.now() + (ttl * 1000);
+    this.store.set(key, { data, expiresAt });
   }
-});
-client.on('connect', () => console.log('Redis Client Connected'));
 
-if (!client.isOpen) {
-  client.connect().catch((err) => {
-    console.log('Failed to connect to Redis. Caching is disabled.');
-  });
+  get(key) {
+    const item = this.store.get(key);
+    if (!item) return null;
+    if (Date.now() > item.expiresAt) {
+      this.store.delete(key);
+      return null;
+    }
+    return item.data;
+  }
+
+  del(key) {
+    this.store.delete(key);
+  }
+
+  invalidatePattern(pattern) {
+    // Converts glob pattern (e.g., 'exams:*') to regex
+    const regexPattern = '^' + pattern
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+      .replace(/\*/g, '.*')
+      .replace(/\?/g, '.') + '$';
+    const regex = new RegExp(regexPattern);
+
+    for (const key of this.store.keys()) {
+      if (regex.test(key)) {
+        this.store.delete(key);
+      }
+    }
+  }
+
+  cleanup() {
+    const now = Date.now();
+    for (const [key, item] of this.store.entries()) {
+      if (now > item.expiresAt) {
+        this.store.delete(key);
+      }
+    }
+  }
+}
+
+const memoryCache = new MemoryCacheStore(300);
+
+// Optional Remote Redis Client (Only initialized if REDIS_URL is provided)
+let redisClient = null;
+let isRedisAvailable = false;
+
+const rawRedisUrl = process.env.REDIS_URL;
+const hasValidRedisUrl = rawRedisUrl && !rawRedisUrl.includes('localhost') && rawRedisUrl.trim().length > 0;
+
+if (hasValidRedisUrl) {
+  try {
+    redisClient = createClient({
+      url: rawRedisUrl,
+      socket: {
+        family: 4,
+        tls: rawRedisUrl.startsWith('rediss://'),
+        rejectUnauthorized: false,
+        reconnectStrategy: (retries) => {
+          if (retries > 3) {
+            console.warn('⚠️ CacheService: Redis max retries reached. Running purely in In-Memory mode.');
+            return new Error('Redis max retries reached');
+          }
+          return 5000;
+        }
+      }
+    });
+
+    redisClient.on('connect', () => {
+      console.log('✅ CacheService: Connected to Redis');
+      isRedisAvailable = true;
+    });
+
+    redisClient.on('error', (err) => {
+      // Do not crash, silently degrade to memory cache
+      isRedisAvailable = false;
+    });
+
+    redisClient.on('end', () => {
+      isRedisAvailable = false;
+    });
+
+    redisClient.connect().catch(() => {
+      isRedisAvailable = false;
+    });
+  } catch (err) {
+    isRedisAvailable = false;
+  }
+} else {
+  // Pure in-memory mode
+  console.log('⚡ CacheService: High-Performance In-Memory Caching Active (Zero-Redis mode)');
 }
 
 const DEFAULT_TTL = 300;
 
 class CacheService {
   async set(key, data, ttl = DEFAULT_TTL) {
-    try {
-      if (client.isOpen) {
-        await client.set(key, JSON.stringify(data), { EX: ttl });
-      }
-    } catch (err) {
-      console.error(`Cache Service Set Error (${key}):`, err);
+    // 1. Always store in-memory instantly (0ms latency)
+    memoryCache.set(key, data, ttl);
+
+    // 2. Non-blocking optional sync to Redis if available
+    if (isRedisAvailable && redisClient?.isOpen) {
+      redisClient.set(key, JSON.stringify(data), { EX: ttl }).catch(() => {
+        isRedisAvailable = false;
+      });
     }
   }
 
   async get(key) {
-    try {
-      if (client.isOpen) {
-        const data = await client.get(key);
-        return data ? JSON.parse(data) : null;
-      }
-    } catch (err) {
-      console.error(`Cache Service Get Error (${key}):`, err);
+    // 1. Check in-memory store first (ultra-fast, sub-millisecond)
+    const memData = memoryCache.get(key);
+    if (memData !== null) {
+      return memData;
     }
+
+    // 2. If not in memory and Redis is available, check Redis
+    if (isRedisAvailable && redisClient?.isOpen) {
+      try {
+        const raw = await redisClient.get(key);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          memoryCache.set(key, parsed, DEFAULT_TTL); // Populate local memory
+          return parsed;
+        }
+      } catch {
+        isRedisAvailable = false;
+      }
+    }
+
     return null;
   }
 
   async del(key) {
-    try {
-      if (client.isOpen) {
-        await client.del(key);
-      }
-    } catch (err) {
-      console.error(`Cache Service Del Error (${key}):`, err);
+    memoryCache.del(key);
+    if (isRedisAvailable && redisClient?.isOpen) {
+      redisClient.del(key).catch(() => {});
     }
   }
 
   async invalidatePattern(pattern) {
-    try {
-      if (client.isOpen) {
-        const keys = await client.keys(pattern);
-        if (keys.length > 0) {
-          await client.del(keys);
+    // 1. Invalidate local memory pattern instantly
+    memoryCache.invalidatePattern(pattern);
+
+    // 2. Invalidate remote Redis pattern if available
+    if (isRedisAvailable && redisClient?.isOpen) {
+      try {
+        const keys = await redisClient.keys(pattern);
+        if (keys && keys.length > 0) {
+          await redisClient.del(keys);
         }
+      } catch {
+        isRedisAvailable = false;
       }
-    } catch (err) {
-      console.error(`Cache Service Invalidate Error (${pattern}):`, err);
     }
   }
 
@@ -87,7 +191,7 @@ class CacheService {
     await this.invalidatePattern('users:*');
     await this.invalidatePattern('dashboard:*');
   }
-  
+
   async invalidateSubjectCaches() {
     await this.invalidatePattern('subjects:*');
     await this.invalidatePattern('dashboard:*');

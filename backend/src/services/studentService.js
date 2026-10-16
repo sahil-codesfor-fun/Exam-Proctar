@@ -1,5 +1,5 @@
 import prisma from '../config/prisma.js';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import AuditService from './auditService.js';
 import studentRepository from '../repositories/studentRepository.js';
 import cacheService from './cache.service.js';

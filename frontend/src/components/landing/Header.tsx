@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/s
 
 const navItems = [
   { to: "/", label: "Home" },
+  { to: "/courses", label: "Courses" },
   { to: "/about", label: "About" },
   { to: "/contact", label: "Contact" },
 ] as const;
@@ -34,20 +35,20 @@ export function Header() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-2">
-          <Button asChild className="hidden rounded-full px-6 sm:inline-flex">
-            <Link to="/login">Login</Link>
+        <div className="flex items-center gap-3">
+          <Button asChild className="hidden rounded-full px-6 sm:inline-flex bg-primary hover:bg-primary/90 font-bold shadow-md shadow-primary/25 transition-all hover:scale-[1.02] active:scale-[0.98]">
+            <Link to="/login">Student Exam Portal</Link>
           </Button>
 
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-              <Button variant="outline" size="icon" className="md:hidden" aria-label="Open menu">
+              <Button variant="outline" size="icon" className="md:hidden" aria-label="Open navigation menu">
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-72">
-              <SheetTitle className="sr-only">Navigation</SheetTitle>
-              <div className="mt-6 flex flex-col gap-1 px-2">
+            <SheetContent side="right" className="w-72 bg-card text-foreground border-border">
+              <SheetTitle className="text-base font-bold">Code Nexus Menu</SheetTitle>
+              <div className="mt-6 flex flex-col gap-1.5 px-1">
                 {navItems.map((item) => (
                   <NavLink
                     key={item.to}
@@ -55,17 +56,20 @@ export function Header() {
                     end={item.to === "/"}
                     onClick={() => setOpen(false)}
                     className={({ isActive }) => 
-                      `rounded-lg px-3 py-2.5 text-base font-semibold transition-colors hover:bg-secondary hover:text-primary ${isActive ? 'bg-secondary text-primary' : 'text-foreground/80'}`
+                      `rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-colors hover:bg-secondary hover:text-primary ${isActive ? 'bg-secondary text-primary font-bold' : 'text-foreground/80'}`
                     }
                   >
                     {item.label}
                   </NavLink>
                 ))}
-                <Button asChild className="mt-4 rounded-full">
-                  <Link to="/login" onClick={() => setOpen(false)}>
-                    Login
-                  </Link>
-                </Button>
+                
+                <div className="mt-4 pt-4 border-t border-border flex flex-col gap-2">
+                  <Button asChild className="rounded-full w-full bg-primary font-bold shadow-md">
+                    <Link to="/login" onClick={() => setOpen(false)}>
+                      Student Exam Portal
+                    </Link>
+                  </Button>
+                </div>
               </div>
             </SheetContent>
           </Sheet>

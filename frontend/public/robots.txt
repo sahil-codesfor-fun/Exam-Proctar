@@ -1,0 +1,34 @@
+# Code Nexus - Online Examination & AI Proctoring Platform
+# Robots & Search Engine Indexing Directives
+
+User-agent: *
+Allow: /
+Allow: /about
+Allow: /contact
+Allow: /privacy-policy
+Allow: /privacy
+Allow: /terms
+Allow: /terms-and-conditions
+Allow: /login
+Allow: /fac
+Allow: /adm
+
+# Disallow Private Portals, Exam Sessions, and Admin Consoles
+Disallow: /student-dashboard/
+Disallow: /student-dashboard/*
+Disallow: /teacher-dashboard/
+Disallow: /teacher-dashboard/*
+Disallow: /admin/
+Disallow: /admin/*
+Disallow: /superadmin/
+Disallow: /superadmin/*
+Disallow: /exam/
+Disallow: /exam/*
+Disallow: /compiler
+Disallow: /change-password
+Disallow: /api/
+Disallow: /api/*
+
+# Crawl Delay & Sitemap
+Crawl-delay: 2
+Sitemap: https://exam-proctar.vercel.app/sitemap.xml

@@ -9,12 +9,14 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         NODE_OPTIONS: '--max-old-space-size=4096',
+        UV_THREADPOOL_SIZE: '64',
         MAX_COMPILER_CONCURRENCY: '32',
         ENABLE_SOCKET_REDIS: 'false'
       },
       env_production: {
         NODE_ENV: 'production',
         NODE_OPTIONS: '--max-old-space-size=4096',
+        UV_THREADPOOL_SIZE: '64',
         MAX_COMPILER_CONCURRENCY: '32',
         ENABLE_SOCKET_REDIS: 'true'
       }

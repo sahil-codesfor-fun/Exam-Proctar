@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import compression from 'compression';
 import { globalLimiter, compilerLimiter } from './middlewares/rateLimiter.js';
 
@@ -24,6 +25,21 @@ import { initPiggybackWorker } from './workers/piggybackWorker.js';
 const app = express();
 
 app.set('trust proxy', 1);
+
+// ── Security Headers & Force HTTPS in Production ───────────────────
+app.use(helmet({
+  contentSecurityPolicy: false, // Allows dynamic Monaco editor web workers & sockets
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
+
+// Force HTTPS in production environments behind reverse proxies
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV === 'production' && req.headers['x-forwarded-proto'] === 'http') {
+    return res.redirect(301, `https://${req.headers.host}${req.url}`);
+  }
+  next();
+});
 
 // ── Rate Limiters (Imported from middlewares/rateLimiter.js) ─────────────────
 

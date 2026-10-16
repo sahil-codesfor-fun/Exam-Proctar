@@ -1,5 +1,5 @@
 import prisma from '../config/prisma.js';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 
 const generateFacultyId = async () => {
   let id;
@@ -75,7 +75,7 @@ export const createFaculty = async (req, res) => {
     if (exists) return res.status(400).json({ success: false, message: 'Email already registered' });
 
     const facultyId = await generateFacultyId();
-    const hashedPassword = bcrypt.hashSync(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
     
     let assignedDeptId = null;
     if (req.user?.role === 'admin' || req.user?.role === 'department_head') {
@@ -130,7 +130,7 @@ export const resetFacultyPassword = async (req, res) => {
     const faculty = await prisma.user.findUnique({ where: { id: req.params.id }, select: { id: true } });
     if (!faculty) return res.status(404).json({ success: false, message: 'Faculty not found' });
 
-    const hashedPassword = bcrypt.hashSync(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
     await prisma.user.update({
       where: { id: faculty.id },
       data: { password: hashedPassword, passwordResetRequired: false }

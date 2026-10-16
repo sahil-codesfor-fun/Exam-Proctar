@@ -1,5 +1,5 @@
 import prisma from '../../config/prisma.js';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
 const generateToken = (id) => {

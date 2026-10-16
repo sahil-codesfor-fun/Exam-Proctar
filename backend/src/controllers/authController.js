@@ -1,43 +1,45 @@
 import prisma from '../config/prisma.js';
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '4h' });
+  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '30d' });
 };
 
 export const registerUser = async (req, res) => {
   const { name, studentId, email, password, course, section, departmentId } = req.body;
 
   try {
+    const cleanEmail = email ? email.trim().toLowerCase() : '';
+    const cleanStudentId = studentId ? studentId.trim() : '';
+
     const userExists = await prisma.user.findFirst({
       where: {
         OR: [
-          { email },
-          ...(studentId && studentId.trim() !== '' ? [{ studentId }] : [])
+          { email: cleanEmail },
+          ...(cleanStudentId ? [{ studentId: cleanStudentId }] : [])
         ]
       },
       select: { id: true }
     });
 
     if (userExists) {
-      return res.status(400).json({ success: false, message: 'User already exists!' });
+      return res.status(400).json({ success: false, message: 'User already exists with this email or Student ID!' });
     }
 
-    const hashedPassword = bcrypt.hashSync(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
     let newUserData = {
-      name,
-      email,
+      name: name ? name.trim() : 'Student',
+      email: cleanEmail,
       password: hashedPassword,
       role: 'student',
       isActive: true,
       passwordResetRequired: false,
       course: course || null,
       section: section || null,
-      departmentId: departmentId || null
+      departmentId: departmentId || null,
+      studentId: cleanStudentId || null
     };
-
-    newUserData.studentId = studentId;
 
     const user = await prisma.user.create({ data: newUserData });
 
@@ -47,24 +49,27 @@ export const registerUser = async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      studentId: user.studentId,
       token: generateToken(user.id),
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+    res.status(500).json({ success: false, message: 'Registration error: ' + error.message });
   }
 };
 
 export const loginUser = async (req, res) => {
-  const { email, password, id, role: requestedRole } = req.body; 
-  const loginIdentifier = email || id;
+  const { email, password, id, role: requestedRole } = req.body;
+  const rawIdentifier = (email || id || '').trim();
+  const lowerIdentifier = rawIdentifier.toLowerCase();
 
   try {
     const user = await prisma.user.findFirst({
       where: {
         OR: [
-          { email: loginIdentifier },
-          { studentId: loginIdentifier },
-          { facultyId: loginIdentifier }
+          { email: lowerIdentifier },
+          { email: rawIdentifier },
+          { studentId: rawIdentifier },
+          { facultyId: rawIdentifier }
         ]
       },
       include: {
@@ -72,15 +77,15 @@ export const loginUser = async (req, res) => {
       }
     });
 
-    if (!user) return res.status(401).json({ success: false, message: 'Invalid credentials' });
-    if (!user.isActive) return res.status(403).json({ success: false, message: 'Account is disabled. Please contact admin.' });
+    if (!user) return res.status(401).json({ success: false, message: 'Invalid credentials. Please check your email or ID.' });
+    if (!user.isActive) return res.status(403).json({ success: false, message: 'Account is disabled. Please contact administrator.' });
 
     if (requestedRole) {
       const isFacultyPortal = requestedRole === 'teacher' || requestedRole === 'faculty';
       const isUserFaculty = user.role === 'teacher' || user.role === 'faculty';
-      
+
       if (isFacultyPortal && !isUserFaculty) {
-        return res.status(403).json({ success: false, message: `Access Denied`});
+        return res.status(403).json({ success: false, message: `Access Denied` });
       } else if (!isFacultyPortal && user.role !== requestedRole) {
         return res.status(403).json({ success: false, message: `Access Denied` });
       }
@@ -95,21 +100,21 @@ export const loginUser = async (req, res) => {
       const deviceType = userAgent.match(/(mobi|tablet)/i) ? 'Mobile/Tablet' : 'Desktop';
       const ipAddress = req.ip || req.headers['x-forwarded-for'] || 'Unknown';
 
-      await prisma.$transaction([
-        prisma.user.update({
-          where: { id: user.id },
-          data: { lastLogin: new Date() }
-        }),
-        prisma.loginHistory.create({
-          data: {
-            userId: user.id,
-            ipAddress,
-            browser,
-            os,
-            deviceType
-          }
-        })
-      ]);
+      // Non-blocking telemetry updates so database write spikes never slow down student logins
+      prisma.user.update({
+        where: { id: user.id },
+        data: { lastLogin: new Date() }
+      }).catch(err => console.warn('Non-fatal: lastLogin update failed:', err.message));
+
+      prisma.loginHistory.create({
+        data: {
+          userId: user.id,
+          ipAddress: String(ipAddress),
+          browser,
+          os,
+          deviceType
+        }
+      }).catch(err => console.warn('Non-fatal: loginHistory create failed:', err.message));
 
       res.json({
         success: true,
@@ -124,10 +129,10 @@ export const loginUser = async (req, res) => {
         token: generateToken(user.id),
       });
     } else {
-      res.status(401).json({ success: false, message: 'Invalid credentials' });
+      res.status(401).json({ success: false, message: 'Invalid credentials. Password is incorrect.' });
     }
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
   }
 };
 
@@ -145,7 +150,7 @@ export const changePassword = async (req, res) => {
       if (!isMatch) return res.status(400).json({ success: false, message: 'Current password incorrect' });
     }
 
-    const hashedPassword = bcrypt.hashSync(newPassword, 10);
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
     await prisma.user.update({
       where: { id: user.id },
       data: { password: hashedPassword, passwordResetRequired: false }

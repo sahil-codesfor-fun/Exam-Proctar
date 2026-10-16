@@ -27,45 +27,39 @@ import about1 from '../assets/about-1.jpg';
 const SuperAdminLogin = () => {
   const navigate = useNavigate();
   const { login } = useAuth(); 
-  const [isSignUp, setIsSignUp] = useState(false);
   const [status, setStatus] = useState({ message: '', type: 'info' });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [credentials, setCredentials] = useState({ name: '', email: '', password: '' });
+  const [credentials, setCredentials] = useState({ email: '', password: '' });
 
   const handleChange = (e) => setCredentials({ ...credentials, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setStatus({ message: isSignUp ? 'Creating account…' : 'Authenticating…', type: 'info' });
-    const endpoint = isSignUp ? '/auth/signup' : '/auth/login';
+    setStatus({ message: 'Authenticating…', type: 'info' });
     try {
       const payload = { ...credentials, role: 'superadmin' };
       
-      if (!isSignUp && !credentials.email.includes('@')) {
+      if (!credentials.email.includes('@')) {
         payload.id = credentials.email;
         delete payload.email;
       }
 
-      const res = await api.post(endpoint, payload);
+      const res = await api.post('/auth/login', payload);
       
       if (res.data.success) {
-        setStatus({ message: isSignUp ? 'Account created! Please sign in.' : '✅ Login successful!', type: 'success' });
-        if (!isSignUp) {
-          login(res.data); 
-          setTimeout(() => {
-            if (res.data.passwordResetRequired) {
-              navigate('/change-password');
-            } else {
-              const routes = { student: '/student-dashboard', teacher: '/teacher-dashboard', faculty: '/teacher-dashboard', admin: '/admin', superadmin: '/superadmin' };
-              navigate(routes[res.data.role] || '/');
-            }
-          }, 800);
-        } else {
-          setTimeout(() => { setIsSignUp(false); setStatus({ message: 'Now sign in with your new account.', type: 'info' }); }, 2000);
-        }
+        setStatus({ message: '✅ Login successful!', type: 'success' });
+        login(res.data); 
+        setTimeout(() => {
+          if (res.data.passwordResetRequired) {
+            navigate('/change-password');
+          } else {
+            const routes = { student: '/student-dashboard', teacher: '/teacher-dashboard', faculty: '/teacher-dashboard', admin: '/admin', superadmin: '/superadmin' };
+            navigate(routes[res.data.role] || '/');
+          }
+        }, 800);
       }
     } catch (err) {
       setStatus({ message: `❌ ${err.response?.data?.message || err.message || 'Cannot reach server.'}`, type: 'error' });
@@ -165,13 +159,12 @@ const SuperAdminLogin = () => {
 
             {}
             <h2 className="font-display text-2xl font-bold text-slate-900 text-center mb-1">
-              {isSignUp ? 'Super Admin Registration' : 'Super Admin Login'}
+              Super Admin Login
             </h2>
             <p className="text-sm text-slate-500 text-center mb-4 max-w-xs mx-auto">
               Sign in to access the Super Admin Dashboard
             </p>
 
-            {}
             {status.message && (
               <div className={`mb-6 p-4 rounded-2xl border flex items-start gap-3 text-sm ${
                 status.type === 'error' 
@@ -189,29 +182,7 @@ const SuperAdminLogin = () => {
               </div>
             )}
 
-            {}
             <form onSubmit={handleSubmit} className="space-y-4">
-              
-              {}
-              {isSignUp && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider">Full Name</label>
-                  <div className="relative group">
-                    <Users className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary w-5 h-5 transition-colors" />
-                    <input 
-                      type="text" 
-                      name="name" 
-                      value={credentials.name} 
-                      onChange={handleChange} 
-                      required 
-                      className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all text-sm font-medium" 
-                      placeholder="Super Administrator" 
-                    />
-                  </div>
-                </div>
-              )}
-
-              {}
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider">
                   Admin Email
@@ -230,7 +201,6 @@ const SuperAdminLogin = () => {
                 </div>
               </div>
 
-              {}
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider">Password</label>
                 <div className="relative group">
@@ -254,22 +224,18 @@ const SuperAdminLogin = () => {
                 </div>
               </div>
 
-              {}
-              {!isSignUp && (
-                <div className="flex items-center py-1">
-                  <label className="flex items-center gap-3 text-sm font-semibold text-slate-600 cursor-pointer select-none">
-                    <input 
-                      type="checkbox" 
-                      checked={rememberMe} 
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-4 h-4 accent-[#0F172A] rounded border-slate-300 focus:ring-primary/20"
-                    />
-                    Remember Me
-                  </label>
-                </div>
-              )}
+              <div className="flex items-center py-1">
+                <label className="flex items-center gap-3 text-sm font-semibold text-slate-600 cursor-pointer select-none">
+                  <input 
+                    type="checkbox" 
+                    checked={rememberMe} 
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="w-4 h-4 accent-[#0F172A] rounded border-slate-300 focus:ring-primary/20"
+                  />
+                  Remember Me
+                </label>
+              </div>
 
-              {}
               <button 
                 type="submit" 
                 disabled={loading} 
@@ -283,7 +249,7 @@ const SuperAdminLogin = () => {
                 ) : (
                   <>
                     <LogIn className="w-5 h-5" />
-                    <span>{isSignUp ? 'Create Super Admin' : 'Login to Dashboard'}</span>
+                    <span>Login to Dashboard</span>
                   </>
                 )}
               </button>
@@ -323,9 +289,9 @@ const SuperAdminLogin = () => {
       <footer className="w-full max-w-7xl mx-auto px-6 py-3 flex flex-col sm:flex-row justify-between items-center border-t border-slate-200/50 text-xs text-slate-400 font-bold uppercase tracking-wider z-10 relative gap-4 mt-auto bg-[#F8FAFC]/80 backdrop-blur-sm">
         <div>© {new Date().getFullYear()} Code Nexus, Academic Integrity. All rights reserved.</div>
         <div className="flex gap-6">
-          <a href="#" className="hover:text-slate-600 transition-colors">Terms & Conditions</a>
-          <a href="#" className="hover:text-slate-600 transition-colors">Privacy Policy</a>
-          <a href="#" className="hover:text-slate-600 transition-colors">Contact Us</a>
+          <Link to="/terms" className="hover:text-slate-600 transition-colors">Terms & Conditions</Link>
+          <Link to="/privacy-policy" className="hover:text-slate-600 transition-colors">Privacy Policy</Link>
+          <Link to="/contact" className="hover:text-slate-600 transition-colors">Contact Us</Link>
         </div>
       </footer>
     </div>

@@ -27,30 +27,78 @@ const details = [
 
 function ContactPage() {
   const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    subject: "",
+    message: "",
+    _gotcha_hp: "", // Honeypot field for bot spam trap
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+  };
+
+  const validateForm = () => {
+    const errs: Record<string, string> = {};
+    if (!formData.name.trim() || formData.name.trim().length < 2) {
+      errs.name = "Please enter your full name (minimum 2 characters).";
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!formData.email.trim() || !emailRegex.test(formData.email.trim())) {
+      errs.email = "Please enter a valid email address.";
+    }
+    if (!formData.subject.trim() || formData.subject.trim().length < 3) {
+      errs.subject = "Subject must be at least 3 characters.";
+    }
+    if (!formData.message.trim() || formData.message.trim().length < 10) {
+      errs.message = "Message must be at least 10 characters.";
+    }
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    // 1. Bot Honeypot Trap: If invisible field is populated, silently intercept bot
+    if (formData._gotcha_hp) {
+      console.warn("Spam bot submission blocked via Honeypot trap.");
+      toast.success("Message sent successfully!");
+      return;
+    }
+
+    // 2. Client-side Validation
+    if (!validateForm()) {
+      toast.error("Please fill all required fields correctly.");
+      return;
+    }
+
     setSubmitting(true);
-    const form = e.currentTarget;
     setTimeout(() => {
       setSubmitting(false);
-      form.reset();
+      setFormData({ name: "", email: "", subject: "", message: "", _gotcha_hp: "" });
       toast.success("Thanks for reaching out!", {
-        description: "Our team will get back to you within 24 hours.",
+        description: "Our academic support team will get back to you within 24 hours.",
       });
-    }, 600);
+    }, 700);
   };
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
       <Header />
       <main className="flex-1">
-        <section className="bg-gradient-to-br from-secondary/60 via-background to-background py-16 lg:py-20">
+        <section className="bg-gradient-to-br from-secondary/60 via-background to-background py-16 lg:py-20 border-b border-border">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <SectionHeading
               eyebrow="Get In Touch"
               title="Let's Start Your Journey"
-              description="Have a question about our courses, certifications or placements? Send us a message and our team at Geeta Technical Hub will respond shortly."
+              description="Have a question about our courses, online proctoring solutions, or university certifications? Send us a message and our team will respond shortly."
             />
           </div>
         </section>
@@ -60,7 +108,7 @@ function ContactPage() {
             {details.map((d) => (
               <div
                 key={d.label}
-                className="flex items-start gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm"
+                className="flex items-start gap-4 rounded-2xl border border-border bg-card p-6 shadow-sm hover:border-primary/40 transition-colors"
               >
                 <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-secondary text-primary">
                   <d.icon className="h-6 w-6" />
@@ -84,39 +132,103 @@ function ContactPage() {
 
           <form
             onSubmit={handleSubmit}
-            className="rounded-2xl border border-border bg-card p-7 shadow-sm"
+            noValidate
+            className="rounded-2xl border border-border bg-card p-7 shadow-sm space-y-5"
           >
-            <h2 className="font-display text-xl font-bold text-foreground">Send Us A Message</h2>
-            <div className="mt-6 space-y-5">
-              <div className="grid gap-5 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input id="name" name="name" placeholder="Your name" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" name="email" type="email" placeholder="you@example.com" required />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="subject">Subject</Label>
-                <Input id="subject" name="subject" placeholder="What's this about?" required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="message">Message</Label>
-                <Textarea
-                  id="message"
-                  name="message"
-                  rows={5}
-                  placeholder="Tell us how we can help…"
-                  required
-                />
-              </div>
-              <Button type="submit" size="lg" className="w-full rounded-full" disabled={submitting}>
-                {submitting ? "Sending…" : "Send Message"}
-                <Send className="ml-1.5 h-4 w-4" />
-              </Button>
+            <div>
+              <h2 className="font-display text-xl font-bold text-foreground">Send Us A Message</h2>
+              <p className="text-xs text-muted-foreground mt-1">
+                Fill in the form below and we'll reply to your university or personal email.
+              </p>
             </div>
+
+            {/* Hidden Honeypot Field for anti-spam bot protection */}
+            <div className="hidden" aria-hidden="true">
+              <label htmlFor="_gotcha_hp">Leave this field empty</label>
+              <input
+                type="text"
+                id="_gotcha_hp"
+                name="_gotcha_hp"
+                tabIndex={-1}
+                autoComplete="off"
+                value={formData._gotcha_hp}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="name" className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Full Name <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  placeholder="Your full name"
+                  className={errors.name ? "border-red-500 focus-visible:ring-red-500" : ""}
+                />
+                {errors.name && <p className="text-[11px] font-medium text-red-500">{errors.name}</p>}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Email Address <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="you@institution.edu"
+                  className={errors.email ? "border-red-500 focus-visible:ring-red-500" : ""}
+                />
+                {errors.email && <p className="text-[11px] font-medium text-red-500">{errors.email}</p>}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="subject" className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                Subject <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="subject"
+                name="subject"
+                value={formData.subject}
+                onChange={handleChange}
+                placeholder="Inquiry or issue topic"
+                className={errors.subject ? "border-red-500 focus-visible:ring-red-500" : ""}
+              />
+              {errors.subject && <p className="text-[11px] font-medium text-red-500">{errors.subject}</p>}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="message" className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                Message <span className="text-red-500">*</span>
+              </Label>
+              <Textarea
+                id="message"
+                name="message"
+                rows={5}
+                value={formData.message}
+                onChange={handleChange}
+                placeholder="Tell us how we can help…"
+                className={errors.message ? "border-red-500 focus-visible:ring-red-500" : ""}
+              />
+              {errors.message && <p className="text-[11px] font-medium text-red-500">{errors.message}</p>}
+            </div>
+
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full rounded-full bg-primary hover:bg-primary/90 text-white font-bold shadow-md shadow-primary/20"
+              disabled={submitting}
+            >
+              {submitting ? "Sending…" : "Send Message"}
+              <Send className="ml-1.5 h-4 w-4" />
+            </Button>
           </form>
         </section>
       </main>

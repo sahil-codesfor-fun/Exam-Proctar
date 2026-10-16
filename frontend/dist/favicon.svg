@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284C7" />
+      <stop offset="100%" stop-color="#0369A1" />
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#0284C7" />
+    </linearGradient>
+    <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0284C7" flood-opacity="0.3" />
+    </filter>
+  </defs>
+
+  <!-- Background Shield Shape -->
+  <path d="M64 10 L112 26 C112 78 64 116 64 116 C64 116 16 78 16 26 Z" 
+        fill="url(#shieldGrad)" 
+        filter="url(#dropShadow)" 
+        stroke="#38BDF8" 
+        stroke-width="3" 
+        stroke-linejoin="round" />
+
+  <!-- Inner Code Bracket Glyphs < / > -->
+  <g fill="none" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Left Bracket < -->
+    <polyline points="46,48 34,64 46,80" />
+    
+    <!-- Slash / -->
+    <line x1="68" y1="46" x2="60" y2="82" stroke="#38BDF8" />
+    
+    <!-- Right Bracket > -->
+    <polyline points="82,48 94,64 82,80" />
+  </g>
+</svg>

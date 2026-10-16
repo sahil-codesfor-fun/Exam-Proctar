@@ -2,25 +2,51 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-
-    <!-- Dynamic SVG Favicon -->
-    <script>
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="24" fill="#024b82" /><text x="50" y="55" font-family="system-ui, sans-serif" font-weight="900" font-size="48" fill="white" text-anchor="middle" dominant-baseline="middle">&lt;/&gt;</text></svg>`;
-      const link = document.createElement('link');
-      link.rel = 'icon';
-      link.type = 'image/svg+xml';
-      link.href = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
-      document.head.appendChild(link);
-    </script>
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
 
-    <title>Code Nexus | Smart Online Examination Platform</title>
+    <!-- Primary Page Metadata -->
+    <title>Code Nexus | Smart Online Examination & AI Proctoring Platform</title>
+    <meta name="description" content="Code Nexus is an AI-powered smart online examination and coding assessment platform built for universities. Features real-time AI proctoring, sandboxed compilers, and automated evaluation." />
+    <meta name="keywords" content="online examination, coding platform, AI proctoring, university exam platform, Geeta University, sandboxed compiler, code nexus, student assessment" />
+    <meta name="author" content="Code Nexus & Geeta University" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#0284c7" />
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://exam-proctar.vercel.app/" />
+
+    <!-- Favicons & Manifest -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate icon" type="image/png" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Open Graph / Facebook / WhatsApp -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://exam-proctar.vercel.app/" />
+    <meta property="og:site_name" content="Code Nexus" />
+    <meta property="og:title" content="Code Nexus | Smart Online Examination & AI Proctoring Platform" />
+    <meta property="og:description" content="Secure, AI-driven online assessment platform with sandboxed compilers, live student monitoring, and academic integrity assurance." />
+    <meta property="og:image" content="https://exam-proctar.vercel.app/og-image.svg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://exam-proctar.vercel.app/" />
+    <meta name="twitter:title" content="Code Nexus | Smart Online Examination & AI Proctoring Platform" />
+    <meta name="twitter:description" content="Secure, AI-driven online assessment platform with sandboxed compilers, live student monitoring, and academic integrity assurance." />
+    <meta name="twitter:image" content="https://exam-proctar.vercel.app/og-image.svg" />
+
+    <!-- Google Fonts Preconnect -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   </head>
 
-  <body class="bg-gray-950">
+  <body class="bg-gray-950 antialiased selection:bg-sky-500 selection:text-white">
     <div id="root"></div>
 
     <script type="module" src="/src/main.jsx"></script>
   </body>
-</html>
+</html>

@@ -1,10 +1,17 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { CookieConsent } from './components/common/CookieConsent';
+import { useDocumentTitle } from './hooks/useDocumentTitle';
+import { initAnalytics } from './lib/analytics';
 
 const LandingPage = lazy(() => import('./pages/landing/LandingHome'));
 const LandingAbout = lazy(() => import('./pages/landing/LandingAbout'));
 const LandingContact = lazy(() => import('./pages/landing/LandingContact'));
+const LandingCourses = lazy(() => import('./pages/landing/LandingCourses'));
+const PrivacyPolicy = lazy(() => import('./pages/legal/PrivacyPolicy'));
+const TermsOfService = lazy(() => import('./pages/legal/TermsOfService'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 const StudentLogin = lazy(() => import('./pages/StudentLogin').then(module => ({ default: module.LandingPage })));
 const FacultyLogin = lazy(() => import('./pages/FacultyLogin').then(module => ({ default: module.FacultyLogin })));
 const AdminLogin = lazy(() => import('./pages/AdminLogin').then(module => ({ default: module.AdminLogin })));
@@ -79,6 +86,12 @@ const ComingSoon = ({ title }) => (
 
 function App() {
   const location = useLocation();
+  useDocumentTitle();
+
+  useEffect(() => {
+    initAnalytics();
+  }, []);
+
   const isLiveExam = location.pathname.includes('/exam/live/');
   const isCompiler = location.pathname === '/compiler';
   const isAdmin = location.pathname === '/admin';
@@ -111,10 +124,17 @@ function App() {
             </div>
           }>
             <Routes>
-              {/* ── Public Auth Pages ─────────────────────────────── */}
+              {/* ── Public Marketing & Legal Pages ──────────────── */}
               <Route path="/" element={<LandingPage />} />
               <Route path="/about" element={<LandingAbout />} />
               <Route path="/contact" element={<LandingContact />} />
+              <Route path="/courses" element={<LandingCourses />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/privacy" element={<Navigate to="/privacy-policy" replace />} />
+              <Route path="/terms" element={<TermsOfService />} />
+              <Route path="/terms-and-conditions" element={<Navigate to="/terms" replace />} />
+
+              {/* ── Public Auth Pages ─────────────────────────────── */}
               <Route path="/login" element={<StudentLogin />} />
               <Route path="/fac" element={<FacultyLogin />} />
               <Route path="/adm" element={<AdminLogin />} />
@@ -200,9 +220,14 @@ function App() {
               <Route path="/exam/live/:id" element={
                 <ProtectedRoute roles={['student']}><LiveExamPage /></ProtectedRoute>
               } />
+
+              {/* ── 404 Fallback Route ───────────────────────────── */}
+              <Route path="/404" element={<NotFound />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
         </main>
+        <CookieConsent />
       </div>
     </AuthProvider>
   );

@@ -9,31 +9,27 @@ const keyByTokenOrIp = (req) => {
   return req.headers['x-student-id'] || req.ip || 'unknown';
 };
 
-// Global limiter: 20,000 requests / min across the university network
+// Global limiter: 50,000 requests / min across the university network, skipping auth paths
 export const globalLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
-  max: 20000,
+  max: 50000,
   keyGenerator: keyByTokenOrIp,
+  validate: false,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.path.startsWith('/auth') || req.path.startsWith('/api/auth'),
   message: { success: false, message: 'High network traffic detected. Please retry in a few seconds.' }
 });
 
-// Auth limiter: Allows 2,000 logins/min so 500 students can log in simultaneously
-export const authLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000,
-  max: 2000,
-  keyGenerator: (req) => req.body?.email || req.ip || 'auth-unknown',
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, message: 'Too many login attempts. Please wait 1 minute.' }
-});
+// Non-blocking pass-through for student and faculty authentication
+export const authLimiter = (_req, _res, next) => next();
 
 // Auto-save limiter: 15,000 saves / min
 export const autoSaveLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max: 15000,
   keyGenerator: keyByTokenOrIp,
+  validate: false,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Auto-save frequency too high. Syncing will resume shortly.' }
@@ -44,6 +40,7 @@ export const compilerLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max: 1000,
   keyGenerator: keyByTokenOrIp,
+  validate: false,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Code execution rate limit exceeded. Please wait a moment.' }

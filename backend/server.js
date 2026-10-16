@@ -1,3 +1,6 @@
+// Expand libuv threadpool for high-concurrency native crypto operations
+process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || "64";
+
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -7,10 +10,6 @@ import app from './src/app.js';
 import { seedSuperAdmin } from './prisma/seedSuperAdmin.js';
 import { setupProctorSockets } from './src/sockets/proctorSocket.js';
 import { setupPracticeSockets, setPracticeIO } from './src/sockets/practiceSocket.js';
-import { sendEmail } from './src/services/emailService.js';
-
-console.log("EMAIL_USER:", process.env.EMAIL_USER);
-console.log("EMAIL_PASS:", process.env.EMAIL_PASS);
 const startServer = async () => {
   // 1. Validate ENV 
   if (!process.env.JWT_SECRET) {
