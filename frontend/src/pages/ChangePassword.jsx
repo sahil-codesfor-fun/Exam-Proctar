@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Lock, ShieldAlert } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -42,15 +43,15 @@ const ChangePassword = () => {
     <div className="h-screen w-full flex items-center justify-center bg-[#f8fafc] p-6 font-sans">
       <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl p-10 border border-gray-100 animate-in zoom-in-95 duration-200">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 border border-blue-100 shadow-sm">
-            🔐
+          <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-blue-100 shadow-sm">
+            <Lock className="w-8 h-8 text-blue-600" />
           </div>
           <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Security Protocol</h2>
           <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mt-1">Mandatory Password Update</p>
         </div>
 
         <p className="text-[11px] text-blue-600 font-bold bg-blue-50 p-4 rounded-xl mb-8 leading-relaxed border border-blue-100 flex items-start gap-2">
-           <span className="text-sm mt-0.5">🛡️</span> SYSTEM NOTICE: Your account currently uses a temporary credential. For your protection and institutional compliance, you must establish a new secure password before proceeding.
+           <ShieldAlert className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" /> SYSTEM NOTICE: Your account currently uses a temporary credential. For your protection and institutional compliance, you must establish a new secure password before proceeding.
         </p>
 
         <form className="space-y-5" onSubmit={handleSubmit}>
@@ -82,10 +83,10 @@ const ChangePassword = () => {
           <div className="pt-2">
             <button type="submit" disabled={loading}
               className="w-full py-4 bg-[#1e293b] hover:bg-black text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-xl transition-all active:scale-[0.98] disabled:opacity-50">
-              {loading ? '⏳ Updating Matrix...' : 'SECURE MY ACCOUNT'}
+              {loading ? 'Updating Password...' : 'Update Password'}
             </button>
             <button type="button" onClick={logout} className="w-full mt-4 text-[9px] font-black text-gray-400 uppercase tracking-widest hover:text-red-500 transition-all">
-              Abort & Logout
+              Cancel & Logout
             </button>
           </div>
         </form>

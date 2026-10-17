@@ -192,7 +192,7 @@ const SubjectiveDetail = ({ question, onGradeUpdate }) => {
           <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Student Response</p>
           <div className="flex items-center gap-2">
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${charCount >= minLimit ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-              Characters: {charCount} / {minLimit} {charCount >= minLimit ? '(✓ Target Met)' : `(Min ${minLimit})`}
+              Characters: {charCount} / {minLimit} {charCount >= minLimit ? '(Target Met)' : `(Min ${minLimit})`}
             </span>
             <span className="text-[10px] font-medium text-gray-400">
               ({wordCount} words)
@@ -208,7 +208,7 @@ const SubjectiveDetail = ({ question, onGradeUpdate }) => {
         <div className="bg-emerald-50/40 rounded-xl p-4 border border-emerald-200/60 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Teacher Manual Evaluation</p>
-            {saved && <span className="text-xs font-bold text-emerald-600 animate-pulse">✓ Saved!</span>}
+            {saved && <span className="text-xs font-bold text-emerald-600 animate-pulse">Saved successfully</span>}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
@@ -305,8 +305,8 @@ const MatchingDetail = ({ question }) => {
               return (
                 <div key={pair?.id || i} className={`flex items-center gap-2 text-sm px-2 py-1 rounded-lg ${isCorrect ? 'bg-emerald-50 border border-emerald-200' : 'bg-red-50 border border-red-200'}`}>
                   <span className="font-medium text-gray-700 flex-1 text-center">{String(pair?.leftItem ?? '')}</span>
-                  <span className={`font-bold ${isCorrect ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {isCorrect ? '✓' : '✗'}
+                  <span className={`font-bold text-xs ${isCorrect ? 'text-emerald-500' : 'text-red-500'}`}>
+                    {isCorrect ? 'Correct' : 'Incorrect'}
                   </span>
                   <span className="font-medium text-gray-700 flex-1 text-center">
                     {String(matchedRight)}

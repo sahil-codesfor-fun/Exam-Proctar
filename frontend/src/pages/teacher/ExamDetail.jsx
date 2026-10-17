@@ -78,7 +78,7 @@ const ExamDetail = () => {
 
   return (
     <div className="space-y-6 pb-20 animate-in fade-in duration-500">
-      <button onClick={() => navigate('/teacher-dashboard/overview')} className="text-sm font-bold text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-colors">← Back to Registry</button>
+      <button onClick={() => navigate('/teacher-dashboard/overview')} className="text-sm font-bold text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-colors">← Back to Overview</button>
       
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white p-6 rounded-2xl border shadow-sm gap-4">
         <div>
@@ -88,8 +88,8 @@ const ExamDetail = () => {
             {exam.status === 'published' && <span className="bg-blue-50 text-blue-600 text-[10px] uppercase px-3 py-1 rounded-full border border-blue-100 tracking-widest shadow-sm">PUBLISHED</span>}
           </h2>
           <div className="flex items-center gap-3 mt-2 text-sm">
-             <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg font-bold text-xs">{exam.course || 'General Sector'}</span>
-             <span className="text-gray-400 font-medium">• {exam.durationMinutes}min window • {exam.questions?.length || 0} total nodes • {exam.randomizeQuestions ? `🎲 Random` : 'Static Layout'}</span>
+             <span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-lg font-bold text-xs">{exam.course || 'General'}</span>
+             <span className="text-gray-400 font-medium">• {exam.durationMinutes} min duration • {exam.questions?.length || 0} total questions • {exam.randomizeQuestions ? 'Randomized Questions' : 'Sequential Order'}</span>
           </div>
         </div>
         
@@ -99,11 +99,11 @@ const ExamDetail = () => {
                <Edit size={14}/> Edit Details
              </button>
           )}
-          {exam.status === 'draft' && <button onClick={() => toggleStatus(exam, 'published')} disabled={isUpdating} className={`bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-600/20 ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}>Publish Network</button>}
-          {exam.status === 'published' && <button onClick={() => toggleStatus(exam, 'draft')} disabled={isUpdating} className={`bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200 px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}>Revoke</button>}
-          {(exam.status === 'published' || exam.status === 'draft') && <button onClick={() => toggleStatus(exam, 'active')} disabled={isUpdating} className={`bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-600/20 ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}>FORCE START NOW</button>}
-          {exam.status === 'active' && <button onClick={() => toggleStatus(exam, 'ended')} disabled={isUpdating} className={`bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-red-600/20 animate-pulse ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}>TERMINATE SESSION</button>}
-          <button onClick={() => { deleteExam(currentExamId); navigate('/teacher-dashboard/overview'); }} className="bg-white text-red-500 hover:bg-red-50 border border-gray-200 hover:border-red-200 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1"><Trash2 size={14}/> Dump</button>
+          {exam.status === 'draft' && <button onClick={() => toggleStatus(exam, 'published')} disabled={isUpdating} className={`bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-600/20 ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}>Publish Exam</button>}
+          {exam.status === 'published' && <button onClick={() => toggleStatus(exam, 'draft')} disabled={isUpdating} className={`bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200 px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}>Revert to Draft</button>}
+          {(exam.status === 'published' || exam.status === 'draft') && <button onClick={() => toggleStatus(exam, 'active')} disabled={isUpdating} className={`bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-600/20 ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}>Start Exam Now</button>}
+          {exam.status === 'active' && <button onClick={() => toggleStatus(exam, 'ended')} disabled={isUpdating} className={`bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-red-600/20 animate-pulse ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}>End Exam</button>}
+          <button onClick={() => { deleteExam(currentExamId); navigate('/teacher-dashboard/overview'); }} className="bg-white text-red-500 hover:bg-red-50 border border-gray-200 hover:border-red-200 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1"><Trash2 size={14}/> Delete</button>
         </div>
       </div>
 
@@ -112,11 +112,11 @@ const ExamDetail = () => {
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none transform translate-x-1/2 -translate-y-1/2"></div>
           
           <h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-8 flex items-center gap-3 relative z-10">
-            <Users size={16}/> Live Proctoring Matrix ({liveStudents.length} Connected)
+            <Users size={16}/> Live Proctoring Monitor ({liveStudents.length} Connected)
           </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 relative z-10">
-            {liveStudents.length === 0 ? <p className="text-xs text-gray-600 italic font-medium">Awaiting incoming student nodes...</p> : liveStudents.map(s => (
+            {liveStudents.length === 0 ? <p className="text-xs text-gray-600 italic font-medium">Awaiting incoming student connections...</p> : liveStudents.map(s => (
               <div key={s.studentId} className="bg-gray-800/50 p-5 rounded-2xl border border-gray-700 flex justify-between items-center group hover:bg-gray-800 transition-all">
                 <div className="flex items-center gap-4">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></span>
@@ -126,11 +126,11 @@ const ExamDetail = () => {
                   </div>
                 </div>
                 <div className="text-center group-hover:hidden">
-                   <p className="text-[9px] text-gray-400 uppercase tracking-wider font-black">Infractions</p>
+                   <p className="text-[9px] text-gray-400 uppercase tracking-wider font-black">Violations</p>
                    <span className={`text-xl font-black ${s.violations > 0 ? 'text-red-500' : 'text-emerald-500'}`}>{s.violations || 0}</span>
                 </div>
                 <button onClick={() => forceSubmit(s.studentId)} className="hidden group-hover:block text-[9px] font-black bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500 hover:text-white px-3 py-2 rounded-lg transition-all uppercase tracking-widest">
-                  Force Kill
+                  Force Submit
                 </button>
               </div>
             ))}

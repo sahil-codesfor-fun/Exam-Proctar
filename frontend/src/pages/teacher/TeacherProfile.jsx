@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, BookOpen, Clock, Building, Briefcase, FileText, Activity } from 'lucide-react';
+import { User, Mail, BookOpen, Clock, Building, Briefcase, FileText, Activity, GraduationCap } from 'lucide-react';
 import api from '../../services/api';
 
 const TeacherProfile = () => {
@@ -53,8 +53,8 @@ const TeacherProfile = () => {
             <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-br from-emerald-500 to-teal-600"></div>
             
             <div className="relative w-28 h-28 mx-auto bg-white rounded-full p-2 shadow-lg mt-6 mb-4 transform group-hover:scale-105 transition-transform">
-              <div className="w-full h-full bg-gray-100 rounded-full flex items-center justify-center text-4xl border-4 border-emerald-50">
-                👨‍🏫
+              <div className="w-full h-full bg-gray-100 rounded-full flex items-center justify-center border-4 border-emerald-50">
+                <GraduationCap className="w-12 h-12 text-emerald-600" />
               </div>
             </div>
             
@@ -148,7 +148,9 @@ const TeacherProfile = () => {
                 </div>
               ) : (
                 <div className="text-center py-10">
-                  <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl opacity-50">📚</div>
+                  <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <BookOpen className="w-8 h-8 text-gray-400" />
+                  </div>
                   <h3 className="text-lg font-bold text-gray-800">No Subjects Allocated</h3>
                   <p className="text-gray-500 text-sm mt-1">You haven't been assigned any subjects yet.</p>
                 </div>

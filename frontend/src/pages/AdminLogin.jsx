@@ -52,7 +52,7 @@ export const AdminLogin = () => {
       const res = await api.post(endpoint, payload);
       
       if (res.data.success) {
-        setStatus({ message: isSignUp ? 'Account created! Please sign in.' : '✅ Login successful!', type: 'success' });
+        setStatus({ message: isSignUp ? 'Account created! Please sign in.' : 'Login successful!', type: 'success' });
         if (!isSignUp) {
           login(res.data); 
           setTimeout(() => {
@@ -68,7 +68,7 @@ export const AdminLogin = () => {
         }
       }
     } catch (err) {
-      setStatus({ message: `❌ ${err.response?.data?.message || err.message || 'Cannot reach server.'}`, type: 'error' });
+      setStatus({ message: err.response?.data?.message || err.message || 'Cannot reach server.', type: 'error' });
     } finally {
       setLoading(false);
     }

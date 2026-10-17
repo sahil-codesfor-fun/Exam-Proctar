@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { ShieldAlert, Code2, Terminal, Scale } from 'lucide-react';
 
 const Editor = lazy(() => import('@monaco-editor/react'));
 
@@ -390,7 +391,7 @@ export function CompilerPage() {
       {!isFullscreen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-950/95 backdrop-blur-md">
           <div className="text-center p-8 bg-gray-900 border border-red-500/50 rounded-2xl shadow-2xl max-w-md mx-4">
-            <div className="text-6xl mb-6">⚠️</div>
+            <ShieldAlert className="w-16 h-16 text-amber-500 mx-auto mb-6" />
             <h2 className="text-2xl font-bold text-red-400 mb-4">Anti-Cheat Active</h2>
             <p className="text-gray-300 mb-6 font-medium">To maintain the integrity of this coding session, you must use the playground in fullscreen mode. Copy, paste, and right-click are strictly disabled.</p>
             <div className="flex gap-4 justify-center mt-2">
@@ -419,7 +420,7 @@ export function CompilerPage() {
               ← Exit
             </button>
             <span className="text-lg font-bold flex items-center gap-2">
-                <span className="text-2xl">🛡️</span> {activeSheet?.title || 'Practice Terminal'}
+                <Code2 className="w-5 h-5 text-emerald-400" /> {activeSheet?.title || 'Practice Environment'}
             </span>
         </div>
 
@@ -562,11 +563,11 @@ export function CompilerPage() {
             <div className="ml-auto flex gap-2">
                 <button onClick={handleRun} disabled={running || judging}
                     className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-bold px-4 py-1.5 rounded-lg shadow-sm transition-colors">
-                    {running ? '⏳…' : '▶ Compile'}
+                    {running ? 'Compiling…' : 'Compile'}
                 </button>
                 <button onClick={handleJudge} disabled={running || judging}
                     className="bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white text-xs font-bold px-4 py-1.5 rounded-lg shadow-sm transition-colors">
-                    {judging ? '⏳…' : '⚖️ Submit Code'}
+                    {judging ? 'Evaluating…' : 'Submit Code'}
                 </button>
             </div>
           </div>
@@ -615,11 +616,11 @@ export function CompilerPage() {
               <div className="flex items-center px-4 bg-gray-900 border-b border-gray-800">
                 <button onClick={() => setTab('output')}
                     className={`px-4 py-2 text-xs font-bold uppercase tracking-widest border-b-2 transition-colors ${tab === 'output' ? 'text-blue-400 border-blue-500' : 'text-gray-500 border-transparent hover:text-gray-300'}`}>
-                    📤 Console
+                    Console
                 </button>
                 <button onClick={() => setTab('judge')}
                     className={`px-4 py-2 text-xs font-bold uppercase tracking-widest border-b-2 transition-colors ${tab === 'judge' ? 'text-blue-400 border-blue-500' : 'text-gray-500 border-transparent hover:text-gray-300'}`}>
-                    ⚖️ Judge Results
+                    Evaluation Results
                 </button>
               </div>
 
@@ -637,7 +638,7 @@ export function CompilerPage() {
 
                         <div className="flex-1">
                             {running ? (
-                                <p className="text-gray-500 text-xs font-mono animate-pulse">⏳ Compiling & Running...</p>
+                                <p className="text-gray-500 text-xs font-mono animate-pulse">Compiling & Running...</p>
                             ) : runResult ? (
                                 <div className="flex flex-col gap-2 animate-in fade-in duration-300">
                                     <pre className={`font-mono text-[12px] whitespace-pre-wrap p-4 rounded-xl border shadow-inner ${runResult.error ? 'text-red-400 bg-red-950/20 border-red-500/20' : 'text-emerald-400 bg-emerald-950/20 border-emerald-500/20'}`}>
@@ -657,12 +658,12 @@ export function CompilerPage() {
                   {tab === 'judge' && (
                     <div className="flex flex-col h-full">
                         {judging ? (
-                            <p className="text-gray-500 text-xs font-mono animate-pulse mt-2">⚖️ Judging against hidden test cases...</p>
+                            <p className="text-gray-500 text-xs font-mono animate-pulse mt-2">Evaluating against test cases...</p>
                         ) : judgeResult ? (
                             <div className="animate-in slide-in-from-bottom-2 duration-300">
                                 <div className={`text-sm font-bold mb-3 pb-2 border-b ${judgeResult.verdict === 'accepted' ? 'text-emerald-400 border-emerald-500/20' : 'text-red-400 border-red-500/20'}`}>
-                                    {judgeResult.verdict === 'error' ? '❌ ' + (judgeResult.message || 'Judge Failed') :
-                                     judgeResult.verdict === 'accepted' ? '✅ All Test Cases Passed Successfully' : `❌ Passed ${judgeResult.passed} out of ${judgeResult.total} Test Cases`}
+                                    {judgeResult.verdict === 'error' ? (judgeResult.message || 'Evaluation Failed') :
+                                     judgeResult.verdict === 'accepted' ? 'All Test Cases Passed Successfully' : `Passed ${judgeResult.passed} out of ${judgeResult.total} Test Cases`}
                                 </div>
                                 
                                 {judgeResult.results?.length > 0 && (
@@ -670,8 +671,8 @@ export function CompilerPage() {
                                       {judgeResult.results.map((r, i) => (
                                       <div key={i} className={`p-3 border rounded-xl flex-1 ${r.passed ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
                                           <div className={`text-xs font-black tracking-wider uppercase flex items-center justify-between ${r.passed ? 'text-emerald-400' : 'text-red-400'}`}>
-                                              <span>{r.hidden ? `Secret TC ${i + 1}` : `Public TC ${i + 1}`}</span>
-                                              <span>{r.passed ? '✓' : '✗'}</span>
+                                              <span>{r.hidden ? `Hidden Test Case ${i + 1}` : `Public Test Case ${i + 1}`}</span>
+                                              <span>{r.passed ? 'Passed' : 'Failed'}</span>
                                           </div>
                                       </div>
                                       ))}

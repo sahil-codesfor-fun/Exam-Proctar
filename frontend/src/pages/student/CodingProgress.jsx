@@ -5,7 +5,7 @@ import { Code2, Terminal, Flame, RefreshCw, X, Plus, AlertCircle, CheckCircle2 }
 import { useAuth } from '../../contexts/AuthContext';
 import CodeChefCard from '../../components/common/CodeChefCard';
 
-// 🌮 DYNAMIC PLATFORM CONFIGURATION
+// Dynamic Platform Configuration
 const PLATFORM_CONFIG = {
   LEETCODE: {
     name: 'LeetCode',
@@ -439,22 +439,22 @@ export const CodingProgress = () => {
             <div className="flex flex-col gap-4 w-full md:w-1/2 shrink-0">
               <div className="bg-orange-50 text-orange-600 px-6 py-4 rounded-2xl border border-orange-100 flex flex-col items-center justify-center shadow-sm w-full">
                 <span className="text-[10px] font-black uppercase tracking-widest text-orange-400 mb-1 flex items-center gap-1"><Flame size={12} strokeWidth={3} /> Current Streak</span>
-                <span className="text-4xl font-black">{internalStats?.stats?.currentStreak || 0} 🔥</span>
+                <span className="text-4xl font-black">{internalStats?.stats?.currentStreak || 0}</span>
               </div>
               <div className="grid grid-cols-2 gap-4 w-full">
                 <div className="bg-gray-50 px-6 py-4 rounded-2xl flex flex-col justify-center border border-gray-100">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Nexus Output</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Practice Solved</span>
                   <span className="text-2xl font-black text-[#1A5F53]">{nexusSolved}</span>
                 </div>
                 {['LEETCODE', 'HACKERRANK'].filter(k => !!internalStats?.user?.[`${k.toLowerCase()}Username`]).map(k => (
                   <div key={k} className="bg-gray-50 px-6 py-4 rounded-2xl flex flex-col justify-center border border-gray-100">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">{PLATFORM_CONFIG[k]?.name || k} Output</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">{PLATFORM_CONFIG[k]?.name || k} Solved</span>
                     <span className="text-2xl font-black text-gray-900">{getPrimaryMetric(k)}</span>
                   </div>
                 ))}
                 {!!internalStats?.user?.codechefUsername && (
                   <div className="bg-gray-50 px-6 py-4 rounded-2xl flex flex-col justify-center border border-gray-100">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">CodeChef Output</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">CodeChef Solved</span>
                     <span className="text-2xl font-black text-gray-900">{internalStats?.user?.codechefTotalSolved || 0}</span>
                   </div>
                 )}

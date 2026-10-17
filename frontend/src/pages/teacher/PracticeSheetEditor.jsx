@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, Upload, Plus, Code, Trash2, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Save, Upload, Plus, Code, Trash2, ChevronDown, Eye, X } from 'lucide-react';
 import api from '../../services/api';
 
 const PracticeSheetEditor = ({ sheetId, onClose, onSave }) => {
@@ -230,8 +230,8 @@ const PracticeSheetEditor = ({ sheetId, onClose, onSave }) => {
         </div>
         <div className="flex gap-3">
           {sheetId && (
-            <button onClick={() => window.open(`/compiler?practiceSheetId=${sheetId}`, '_blank')} className="px-5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold text-xs uppercase tracking-widest rounded-xl border border-blue-200 transition-all">
-              👀 Preview
+            <button onClick={() => window.open(`/compiler?practiceSheetId=${sheetId}`, '_blank')} className="px-5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold text-xs uppercase tracking-widest rounded-xl border border-blue-200 transition-all flex items-center gap-1.5">
+              <Eye size={14} /> Preview
             </button>
           )}
           <button onClick={() => handleSaveBtn('draft')} disabled={saving} className="px-5 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-600 font-bold text-xs uppercase tracking-widest rounded-xl border transition-all disabled:opacity-50 flex items-center gap-2">
@@ -311,7 +311,7 @@ const PracticeSheetEditor = ({ sheetId, onClose, onSave }) => {
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl max-h-48 overflow-y-auto">
                 <h4 className="text-red-700 font-bold text-xs uppercase tracking-widest mb-2 flex justify-between items-center">
                   Import Errors
-                  <button onClick={() => setUploadErrors([])} className="text-red-400 hover:text-red-600">✕</button>
+                  <button onClick={() => setUploadErrors([])} className="text-red-400 hover:text-red-600"><X size={14} /></button>
                 </h4>
                 <ul className="list-disc pl-5 text-xs text-red-600 space-y-1">
                   {uploadErrors.map((err, i) => (

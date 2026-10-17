@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
+import { FolderOpen, Lock } from 'lucide-react';
 import api from '../../services/api';
 
 const getExamValue = (exam, sub) => {
@@ -119,8 +120,8 @@ const StudentOverview = () => {
           
           {activeExams.length === 0 && upcomingExams.length === 0 ? (
             <div className="bg-white rounded-[2rem] p-16 border border-gray-100 text-center">
-              <div className="text-4xl mb-4 opacity-20">📂</div>
-              <p className="text-xs font-black text-gray-300 uppercase tracking-widest italic">No deployments found in this sector.</p>
+              <FolderOpen className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-xs font-black text-gray-300 uppercase tracking-widest italic">No active assessments available.</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -165,19 +166,19 @@ const StudentOverview = () => {
                             {exam.course || 'General'}
                           </span>
                           <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                            • Faculty ID: {exam.creator?.name || exam.faculty?.name || 'Academic Core'}
+                            • Instructor: {exam.creator?.name || exam.faculty?.name || 'Department Faculty'}
                           </span>
                         </div>
                       </div>
 
                       {done ? (
-                        <span className="bg-emerald-50 text-emerald-600 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-emerald-100">✓ Completed</span>
+                        <span className="bg-emerald-50 text-emerald-600 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-emerald-100">Completed</span>
                       ) : isExpired ? (
-                        <span className="bg-gray-100 text-gray-500 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-gray-200">{isRescheduled ? (nowTime < new Date(ticket.rescheduledStartTime).getTime() ? `Awaiting ${ticket.appealNumber === 2 ? 'Final ' : ''}Reschedule` : `${ticket.appealNumber === 2 ? 'Final ' : ''}Reschedule Expired`) : '❌ Expired'}</span>
+                        <span className="bg-gray-100 text-gray-500 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-gray-200">{isRescheduled ? (nowTime < new Date(ticket.rescheduledStartTime).getTime() ? `Awaiting ${ticket.appealNumber === 2 ? 'Final ' : ''}Reschedule` : `${ticket.appealNumber === 2 ? 'Final ' : ''}Reschedule Expired`) : 'Expired'}</span>
                       ) : inProgress ? (
-                        <span className="bg-amber-50 text-amber-600 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-amber-100 animate-pulse">⏳ Session Open</span>
+                        <span className="bg-amber-50 text-amber-600 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-amber-100 animate-pulse">In Progress</span>
                       ) : (
-                        <span className="bg-blue-50 text-blue-600 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-blue-100 italic">Ready to Initialize</span>
+                        <span className="bg-blue-50 text-blue-600 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-blue-100 italic">Available</span>
                       )}
                     </div>
 
@@ -195,11 +196,11 @@ const StudentOverview = () => {
                           </div>
                         )}
                         <div className="flex flex-col">
-                          <span className="text-[9px] font-black text-gray-300 uppercase">Window</span>
+                          <span className="text-[9px] font-black text-gray-300 uppercase">Duration</span>
                           <span className="text-xs font-black text-gray-700">{isRescheduled && ticket.rescheduledStartTime && ticket.rescheduledEndTime ? Math.round((new Date(ticket.rescheduledEndTime) - new Date(ticket.rescheduledStartTime)) / 60000) : exam.durationMinutes}m</span>
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-[9px] font-black text-gray-300 uppercase">Value</span>
+                          <span className="text-[9px] font-black text-gray-300 uppercase">Total Marks</span>
                           <span className="text-xs font-black text-gray-700">{calculatedValue}pts</span>
                         </div>
                       </div>
@@ -214,7 +215,7 @@ const StudentOverview = () => {
                                 </span>
                               ) : (sub || hasAttempted) ? (
                                 <button disabled className="font-black text-[10px] uppercase tracking-widest py-3 px-6 rounded-xl border bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60">
-                                  ✓ Exam Attempted
+                                  Exam Attempted
                                 </button>
                               ) : ticket && (!rescheduleEnded || ticket.appealNumber >= 2) ? (
                                 <span className={`font-black text-[10px] uppercase tracking-widest py-3 px-6 rounded-xl border ${ticket.status === 'approved' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : ticket.status === 'rejected' ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
@@ -234,7 +235,7 @@ const StudentOverview = () => {
                               onClick={() => navigate(`/exam/live/${examIdSafe}`)}
                               className={`font-black text-[10px] uppercase tracking-widest py-3 px-8 rounded-xl transition-all shadow-lg active:scale-95 text-white ${isRescheduleWindowOpen ? 'bg-[#ff7b00] hover:bg-[#e06c00] shadow-orange-900/10' : 'bg-[#1A5F53] hover:bg-[#134d42] shadow-emerald-900/10'}`}
                             >
-                              {inProgress ? 'Resume Terminal' : (isRescheduleWindowOpen ? 'Start Rescheduled Exam' : 'Initialize Exam')}
+                              {inProgress ? 'Resume Exam' : (isRescheduleWindowOpen ? 'Start Rescheduled Exam' : 'Start Exam')}
                             </button>
                           )}
                         </>
@@ -251,7 +252,7 @@ const StudentOverview = () => {
           <section className="animate-in slide-in-from-bottom-4 duration-500 mt-12">
             <h4 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-3">
               <div className="h-1 w-8 bg-blue-500 rounded-full"></div>
-              Upcoming Nodes
+              Upcoming Assessments
             </h4>
             
             <div className="space-y-4">
@@ -270,11 +271,11 @@ const StudentOverview = () => {
                           {exam.course || 'General'}
                         </span>
                         <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                          • Faculty ID: {exam.creator?.name || exam.faculty?.name || 'Academic Core'}
+                          • Instructor: {exam.creator?.name || exam.faculty?.name || 'Department Faculty'}
                         </span>
                       </div>
                     </div>
-                    <span className="bg-blue-50 text-blue-600 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-blue-100 italic shadow-sm">Scheduled Node</span>
+                    <span className="bg-blue-50 text-blue-600 text-[9px] font-black px-4 py-1.5 rounded-full uppercase border border-blue-100 italic shadow-sm">Scheduled</span>
                   </div>
 
                   <div className="flex flex-col md:flex-row md:items-center justify-between pt-6 border-t border-gray-50 gap-4">
@@ -286,17 +287,17 @@ const StudentOverview = () => {
                         </span>
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[9px] font-black text-gray-300 uppercase">Window</span>
+                        <span className="text-[9px] font-black text-gray-300 uppercase">Duration</span>
                         <span className="text-xs font-black text-gray-700">{exam.durationMinutes}m</span>
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[9px] font-black text-gray-300 uppercase">Value</span>
+                        <span className="text-[9px] font-black text-gray-300 uppercase">Total Marks</span>
                         <span className="text-xs font-black text-gray-700">{calculatedValue}pts</span>
                       </div>
                     </div>
                     
                     <button disabled className="bg-gray-50 border border-gray-100 text-gray-400 font-black text-[10px] uppercase tracking-widest py-3 px-8 rounded-xl cursor-not-allowed shadow-inner flex items-center gap-2">
-                      <span>🔒</span> Locked
+                      <Lock size={12} className="inline mr-1" /> Locked
                     </button>
                   </div>
 
@@ -309,17 +310,17 @@ const StudentOverview = () => {
 
       <div className="lg:col-span-4 space-y-10">
         <section>
-          <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Performance Vault</h3>
+          <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Recent Results</h3>
           <div className="space-y-4">
             {submissions.filter(s => ['submitted', 'auto_submitted'].includes(s.status)).length === 0 ? (
               <div className="bg-white rounded-[2rem] p-8 border border-gray-100 border-dashed text-center">
-                <p className="text-[10px] font-bold text-gray-300 uppercase italic">No records in vault.</p>
+                <p className="text-[10px] font-bold text-gray-300 uppercase italic">No records found.</p>
               </div>
             ) : (
               submissions.filter(s => ['submitted', 'auto_submitted'].includes(s.status)).map(sub => (
                 <div key={sub._id || sub.id} className="bg-white rounded-[2rem] border border-gray-100 p-6 flex items-center justify-between shadow-sm">
                   <div>
-                    <p className="text-xs font-black text-gray-900 uppercase tracking-tight">{sub.exam?.title || 'System Test'}</p>
+                    <p className="text-xs font-black text-gray-900 uppercase tracking-tight">{sub.exam?.title || 'Assessment'}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-[10px] font-bold text-gray-400">{sub.totalScore}/{sub.maxScore}</span>
                       <span className="text-[10px] font-black text-emerald-500 uppercase italic">{sub.percentage}%</span>
@@ -335,7 +336,7 @@ const StudentOverview = () => {
         </section>
 
         <div className="bg-[#1A5F53] rounded-[2.5rem] p-8 text-white shadow-2xl shadow-emerald-900/20">
-          <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-6">Aggregate Stats</p>
+          <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-6">Performance Summary</p>
           <div className="grid grid-cols-2 gap-6">
             <div>
               <h5 className="text-3xl font-black">{submissions.length}</h5>
@@ -343,7 +344,7 @@ const StudentOverview = () => {
             </div>
             <div>
               <h5 className="text-3xl font-black">{activeExams.length}</h5>
-              <p className="text-[9px] font-bold uppercase opacity-50">Live Ops</p>
+              <p className="text-[9px] font-bold uppercase opacity-50">Active Exams</p>
             </div>
           </div>
         </div>

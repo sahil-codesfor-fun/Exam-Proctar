@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { Search, Filter, BookOpen, Key, Trash2, Power, Edit3, X, User as UserIcon, Book, Activity, Clock, ShieldCheck, Mail, Phone, Calendar, Monitor, Globe, HardDrive, Archive, Eye, EyeOff } from 'lucide-react';
+import { Search, Filter, BookOpen, Key, Trash2, Power, Edit3, X, User as UserIcon, Book, Activity, Clock, ShieldCheck, Mail, Phone, Calendar, Monitor, Globe, HardDrive, Archive, Eye, EyeOff, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
 
 const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
   const { logout, user } = useAuth();
@@ -82,7 +82,7 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
         }).length
       });
     } catch (err) {
-      showToast("Failed to fetch faculty matrix", "error");
+      showToast("Failed to fetch faculty list", "error");
     } finally {
       setLoading(false);
     }
@@ -288,9 +288,9 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
           <div className={`px-6 py-3.5 rounded-full shadow-2xl border flex items-center gap-3 text-sm font-bold ${toastState.type === 'error' ? 'bg-red-600 text-white border-red-500 shadow-red-600/20' :
               'bg-gray-900 text-white border-gray-700 shadow-xl'
             }`}>
-            <span className="text-lg">{toastState.type === 'error' ? '⚠️' : '✨'}</span>
+            <span>{toastState.type === 'error' ? <AlertCircle className="w-5 h-5 text-red-400" /> : <CheckCircle2 className="w-5 h-5 text-emerald-400" />}</span>
             <span className="tracking-wide pr-2">{toastState.message}</span>
-            <button onClick={() => setToast(null)} className="ml-2 opacity-50 hover:opacity-100 transition-opacity">✕</button>
+            <button onClick={() => setToast(null)} className="ml-2 opacity-50 hover:opacity-100 transition-opacity"><X size={16} /></button>
           </div>
         </div>
       )}
@@ -298,7 +298,9 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
       {confirmModal && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-gray-100 text-center animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-2xl mx-auto mb-5 shadow-inner">⚠️</div>
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
+              <AlertTriangle className="w-8 h-8 text-red-500" />
+            </div>
             <h3 className="text-xl font-black text-gray-900 tracking-tight mb-2">Confirm Action</h3>
             <p className="text-gray-500 text-sm font-medium leading-relaxed mb-8">{confirmModal.message}</p>
             <div className="flex gap-3">
@@ -330,7 +332,7 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
 
       <div className="max-w-7xl mx-auto mb-6 flex flex-col md:flex-row md:items-center justify-between gap-6 p-6">
         <div>
-          <h2 className="text-2xl font-black text-gray-900 tracking-tight uppercase">Faculty <span className="text-emerald-600">Matrix</span></h2>
+          <h2 className="text-2xl font-black text-gray-900 tracking-tight uppercase">Faculty <span className="text-emerald-600">Directory</span></h2>
           <p className="text-gray-500 text-sm font-medium mt-1">Manage department faculty and allocate subjects</p>
         </div>
         <div className="flex flex-wrap items-center gap-4">
@@ -392,9 +394,9 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <tr><td colSpan="5" className="p-20 text-center text-gray-300 font-bold uppercase tracking-widest italic animate-pulse">Syncing Faculty Matrix...</td></tr>
+                <tr><td colSpan="5" className="p-20 text-center text-gray-300 font-bold uppercase tracking-widest italic animate-pulse">Loading Faculty Directory...</td></tr>
               ) : faculty.length === 0 ? (
-                <tr><td colSpan="5" className="p-20 text-center text-gray-300 font-bold uppercase tracking-widest italic">No faculty nodes found.</td></tr>
+                <tr><td colSpan="5" className="p-20 text-center text-gray-300 font-bold uppercase tracking-widest italic">No faculty records found.</td></tr>
               ) : (
                 faculty.map(f => (
                   <tr key={f.id} className="hover:bg-gray-50/50 transition-colors group cursor-pointer" onClick={() => openDrawer(f)}>
@@ -577,7 +579,7 @@ const TeachersList = ({ apiEndpoint, isSuperAdmin }) => {
                         </button>
                       </div>
                       {confirmPassword && manualPassword !== confirmPassword && (
-                        <p className="text-xs text-red-600 mt-2 font-medium flex items-center gap-1">⚠️ Passwords do not match.</p>
+                        <p className="text-xs text-red-600 mt-2 font-medium flex items-center gap-1"><AlertCircle size={14} /> Passwords do not match.</p>
                       )}
                     </div>
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShieldAlert, ArrowLeft, Home, BookOpen, UserCheck, HelpCircle, Sparkles } from 'lucide-react';
+import { ShieldAlert, ArrowLeft, Home, BookOpen, UserCheck, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function NotFound() {
@@ -17,7 +17,7 @@ export default function NotFound() {
         
         {/* Animated 404 Badge */}
         <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/30 bg-sky-500/10 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-sky-400">
-          <ShieldAlert className="h-4 w-4" /> 404 Error • Route Missing
+          <ShieldAlert className="h-4 w-4" /> 404 Error • Page Not Found
         </div>
 
         {/* Big Glitch / Glow Number */}
@@ -30,7 +30,7 @@ export default function NotFound() {
         {/* Text */}
         <div className="space-y-2">
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Lost in the Code Nexus?
+            Page Not Found
           </h1>
           <p className="text-sm sm:text-base text-slate-400 max-w-md mx-auto leading-relaxed">
             The page, assessment, or resource you are looking for might have been moved, renamed, or is temporarily unavailable.
@@ -57,10 +57,10 @@ export default function NotFound() {
           </Button>
         </div>
 
-        {/* Portal Quick Links */}
+        {/* Quick Links */}
         <div className="pt-6 border-t border-slate-800/80">
           <p className="text-xs uppercase font-bold tracking-wider text-slate-500 mb-3">
-            Quick Navigation Portals
+            Quick Navigation
           </p>
           <div className="flex flex-wrap items-center justify-center gap-2">
             <Link

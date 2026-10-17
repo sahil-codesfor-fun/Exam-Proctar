@@ -91,7 +91,7 @@ initPiggybackWorker();
 
 // ── Health check ──────────────────────────────────────────────
 app.get('/api/test', (_req, res) => {
-  res.json({ message: 'CODE NEXUS backend is live 🚀', timestamp: new Date().toISOString() });
+  res.json({ message: 'CODE NEXUS backend is operational', timestamp: new Date().toISOString() });
 });
 
 

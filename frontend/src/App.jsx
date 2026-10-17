@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CookieConsent } from './components/common/CookieConsent';
 import { useDocumentTitle } from './hooks/useDocumentTitle';
 import { initAnalytics } from './lib/analytics';
+import { Shield } from 'lucide-react';
 
 const LandingPage = lazy(() => import('./pages/landing/LandingHome'));
 const LandingAbout = lazy(() => import('./pages/landing/LandingAbout'));
@@ -108,7 +109,7 @@ function App() {
         {!isLiveExam && !isCompiler && !isAuthPage && !isAdmin && !isChangePass && !isSuperAdmin && !isDashboard && (
           <header className="px-4 md:px-6 py-4 bg-white border-b border-gray-200 flex justify-between items-center sticky top-0 z-50">
             <div className="flex items-center gap-3 cursor-pointer group" onClick={() => window.location.href = '/'}>
-              <span className="text-3xl">🛡️</span>
+              <Shield className="w-8 h-8 text-emerald-600" />
               <span className="text-xl font-extrabold text-gray-900 tracking-tight hidden md:block">Code Nexus</span>
             </div>
           </header>

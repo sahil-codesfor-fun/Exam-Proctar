@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
-import { Plus, X, Trash2, CheckCircle2, LayoutGrid, FileText, ShieldAlert, Upload, Download, Edit, Users, Code, BookOpen, Activity, Award } from 'lucide-react';
+import { Plus, X, Trash2, CheckCircle2, LayoutGrid, FileText, ShieldAlert, Upload, Download, Edit, Users, Code, BookOpen, Activity, Award, AlertCircle, AlertTriangle, Shield, LogOut } from 'lucide-react';
 import * as XLSX from 'xlsx'; 
 
 
@@ -241,9 +241,9 @@ export const TeacherDashboard = () => {
            const newQuestions = isUntouchedDefault ? parsedQs : [...currentQs, ...parsedQs];
            return { ...p, questions: newQuestions };
         });
-        showToast(`✅ Imported ${parsedQs.length} questions!`, 'success');
-      } else { showToast('❌ No valid questions found.', 'error'); }
-    } catch (err) { showToast('❌ Error reading file.', 'error'); }
+        showToast(`Imported ${parsedQs.length} questions successfully.`, 'success');
+      } else { showToast('No valid questions found.', 'error'); }
+    } catch (err) { showToast('Error reading file.', 'error'); }
     e.target.value = null;
   };
 
@@ -269,8 +269,8 @@ export const TeacherDashboard = () => {
         const data = await file.arrayBuffer(); const workbook = XLSX.read(data); const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
         rows.forEach(row => { newTcs.push({ input: String(row['Input'] || '').replace(/\\n/g, '\n'), expectedOutput: String(row['Expected Output'] || '').replace(/\\n/g, '\n'), isHidden: String(row['Is Hidden'] || '').toLowerCase() === 'true' }); });
       }
-      if (newTcs.length > 0) { updQ(activeTcIndex, 'testCases', [...form.questions[activeTcIndex].testCases, ...newTcs]); showToast(`✅ Added ${newTcs.length} test cases!`, 'success'); }
-    } catch (err) { showToast('❌ Error reading test case file.', 'error'); }
+      if (newTcs.length > 0) { updQ(activeTcIndex, 'testCases', [...form.questions[activeTcIndex].testCases, ...newTcs]); showToast(`Added ${newTcs.length} test cases successfully.`, 'success'); }
+    } catch (err) { showToast('Error reading test case file.', 'error'); }
     e.target.value = null; setActiveTcIndex(null);
   };
 
@@ -292,26 +292,26 @@ export const TeacherDashboard = () => {
     try {
       await api.patch(`/exams/${exam._id}/status`, { status });
       import('../services/socket').then(({ getSocket }) => { const socket = getSocket(); if (socket) socket.emit('exam_status_changed', { examId: exam._id, status }); });
-      showToast(`✅ Status updated to ${status}`, 'success');
+      showToast(`Status updated to ${status}.`, 'success');
       load();
     } catch (err) {
-      showToast('❌ Failed to update status', 'error');
+      showToast('Failed to update status.', 'error');
     } finally {
       setIsUpdating(false);
     }
   };
 
   const deleteExam = async (id) => {
-    showConfirm('Are you sure you want to dump this exam?', async () => {
+    showConfirm('Are you sure you want to delete this exam?', async () => {
       if (isUpdating) return;
       setIsUpdating(true);
       try {
         await api.delete(`/exams/${id}`);
         import('../services/socket').then(({ getSocket }) => { const socket = getSocket(); if (socket) socket.emit('exam_deleted', { examId: id }); });
-        showToast('✅ Exam deleted successfully', 'success');
+        showToast('Exam deleted successfully.', 'success');
         load();
       } catch (err) {
-        showToast('❌ Failed to delete exam', 'error');
+        showToast('Failed to delete exam.', 'error');
       } finally {
         setIsUpdating(false);
       }
@@ -350,11 +350,11 @@ export const TeacherDashboard = () => {
         import('../services/socket').then(({ getSocket }) => { const socket = getSocket(); if (socket) socket.emit('exam_status_changed', { examId: editingId, status }); });
       } else { await api.post('/exams', payload); }
       setModal(false); setEditingId(null); setForm(defaultForm); load();
-      showToast(status === 'published' ? '✅ Exam deployed successfully' : '✅ Draft saved successfully', 'success');
+      showToast(status === 'published' ? 'Exam published successfully.' : 'Draft saved successfully.', 'success');
     } catch (e) { 
-      const errorMsg = e.response?.data?.message || e.message || 'Deployment failed';
-      showToast(`❌ ${errorMsg}`, 'error'); 
-      console.error("Deployment Error Details:", e.response?.data || e);
+      const errorMsg = e.response?.data?.message || e.message || 'Action failed';
+      showToast(errorMsg, 'error'); 
+      console.error("Action Error Details:", e.response?.data || e);
       if (status === 'published') {
         showToast('Saving as draft instead...', 'info');
         setTimeout(() => deploy('draft'), 1000);
@@ -369,7 +369,7 @@ export const TeacherDashboard = () => {
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/40 backdrop-blur-sm animate-in fade-in">
         <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95">
           <div className="px-8 py-5 border-b flex justify-between items-center bg-gray-50/50 rounded-t-2xl">
-            <h2 className="text-lg font-black uppercase tracking-tight">{editingId ? '✏️ Edit Exam' : 'Deploy New Exam'}</h2>
+            <h2 className="text-lg font-black uppercase tracking-tight">{editingId ? 'Edit Exam' : 'Create New Exam'}</h2>
             <button onClick={() => { setModal(false); setEditingId(null); setForm(defaultForm); }} className="p-2 hover:bg-gray-200 rounded-lg transition-colors"><X size={20} /></button>
           </div>
           <div className="p-8 overflow-y-auto flex-1 space-y-6">
@@ -396,7 +396,7 @@ export const TeacherDashboard = () => {
                 </div>
               )}
               
-              <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">🏢 Department & Targeting</h3>
+              <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Department & Target Audience</h3>
               
               <div className="grid grid-cols-1 gap-4 mb-4">
                 <select 
@@ -442,7 +442,7 @@ export const TeacherDashboard = () => {
             <textarea value={form.description} onChange={e => setForm(p => ({...p, description: e.target.value}))} placeholder="Description" className="w-full px-4 py-3 bg-gray-50 rounded-xl outline-none h-20 resize-none border border-gray-200 focus:border-emerald-400 focus:bg-white transition-all" />
 
             <div className="bg-blue-50/50 p-5 rounded-xl space-y-3 border border-blue-100 mt-4">
-              <h3 className="text-xs font-black text-blue-700 uppercase tracking-widest">Assessment Matrix (Randomization)</h3>
+              <h3 className="text-xs font-black text-blue-700 uppercase tracking-widest">Question Randomization & Settings</h3>
               <div className="flex items-center gap-6 text-sm flex-wrap">
                 <label className="flex items-center gap-2 font-medium">
                   <input type="checkbox" checked={form.randomizeQuestions} onChange={e => setForm(p => ({...p, randomizeQuestions: e.target.checked}))} className="accent-blue-600 w-4 h-4" /> 
@@ -454,21 +454,21 @@ export const TeacherDashboard = () => {
                 <div className="w-full mt-3 p-4 bg-blue-100/50 rounded-xl border border-blue-200">
                   <label className="flex items-center gap-2 font-black text-[10px] text-blue-800 uppercase tracking-widest mb-4 cursor-pointer hover:text-blue-600 transition-colors border-b border-blue-200 pb-3">
                     <input type="checkbox" checked={form.proctoring.enableTypeDistribution} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, enableTypeDistribution: e.target.checked}}))} className="accent-blue-600 w-4 h-4" />
-                    Mixed Question Types (Fairness Engine)
+                    Distribute by Question Type
                   </label>
 
                   {form.proctoring.enableTypeDistribution ? (
                     <div>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">MCQ Nodes <input type="number" value={form.proctoring.typeDistribution.mcq} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, mcq: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" /></label>
-                        <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">Coding Nodes <input type="number" value={form.proctoring.typeDistribution.coding} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, coding: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" /></label>
-                        <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">Matching Nodes <input type="number" value={form.proctoring.typeDistribution.matching} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, matching: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" /></label>
-                        <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">Subject Nodes <input type="number" value={form.proctoring.typeDistribution.subjective} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, subjective: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" /></label>
+                        <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">MCQ Questions <input type="number" value={form.proctoring.typeDistribution.mcq} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, mcq: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" /></label>
+                        <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">Coding Questions <input type="number" value={form.proctoring.typeDistribution.coding} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, coding: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" /></label>
+                        <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">Matching Questions <input type="number" value={form.proctoring.typeDistribution.matching} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, matching: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" /></label>
+                        <label className="flex flex-col gap-1 text-xs font-bold text-gray-700">Subjective Questions <input type="number" value={form.proctoring.typeDistribution.subjective} onChange={e => setForm(p => ({...p, proctoring: {...p.proctoring, typeDistribution: {...p.proctoring.typeDistribution, subjective: e.target.value}}}))} placeholder="0" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white" /></label>
                       </div>
                     </div>
                   ) : (
                     <div>
-                      <label className="flex flex-col gap-1 text-xs font-bold text-gray-700 w-1/3">Total Nodes to Serve <input type="number" value={form.questionsToServe || ''} onChange={e => setForm(p => ({...p, questionsToServe: +e.target.value}))} placeholder="All" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white shadow-sm" /></label>
+                      <label className="flex flex-col gap-1 text-xs font-bold text-gray-700 w-1/3">Total Questions to Serve <input type="number" value={form.questionsToServe || ''} onChange={e => setForm(p => ({...p, questionsToServe: +e.target.value}))} placeholder="All" className="px-3 py-2 rounded-lg border outline-none font-black text-blue-900 bg-white shadow-sm" /></label>
                     </div>
                   )}
                 </div>
@@ -490,7 +490,7 @@ export const TeacherDashboard = () => {
               <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Questions ({form.questions.length})</h3>
               <div className="flex gap-2">
                 <a href="/Question_Bank_Template.xlsx" download="Question_Bank_Template.xlsx" className="text-xs font-bold text-emerald-700 flex items-center gap-1 bg-emerald-50 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-all border border-emerald-200 shadow-sm" title="Download Excel/CSV Question Template"><Download size={14} /> Download Template</a>
-                <button onClick={showFormatGuide} className="text-xs font-bold text-gray-500 flex items-center gap-1 bg-white px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-all border border-gray-200 shadow-sm">❔ Format Guide</button>
+                <button onClick={showFormatGuide} className="text-xs font-bold text-gray-500 flex items-center gap-1 bg-white px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-all border border-gray-200 shadow-sm">Format Guide</button>
                 <input type="file" accept=".txt,.csv,.xlsx" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
                 <button onClick={() => fileInputRef.current?.click()} className="text-xs font-bold text-blue-600 flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-all border border-blue-100 shadow-sm"><Upload size={14} /> Bulk Upload Qs</button>
                 <button onClick={addQ} className="text-xs font-bold text-emerald-600 flex items-center gap-1 bg-emerald-50 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-all border border-emerald-100 shadow-sm"><Plus size={14} /> Add Question</button>
@@ -586,7 +586,7 @@ export const TeacherDashboard = () => {
               <button onClick={() => deploy('draft')} disabled={saving} className="px-6 py-3.5 border border-amber-200 bg-amber-50 text-amber-700 rounded-xl font-bold text-xs uppercase tracking-widest disabled:opacity-50 hover:bg-amber-100 transition-all shadow-sm">Save Draft</button>
             )}
             <button onClick={() => deploy('published')} disabled={saving} className="px-8 py-3.5 bg-emerald-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg disabled:opacity-50 hover:bg-emerald-700 transition-all active:scale-95">
-              {saving ? '⏳ Processing…' : editingId ? '🔄 Update Exam' : '🚀 Publish Exam'}
+              {saving ? 'Processing...' : editingId ? 'Update Exam' : 'Publish Exam'}
             </button>
           </div>
         </div>
@@ -601,9 +601,9 @@ export const TeacherDashboard = () => {
       {toast && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[600] animate-in slide-in-from-bottom-10 fade-in duration-300">
           <div className={`px-6 py-3.5 rounded-full shadow-2xl border flex items-center gap-3 text-sm font-bold ${toast.type === 'error' ? 'bg-red-600 text-white border-red-500 shadow-red-600/20' : 'bg-gray-900 text-white border-gray-700 shadow-xl'}`}>
-            <span className="text-lg">{toast.type === 'error' ? '⚠️' : '✨'}</span>
+            <span>{toast.type === 'error' ? <AlertCircle className="w-5 h-5 text-red-400" /> : <CheckCircle2 className="w-5 h-5 text-emerald-400" />}</span>
             <span className="tracking-wide pr-2">{toast.message}</span>
-            <button onClick={() => setToast(null)} className="ml-2 opacity-50 hover:opacity-100 transition-opacity">✕</button>
+            <button onClick={() => setToast(null)} className="ml-2 opacity-50 hover:opacity-100 transition-opacity"><X size={16} /></button>
           </div>
         </div>
       )}
@@ -611,7 +611,9 @@ export const TeacherDashboard = () => {
       {confirmModal && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-gray-100 text-center animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-2xl mx-auto mb-5 shadow-inner">⚠️</div>
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
+              <AlertTriangle className="w-8 h-8 text-red-500" />
+            </div>
             <h3 className="text-xl font-black text-gray-900 tracking-tight mb-2">Confirm Action</h3>
             <p className="text-gray-500 text-sm font-medium leading-relaxed mb-8">{confirmModal.message}</p>
             <div className="flex gap-3">
@@ -649,11 +651,11 @@ export const TeacherDashboard = () => {
       <div className={`w-64 bg-white border-r flex flex-col p-5 overflow-y-auto z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)] fixed inset-y-0 left-0 md:relative h-full transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         <button onClick={() => setIsSidebarOpen(false)} className="md:hidden absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-900"><X size={20} /></button>
         <div className="flex items-center gap-3 mb-10 mt-4 cursor-pointer hover:scale-[1.02] transition-transform">
-          <span className="text-3xl ml-2">🛡️</span>
+          <Shield className="w-8 h-8 text-emerald-600 ml-2" />
           <span className="text-xl font-extrabold text-gray-900 tracking-tight hidden md:block">Code Nexus</span>
         </div>
         
-        {/* 🚀 ADDED: Coding Progress link in mapping array */}
+        {/* Coding Progress link in mapping array */}
         <nav className="flex-1 space-y-2">
           {[
             { icon: <LayoutGrid size={18}/>, label: 'OVERVIEW', to: 'overview' }, 
@@ -675,11 +677,11 @@ export const TeacherDashboard = () => {
         
         <div className="mt-auto pt-6 border-t border-gray-100 relative group mb-4">
           <div className="absolute -top-14 left-0 right-0 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 translate-y-4 group-hover:translate-y-0 z-50">
-            <button onClick={() => { logout(); navigate('/fac'); }} className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-red-100 rounded-xl text-[10px] uppercase tracking-widest font-black text-red-500 shadow-xl hover:bg-red-50 hover:scale-[1.02] active:scale-[0.98] transition-all"><span>🚪</span> Log Out</button>
+            <button onClick={() => { logout(); navigate('/fac'); }} className="w-full flex items-center justify-center gap-2 py-3 bg-white border border-red-100 rounded-xl text-[10px] uppercase tracking-widest font-black text-red-500 shadow-xl hover:bg-red-50 hover:scale-[1.02] active:scale-[0.98] transition-all"><LogOut size={14} /> Log Out</button>
           </div>
           <div className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 border border-transparent hover:border-gray-100 cursor-pointer transition-all">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 flex items-center justify-center text-emerald-600 font-black text-sm border border-emerald-100/50 shadow-sm shrink-0">{user?.name?.[0] || 'A'}</div>
-            <div className="overflow-hidden"><p className="text-xs font-bold text-gray-900 truncate">{user?.name}</p><p className="text-[9px] font-black uppercase tracking-widest text-emerald-600/70 mt-0.5">Faculty Auth</p></div>
+            <div className="overflow-hidden"><p className="text-xs font-bold text-gray-900 truncate">{user?.name}</p><p className="text-[9px] font-black uppercase tracking-widest text-emerald-600/70 mt-0.5">Faculty Account</p></div>
           </div>
         </div>
       </div>

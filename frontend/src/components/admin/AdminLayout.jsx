@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import AdminSidebar from './AdminSidebar';
+import { Shield } from 'lucide-react';
 
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -14,7 +15,7 @@ const AdminLayout = () => {
         <header className="py-4 border-b border-gray-200 bg-white flex items-center px-6 sticky top-0 z-30">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <span className="text-2xl">🛡️</span>
+              <Shield className="w-6 h-6 text-emerald-600" />
               <h1 className="text-xl font-black text-gray-900 tracking-tight uppercase">Admin <span className="text-emerald-600">Control Center</span></h1>
             </div>
             <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">

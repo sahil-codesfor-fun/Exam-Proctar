@@ -14,7 +14,8 @@ import {
   X,
   UserCog,
   BarChart3,
-  User
+  User,
+  Shield
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -58,7 +59,7 @@ const Sidebar = () => {
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 text-gray-900 transform transition-transform duration-300 ease-in-out flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         {}
         <div className="flex items-center gap-3 h-20 px-6 border-b border-gray-200">
-          <span className="text-2xl">🛡️</span>
+          <Shield className="w-6 h-6 text-emerald-600" />
           <span className="text-xl font-extrabold text-gray-900 tracking-tight">Code Nexus</span>
         </div>
 

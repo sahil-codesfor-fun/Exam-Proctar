@@ -53,7 +53,7 @@ const TeacherResults = () => {
             <Award size={16} /> Results & Evaluation Portal
           </div>
           <h1 className="text-2xl font-black text-gray-900 tracking-tight">
-            Student Assessment Vault
+            Student Assessment Results
           </h1>
           <p className="text-xs text-gray-500 font-medium mt-1">
             Review full student responses, evaluate subjective answers, and publish updated scores.
@@ -93,8 +93,8 @@ const TeacherResults = () => {
         </div>
       ) : !loadingExams ? (
         <div className="bg-white rounded-3xl p-12 text-center border shadow-sm space-y-4">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 mx-auto text-2xl">
-            📊
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 mx-auto">
+            <BarChart2 className="w-8 h-8 text-gray-400" />
           </div>
           <h3 className="text-lg font-bold text-gray-700">No Exam Selected</h3>
           <p className="text-xs text-gray-500 max-w-sm mx-auto">

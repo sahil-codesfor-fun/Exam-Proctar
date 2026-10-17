@@ -34,18 +34,18 @@ const StudentProfile = () => {
               <h4 className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] border-b pb-2">Academic Identity</h4>
               <div className="space-y-4">
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-gray-400 uppercase">Student Node ID</span>
+                  <span className="text-[10px] font-black text-gray-400 uppercase">Student ID</span>
                   <span className="text-sm font-bold text-gray-700">{user?.studentId || 'N/A'}</span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-black text-gray-400 uppercase">Department / Sector</span>
+                  <span className="text-[10px] font-black text-gray-400 uppercase">Department</span>
                   <span className="text-sm font-bold text-gray-700">Engineering & Tech</span>
                 </div>
               </div>
             </div>
 
             <div className="space-y-6">
-              <h4 className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] border-b pb-2">System Analytics</h4>
+              <h4 className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] border-b pb-2">Academic Analytics</h4>
               <div className="space-y-4">
                 <div className="flex flex-col">
                   <span className="text-[10px] font-black text-gray-400 uppercase">Assessment Success Rate</span>
@@ -55,7 +55,7 @@ const StudentProfile = () => {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] font-black text-gray-400 uppercase">Total Logged Hours</span>
-                  <span className="text-sm font-bold text-gray-700">14.28 Nodes</span>
+                  <span className="text-sm font-bold text-gray-700">14.5 Hours</span>
                 </div>
               </div>
             </div>

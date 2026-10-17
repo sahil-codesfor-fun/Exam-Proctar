@@ -70,7 +70,7 @@ export function initAnalytics(measurementId?: string) {
           const domReady = Math.round(nav.domContentLoadedEventEnd - nav.startTime);
           
           if (import.meta.env.DEV) {
-            console.log(`⚡ [Page Speed] Load: ${loadTime}ms | TTFB: ${ttfb}ms | DOM: ${domReady}ms`);
+            console.log(`[Page Speed] Load: ${loadTime}ms | TTFB: ${ttfb}ms | DOM: ${domReady}ms`);
           }
           trackEvent("Performance", "page_load_timing", `${loadTime}ms`, loadTime);
         }
@@ -95,7 +95,7 @@ export function trackPageView(path: string, title?: string) {
   }
 
   if (import.meta.env.DEV) {
-    console.log(`📊 [Analytics PageView] Path: ${path} | Title: ${pageTitle}`);
+    console.log(`[Analytics PageView] Path: ${path} | Title: ${pageTitle}`);
   }
 }
 
@@ -114,6 +114,6 @@ export function trackEvent(category: string, action: string, label?: string, val
   }
 
   if (import.meta.env.DEV) {
-    console.log(`📊 [Analytics Event] [${category}] ${action}${label ? ` - ${label}` : ""}`);
+    console.log(`[Analytics Event] [${category}] ${action}${label ? ` - ${label}` : ""}`);
   }
 }

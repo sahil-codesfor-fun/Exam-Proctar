@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
-import { Plus, Edit, Trash2, BarChart2 } from 'lucide-react';
+import { Plus, Edit, Trash2, BarChart2, BookOpen, Radio, FileText, CheckCircle2, FolderOpen } from 'lucide-react';
 
 const TeacherOverview = () => {
   const navigate = useNavigate();
@@ -14,15 +14,15 @@ const TeacherOverview = () => {
           <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tight">OVERVIEW</h2>
         </div>
         <button onClick={() => setModal(true)} className="bg-gray-900 hover:bg-black text-white px-6 py-4 rounded-2xl font-black text-[10px] tracking-[0.1em] uppercase flex items-center gap-3 shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all">
-          <div className="bg-white/20 p-1 rounded-md"><Plus size={14}/></div> Generate Exam
+          <div className="bg-white/20 p-1 rounded-md"><Plus size={14}/></div> Create Exam
         </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-        {[{ l: 'Total Exams', v: exams.length, c: 'text-gray-900', i: '📦' },
-          { l: 'Live Exams', v: exams.filter(e => e.status === 'active' || e.status === 'published').length, c: 'text-emerald-600', i: '📡' },
-          { l: 'Drafted Exams', v: exams.filter(e => e.status === 'draft').length, c: 'text-amber-500', i: '📝' },
-          { l: 'Past Exams', v: exams.filter(e => e.status === 'ended').length, c: 'text-gray-400', i: '🏁' }
+        {[{ l: 'Total Exams', v: exams.length, c: 'text-gray-900', i: <BookOpen size={18} className="text-gray-700" /> },
+          { l: 'Live Exams', v: exams.filter(e => e.status === 'active' || e.status === 'published').length, c: 'text-emerald-600', i: <Radio size={18} className="text-emerald-600" /> },
+          { l: 'Drafted Exams', v: exams.filter(e => e.status === 'draft').length, c: 'text-amber-500', i: <FileText size={18} className="text-amber-500" /> },
+          { l: 'Past Exams', v: exams.filter(e => e.status === 'ended').length, c: 'text-gray-400', i: <CheckCircle2 size={18} className="text-gray-400" /> }
         ].map((s, i) => (
           <div key={i} className="bg-white p-8 rounded-3xl border border-gray-100 shadow-[0_4px_24px_rgba(0,0,0,0.02)] hover:shadow-[0_8px_32px_rgba(0,0,0,0.04)] transition-all hover:-translate-y-1 group">
             <div className="flex justify-between items-start mb-6">
@@ -45,12 +45,12 @@ const TeacherOverview = () => {
         {loading ? (
           <div className="p-16 flex flex-col items-center justify-center opacity-50">
              <div className="w-8 h-8 border-4 border-gray-200 border-t-[#4B775E] rounded-full animate-spin mb-4"></div>
-             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Querying Databanks...</p>
+             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Loading examinations...</p>
           </div>
         ) : exams.length === 0 ? (
           <div className="p-20 text-center">
-             <div className="text-5xl mb-4 opacity-20">📂</div>
-             <p className="text-xs font-black text-gray-300 uppercase tracking-widest italic">No deployments found.</p>
+             <FolderOpen size={48} className="text-gray-300 mx-auto mb-4" />
+             <p className="text-xs font-black text-gray-300 uppercase tracking-widest italic">No exams found.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -64,11 +64,11 @@ const TeacherOverview = () => {
                     <td className="px-8 py-6">
                       <p className="font-black text-sm text-gray-900 group-hover:text-[#4B775E] transition-colors">{exam.title}</p>
                       <div className="flex items-center gap-2 mt-1">
-                         <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Window: {exam.durationMinutes}m</span>
+                         <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Duration: {exam.durationMinutes} mins</span>
                       </div>
                     </td>
                     <td className="px-6 py-6 text-xs font-bold text-gray-500">{exam.course || '—'}</td>
-                    <td className="px-6 py-6"><span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-lg text-[10px] font-black border border-gray-200">{exam.questions?.length || 0} Nodes</span></td>
+                    <td className="px-6 py-6"><span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-lg text-[10px] font-black border border-gray-200">{exam.questions?.length || 0} Questions</span></td>
                     <td className="px-6 py-6">
                       <div className="flex items-center gap-2">
                         {exam.status === 'active' && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>}

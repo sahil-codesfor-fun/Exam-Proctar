@@ -24,7 +24,7 @@ export function CourseOverview() {
     <section className="mx-auto max-w-4xl px-4 py-20 sm:px-6 lg:px-8">
       <div className="mb-8">
         <div className="inline-flex items-center gap-2 rounded-full bg-black px-3 py-1 text-xs font-bold uppercase tracking-wider text-white">
-          <span className="text-yellow-400">✧</span> COURSE OVERVIEW
+          COURSE OVERVIEW
         </div>
         <h2 className="mt-4 font-display text-5xl font-black tracking-tight text-slate-900 sm:text-6xl">
           CUET (UG)

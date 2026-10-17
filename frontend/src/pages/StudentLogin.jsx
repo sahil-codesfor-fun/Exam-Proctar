@@ -81,7 +81,7 @@ export const LandingPage = () => {
       const res = await api.post(endpoint, payload);
       
       if (res.data.success) {
-        setStatus({ message: isSignUp ? 'Account created! Please sign in.' : '✅ Login successful!', type: 'success' });
+        setStatus({ message: isSignUp ? 'Account created! Please sign in.' : 'Login successful!', type: 'success' });
         if (!isSignUp) {
           login(res.data); 
           setTimeout(() => {
@@ -97,7 +97,7 @@ export const LandingPage = () => {
         }
       }
     } catch (err) {
-      setStatus({ message: `❌ ${err.response?.data?.message || err.message || 'Cannot reach server.'}`, type: 'error' });
+      setStatus({ message: err.response?.data?.message || err.message || 'Cannot reach server.', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -173,7 +173,7 @@ export const LandingPage = () => {
 
             {}
             <h2 className="font-display text-lg font-bold text-slate-900 text-center mb-1">
-              {isSignUp ? 'Student Registration' : 'Welcome Back! 👋'}
+              {isSignUp ? 'Student Registration' : 'Welcome Back'}
             </h2>
             <p className="text-xs text-slate-500 text-center mb-4 max-w-xs mx-auto">
               {isSignUp 

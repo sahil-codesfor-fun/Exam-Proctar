@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
-import { LayoutGrid, Code, User as UserIcon, LogOut, Terminal, BookOpen, Menu, X } from 'lucide-react';
+import { LayoutGrid, Code, User as UserIcon, LogOut, Terminal, BookOpen, Menu, X, Shield } from 'lucide-react';
 
 export const StudentDashboard = () => {
   const navigate = useNavigate();
@@ -131,7 +131,7 @@ export const StudentDashboard = () => {
         </button>
         <div className="space-y-6">
           <div className="flex items-center gap-3 mb-6 mt-2">
-            <span className="text-3xl ml-1">🛡️</span>
+            <Shield className="w-8 h-8 text-emerald-600 ml-1" />
             <span className="text-xl font-extrabold text-gray-900 tracking-tight">Code Nexus</span>
           </div>
           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2">Main Menu</p>
@@ -164,7 +164,7 @@ export const StudentDashboard = () => {
         </button>
       </div>
 
-      {/* 🚀 THE MAIN CONTENT AREA */}
+      {/* Main Content Area */}
       <div className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden p-6 pt-16 md:pt-10 relative">
         <div className="max-w-6xl mx-auto w-full">
           
@@ -172,12 +172,12 @@ export const StudentDashboard = () => {
           <div className="bg-white rounded-[2.5rem] p-8 xl:p-10 border border-gray-100 shadow-xl shadow-gray-200/20 mb-8 flex justify-between items-center gap-6">
             <div>
               <h2 className="text-3xl xl:text-4xl font-black text-gray-900 mb-2 uppercase tracking-tight">
-                Welcome, {user?.name?.split(' ')[0]} <span className="animate-pulse">👋</span>
+                Welcome, {user?.name?.split(' ')[0]}
               </h2>
               <div className="flex items-center gap-3">
-                 <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Node ID: {user?.studentId || 'EXTERNAL'}</p>
+                 <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Student ID: {user?.studentId || 'N/A'}</p>
                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-                 <span className="text-[10px] font-black text-emerald-600 uppercase tracking-tighter bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">Live Status: Verified</span>
+                 <span className="text-[10px] font-black text-emerald-600 uppercase tracking-tighter bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">Status: Active</span>
               </div>
             </div>
           </div>

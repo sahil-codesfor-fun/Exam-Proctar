@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Building2, Shield, Users, BookOpen, Bell, Database, FileText, Palette, Info, ArrowLeft } from 'lucide-react';
+import { User, Building2, Shield, Users, BookOpen, Bell, Database, FileText, Palette, Info, ArrowLeft, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import api from '../../services/api';
 
 import ProfileSettings from '../../components/superadmin/settings/ProfileSettings';
@@ -101,16 +101,15 @@ const Settings = () => {
 
   return (
     <div className="font-sans relative space-y-6">
-      {}
       {toast && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[600] animate-in slide-in-from-bottom-10 fade-in duration-300">
           <div className={`px-6 py-3.5 rounded-full shadow-2xl border flex items-center gap-3 text-sm font-bold ${
             toast.type === 'error' ? 'bg-red-600 text-white border-red-500 shadow-red-600/20' : 
             'bg-gray-900 text-white border-gray-700 shadow-xl'
           }`}>
-            <span className="text-lg">{toast.type === 'error' ? '⚠️' : '✨'}</span>
+            <span>{toast.type === 'error' ? <AlertCircle className="w-5 h-5 text-red-400" /> : <CheckCircle2 className="w-5 h-5 text-emerald-400" />}</span>
             <span className="tracking-wide pr-2">{toast.message}</span>
-            <button onClick={() => setToast(null)} className="ml-2 opacity-50 hover:opacity-100 transition-opacity">✕</button>
+            <button onClick={() => setToast(null)} className="ml-2 opacity-50 hover:opacity-100 transition-opacity"><X size={16} /></button>
           </div>
         </div>
       )}

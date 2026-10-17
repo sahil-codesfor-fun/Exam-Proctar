@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
-import { Search, Key, Trash2, Power, X, User as UserIcon, Activity, Clock, ShieldCheck, Mail, Phone, Calendar, Monitor, Globe, HardDrive, Archive, GraduationCap, BookOpen } from 'lucide-react';
+import { Search, Key, Trash2, Power, X, User as UserIcon, Activity, Clock, ShieldCheck, Mail, Phone, Calendar, Monitor, Globe, HardDrive, Archive, GraduationCap, BookOpen, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
 
 const StudentsList = ({ apiEndpoint }) => {
   const { user } = useAuth();
@@ -129,9 +129,9 @@ const StudentsList = ({ apiEndpoint }) => {
           <div className={`px-6 py-3.5 rounded-full shadow-2xl border flex items-center gap-3 text-sm font-bold ${toastState.type === 'error' ? 'bg-red-600 text-white border-red-500 shadow-red-600/20' :
               'bg-gray-900 text-white border-gray-700 shadow-xl'
             }`}>
-            <span className="text-lg">{toastState.type === 'error' ? '⚠️' : '✨'}</span>
+            <span>{toastState.type === 'error' ? <AlertCircle className="w-5 h-5 text-red-400" /> : <CheckCircle2 className="w-5 h-5 text-emerald-400" />}</span>
             <span className="tracking-wide pr-2">{toastState.message}</span>
-            <button onClick={() => setToast(null)} className="ml-2 opacity-50 hover:opacity-100 transition-opacity">✕</button>
+            <button onClick={() => setToast(null)} className="ml-2 opacity-50 hover:opacity-100 transition-opacity"><X size={16} /></button>
           </div>
         </div>
       )}
@@ -139,7 +139,9 @@ const StudentsList = ({ apiEndpoint }) => {
       {confirmModal && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-gray-100 text-center animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-2xl mx-auto mb-5 shadow-inner">⚠️</div>
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner">
+              <AlertTriangle className="w-8 h-8 text-red-500" />
+            </div>
             <h3 className="text-xl font-black text-gray-900 tracking-tight mb-2">Confirm Action</h3>
             <p className="text-gray-500 text-sm font-medium leading-relaxed mb-8">{confirmModal.message}</p>
             <div className="flex gap-3">

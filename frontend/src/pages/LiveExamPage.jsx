@@ -6,6 +6,7 @@ import { connectSocket, disconnectSocket, getSocket } from '../services/socket';
 import useProctoring from '../hooks/useProctoring';
 import useDebounce from '../hooks/useDebounce';
 import { asyncGetItem, asyncSetItem } from '../utils/asyncStorage';
+import { Shield, ShieldAlert, Lock, CheckCircle2, Clock, AlertOctagon, AlertTriangle, AlertCircle, Play, Scale, Check, ChevronRight, X, Loader2 } from 'lucide-react';
 
 const Editor = lazy(() => import('@monaco-editor/react'));
 
@@ -31,7 +32,7 @@ export const LiveExamPage = () => {
   const [currentQ, setCurrentQ] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-  const [isForceSaving, setIsForceSaving] = useState(false); // 🚀 NEW: Emergency save lock state
+  const [isForceSaving, setIsForceSaving] = useState(false); // Emergency save lock state
   const [error, setError] = useState('');
 
   const [runResult, setRunResult] = useState(null);
@@ -111,7 +112,7 @@ export const LiveExamPage = () => {
       } catch (err) {
         if (err.response?.status === 404) {
           document.exitFullscreen?.().catch(() => { });
-          alert("🚨 EXAM DELETED BY PROCTOR. You are being disconnected.");
+          alert("Exam terminated by proctor. You are being redirected to your dashboard.");
           window.location.href = '/student-dashboard';
         }
       }
@@ -579,13 +580,14 @@ export const LiveExamPage = () => {
     <React.Fragment>
       {phase === 'loading' && (
         <div className="h-screen flex items-center justify-center bg-gray-950 text-white">
-          <div className="text-center"><div className="text-6xl mx-auto mb-4 animate-pulse">🛡️</div><p className="text-gray-400">Loading secure exam environment…</p></div>
+          <div className="text-center"><Shield className="w-16 h-16 text-emerald-500 mx-auto mb-4 animate-pulse" /><p className="text-gray-400">Loading secure exam environment…</p></div>
         </div>
       )}
 
       {(phase === 'error' || phase === 'restricted') && (
         <div className="h-screen flex items-center justify-center bg-gray-950 text-white">
-          <div className="text-center max-w-md"><div className="text-5xl mb-4">{phase === 'restricted' ? '🚫' : '❌'}</div>
+          <div className="text-center max-w-md">
+            {phase === 'restricted' ? <ShieldAlert className="w-14 h-14 text-amber-500 mx-auto mb-4" /> : <AlertCircle className="w-14 h-14 text-red-500 mx-auto mb-4" />}
             <h2 className="text-2xl font-bold mb-2">{phase === 'restricted' ? 'Access Restricted' : 'Error'}</h2>
             <p className="text-gray-400 mb-6">{error}</p>
             <button onClick={() => navigate('/student-dashboard')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl">Back to Dashboard</button>
@@ -595,7 +597,8 @@ export const LiveExamPage = () => {
 
       {phase === 'fullscreen' && (
         <div className="h-screen flex items-center justify-center bg-gray-950 text-white">
-          <div className="text-center max-w-md"><div className="text-5xl mb-6">🔒</div>
+          <div className="text-center max-w-md">
+            <Lock className="w-14 h-14 text-amber-500 mx-auto mb-6" />
             <h2 className="text-2xl font-bold mb-2">Fullscreen Required</h2>
             <p className="text-gray-400 mb-8">This exam requires fullscreen mode for security.</p>
             <button onClick={enterFullscreen} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 px-10 rounded-xl text-lg">Enter Fullscreen & Start</button>
@@ -605,7 +608,8 @@ export const LiveExamPage = () => {
 
       {phase === 'submitted' && (
         <div className="h-screen flex items-center justify-center bg-gray-950 text-white">
-          <div className="text-center"><div className="text-5xl mb-4">✅</div>
+          <div className="text-center">
+            <CheckCircle2 className="w-14 h-14 text-emerald-500 mx-auto mb-4" />
             <h2 className="text-2xl font-bold mb-2 text-emerald-400">Exam Submitted!</h2>
             <p className="text-gray-400 mb-6">Your answers have been securely recorded.</p>
             <button onClick={() => navigate('/student-dashboard')} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl">Back to Dashboard</button>
@@ -615,7 +619,7 @@ export const LiveExamPage = () => {
 
       {phase === 'exam' && (!exam || !answers.length || !q) && (
         <div className="h-screen flex items-center justify-center bg-gray-950 text-white">
-          <div className="text-center"><div className="text-4xl mb-4 animate-spin">⌛</div><p className="text-gray-400">Preparing questions…</p></div>
+          <div className="text-center"><Loader2 className="w-10 h-10 text-emerald-500 mx-auto mb-4 animate-spin" /><p className="text-gray-400">Preparing questions…</p></div>
         </div>
       )}
 
@@ -625,7 +629,7 @@ export const LiveExamPage = () => {
           {!document.fullscreenElement && !submittedRef.current && (
             <div className="fixed inset-0 z-[500] bg-gray-950 flex items-center justify-center p-6 text-center animate-in fade-in duration-300">
               <div className="max-w-md">
-                <div className="text-7xl mb-6">🚫</div>
+                <AlertOctagon className="w-16 h-16 text-red-500 mx-auto mb-6" />
                 <h2 className="text-3xl font-black text-white mb-4 uppercase tracking-tighter">EXAM LOCKED</h2>
                 <p className="text-gray-400 mb-10 font-medium leading-relaxed">
                   Fullscreen exit detected. Please return to fullscreen immediately to resume your session.
@@ -643,15 +647,18 @@ export const LiveExamPage = () => {
 
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-6 py-3 bg-gray-900 border-b border-gray-800 flex-shrink-0">
             <div className="flex items-center gap-4">
-              <span className="text-lg font-bold flex items-center gap-2"><span className="text-2xl">🛡️</span> {exam?.title || 'Exam Terminal'}</span>
+              <span className="text-lg font-bold flex items-center gap-2">
+                <Shield className="w-5 h-5 text-emerald-400" />
+                {exam?.title || 'Exam Environment'}
+              </span>
 
               {proctoring?.violationCount > 0 ? (
                 <span className="text-xs font-black px-3 py-1 rounded-lg bg-red-500/20 text-red-400 animate-pulse border border-red-500/40">
-                  ⚠️ WARNING: {proctoring.violationCount}/{exam?.proctoring?.maxViolations || exam?.proctoringRules?.maxViolations || 3} Infractions Registered
+                  Warning: {proctoring.violationCount}/{exam?.proctoring?.maxViolations || exam?.proctoringRules?.maxViolations || 3} Violations Registered
                 </span>
               ) : (
                 <span className="text-xs font-bold px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/20">
-                  ✓ Core Environment Stable
+                  System Environment Stable
                 </span>
               )}
             </div>
@@ -665,7 +672,7 @@ export const LiveExamPage = () => {
               disabled={submitting || !isSubmissionAllowed}
               className={`${isSubmissionAllowed ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-gray-700 opacity-50 cursor-not-allowed'} text-white font-bold py-2 px-6 rounded-lg text-sm transition-all shadow-lg`}
             >
-              {submitting ? '⏳ Submitting…' : !isSubmissionAllowed ? `🔒 Locked (${Math.ceil((restrictionSeconds - actualElapsedSeconds) / 60)}m left)` : '✅ Submit Exam'}
+              {submitting ? 'Submitting…' : !isSubmissionAllowed ? `Locked (${Math.ceil((restrictionSeconds - actualElapsedSeconds) / 60)}m left)` : 'Submit Exam'}
             </button>
           </div>
 
@@ -710,7 +717,7 @@ export const LiveExamPage = () => {
 
               {proctoring.violations.length > 0 && (
                 <div className="mt-4">
-                  <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">⚠️ Violations</h3>
+                  <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><AlertTriangle size={14} className="text-amber-500" /> Violations Log</h3>
                   <div className="space-y-1 max-h-40 overflow-y-auto">
                     {proctoring.violations.slice(-6).map((v, i) => (
                       <div key={i} className="text-[10px] text-gray-500 flex items-center gap-1.5">
@@ -909,11 +916,11 @@ export const LiveExamPage = () => {
                       <div className="ml-auto flex gap-2">
                         <button onClick={handleRunCode} disabled={running || judging}
                           className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-bold px-4 py-1.5 rounded-lg">
-                          {running ? '⏳…' : '▶ Compile'}
+                          {running ? 'Compiling…' : 'Compile'}
                         </button>
                         <button onClick={handleJudge} disabled={running || judging}
                           className="bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white text-xs font-bold px-4 py-1.5 rounded-lg">
-                          {judging ? '⏳…' : '⚖️ Submit Code'}
+                          {judging ? 'Evaluating…' : 'Submit Code'}
                         </button>
                       </div>
                     </div>
@@ -956,7 +963,7 @@ export const LiveExamPage = () => {
                               className="flex-1 bg-gray-800 border border-gray-700 rounded-md px-3 py-1.5 text-xs text-gray-300 font-mono outline-none focus:border-gray-500 transition-colors"
                               placeholder="Custom stdin input…" />
                           </div>
-                          {running && <p className="text-gray-500 text-xs font-mono animate-pulse">⏳ Compiling & Running...</p>}
+                          {running && <p className="text-gray-500 text-xs font-mono animate-pulse">Compiling & Running...</p>}
                           {runResult && (
                             <div className="flex flex-col gap-2 animate-in fade-in duration-300">
                               <pre className={`font-mono text-[12px] whitespace-pre-wrap p-4 rounded-xl border shadow-inner ${runResult.error ? 'text-red-400 bg-red-950/20 border-red-500/20' : 'text-emerald-400 bg-emerald-950/20 border-emerald-500/20'}`}>
@@ -967,20 +974,19 @@ export const LiveExamPage = () => {
                         </>
                       )}
 
-                      { }
-                      {judging && <p className="text-gray-500 text-xs font-mono animate-pulse mt-2">⚖️ Judging against hidden test cases...</p>}
+                      {judging && <p className="text-gray-500 text-xs font-mono animate-pulse mt-2">Evaluating against test cases...</p>}
                       {judgeResult && (
                         <div className="animate-in slide-in-from-bottom-2 duration-300">
                           <div className={`text-sm font-bold mb-3 pb-2 border-b ${judgeResult.verdict === 'accepted' ? 'text-emerald-400 border-emerald-500/20' : 'text-red-400 border-red-500/20'}`}>
-                            {judgeResult.verdict === 'accepted' ? '✅ All Test Cases Passed Successfully' : `❌ Passed ${judgeResult.passed} out of ${judgeResult.total} Test Cases`}
+                            {judgeResult.verdict === 'accepted' ? 'All Test Cases Passed Successfully' : `Passed ${judgeResult.passed} out of ${judgeResult.total} Test Cases`}
                           </div>
 
                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                             {judgeResult.results?.map((r, i) => (
                               <div key={i} className={`p-3 border rounded-xl flex-1 ${r.passed ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
                                 <div className={`text-xs font-black tracking-wider uppercase flex items-center justify-between ${r.passed ? 'text-emerald-400' : 'text-red-400'}`}>
-                                  <span>{r.hidden ? `Secret TC ${i + 1}` : `Public TC ${i + 1}`}</span>
-                                  <span>{r.passed ? '✓' : '✗'}</span>
+                                  <span>{r.hidden ? `Hidden Test Case ${i + 1}` : `Public Test Case ${i + 1}`}</span>
+                                  <span>{r.passed ? 'Passed' : 'Failed'}</span>
                                 </div>
                                 {r.hidden && !r.passed && (
                                   <div className="mt-2 pt-2 border-t border-gray-700/50 text-[10px] font-mono text-gray-500 italic">
@@ -1007,7 +1013,7 @@ export const LiveExamPage = () => {
                         const isMet = chars >= minChars;
                         return (
                           <span className={`text-xs font-black px-3 py-1 rounded-lg uppercase tracking-wider ${isMet ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}`}>
-                            {isMet ? '✓ Min Characters Target Met' : `⚠️ ${chars} / ${minChars} Characters`}
+                            {isMet ? 'Minimum Characters Target Met' : `${chars} / ${minChars} Characters`}
                           </span>
                         );
                       })()}
@@ -1040,13 +1046,13 @@ export const LiveExamPage = () => {
                 <button onClick={handlePrev}
                   disabled={currentQ === 0 || isForceSaving}
                   className="bg-gray-800 hover:bg-gray-700 disabled:opacity-30 text-white font-bold py-2 px-6 rounded-lg text-sm transition-all min-w-[120px]">
-                  {isForceSaving ? '⏳ Saving...' : '← Previous'}
+                  {isForceSaving ? 'Saving...' : '← Previous'}
                 </button>
                 <span className="text-gray-500 text-sm">{currentQ + 1} / {exam?.questions?.length || 0}</span>
                 <button onClick={handleNext}
                   disabled={currentQ === (exam?.questions?.length || 1) - 1 || isForceSaving}
                   className="bg-blue-600 hover:bg-blue-700 disabled:opacity-30 text-white font-bold py-2 px-6 rounded-lg text-sm transition-all min-w-[120px]">
-                  {isForceSaving ? '⏳ Saving...' : 'Next →'}
+                  {isForceSaving ? 'Saving...' : 'Next →'}
                 </button>
               </div>
             </div>
@@ -1058,7 +1064,9 @@ export const LiveExamPage = () => {
       {confirmModal && (
         <div className="fixed inset-0 z-[400] flex items-center justify-center bg-gray-900/60 backdrop-blur-md animate-in fade-in duration-300">
           <div className="bg-white rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl border border-gray-100 text-center animate-in zoom-in-95 duration-300">
-            <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center text-3xl mx-auto mb-6 shadow-sm border border-emerald-100">🏁</div>
+            <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm border border-emerald-100">
+              <CheckCircle2 className="w-10 h-10 text-emerald-600" />
+            </div>
             <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-4">Final Submission</h3>
             <p className="text-gray-500 font-medium leading-relaxed mb-10 px-4">{confirmModal.message}</p>
             <div className="flex gap-4">

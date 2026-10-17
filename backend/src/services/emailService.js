@@ -37,7 +37,7 @@ export const sendEmail = async () => {
     console.log("✅ MAIL SENT:", info);
     return info;
   } catch (err) {
-    console.error("❌ MAIL ERROR:", err);
+    console.error("[Email] Error:", err);
     throw err;
   }
 };
@@ -45,16 +45,16 @@ export const sendEmail = async () => {
 export const sendTestEmail = async (to) => {
   try {
     await transporter.verify();
-    console.log(`🧪 Sending dynamic test to: ${to}...`);
+    console.log(`[Email] Sending diagnostic test to: ${to}...`);
     return transporter.sendMail({
       from: process.env.EMAIL_USER,
       to,
       subject: "CODE NEXUS: SMTP Diagnostic Test",
-      text: "Your SMTP configuration is working perfectly! 🚀",
-      html: "<b>Your SMTP configuration is working perfectly! 🚀</b>"
+      text: "Your SMTP configuration is operational.",
+      html: "<b>Your SMTP configuration is operational.</b>"
     });
   } catch (err) {
-    console.error("❌ DYNAMIC TEST ERROR:", err);
+    console.error("[Email] Diagnostic Test Error:", err);
     throw err;
   }
 };
@@ -86,17 +86,17 @@ export const sendFacultyCredentials = async (faculty) => {
           
           <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
           <p style="font-size: 0.8em; color: #ef4444; font-weight: bold;">
-            🛡️ Security Notice: Please change your password immediately after logging in.
+            Security Notice: Please change your password immediately after logging in.
           </p>
         </div>
       `,
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log("✅ MAIL SENT");
+    console.log("[Email] Faculty credentials sent");
     return info;
   } catch (err) {
-    console.error("❌ SMTP ERROR:", err);
+    console.error("[Email] SMTP Error:", err);
     throw err;
   }
 };

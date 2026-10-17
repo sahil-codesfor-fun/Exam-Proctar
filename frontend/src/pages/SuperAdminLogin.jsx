@@ -50,7 +50,7 @@ const SuperAdminLogin = () => {
       const res = await api.post('/auth/login', payload);
       
       if (res.data.success) {
-        setStatus({ message: '✅ Login successful!', type: 'success' });
+        setStatus({ message: 'Login successful!', type: 'success' });
         login(res.data); 
         setTimeout(() => {
           if (res.data.passwordResetRequired) {
@@ -62,7 +62,7 @@ const SuperAdminLogin = () => {
         }, 800);
       }
     } catch (err) {
-      setStatus({ message: `❌ ${err.response?.data?.message || err.message || 'Cannot reach server.'}`, type: 'error' });
+      setStatus({ message: err.response?.data?.message || err.message || 'Cannot reach server.', type: 'error' });
     } finally {
       setLoading(false);
     }

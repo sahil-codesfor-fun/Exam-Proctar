@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Search, Filter, SortAsc, Download, FileSpreadsheet, FileText, ChevronLeft, ChevronRight, X, Loader2 } from 'lucide-react';
+import { Search, Filter, SortAsc, Download, FileSpreadsheet, FileText, ChevronLeft, ChevronRight, X, Loader2, AlertCircle } from 'lucide-react';
 import api from '../../services/api';
 import StudentAccordionTable from './StudentAccordionTable';
 import { exportResultsAsCSV, exportResultsAsExcel } from './ExportUtils';
@@ -252,9 +252,9 @@ const HistoricalSubmissions = ({ exam }) => {
               onChange={(e) => setInfractionFilter(e.target.value)}
               className="px-3 py-2 bg-white rounded-lg text-xs font-bold border border-gray-200 outline-none cursor-pointer text-gray-600"
             >
-              <option value="">All Infractions</option>
-              <option value="none">No Infractions</option>
-              <option value="has">Has Infractions</option>
+              <option value="">All Violations</option>
+              <option value="none">No Violations</option>
+              <option value="has">Has Violations</option>
               <option value="high">High (≥ 3)</option>
             </select>
 
@@ -279,7 +279,7 @@ const HistoricalSubmissions = ({ exam }) => {
           </div>
         ) : error ? (
           <div className="text-center py-16">
-            <div className="text-4xl opacity-20 mb-3">⚠️</div>
+            <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-3" />
             <p className="text-xs font-bold text-red-400">{error}</p>
             <button onClick={fetchResults} className="mt-3 text-[10px] font-black text-[#4B775E] uppercase tracking-widest hover:underline">
               Retry

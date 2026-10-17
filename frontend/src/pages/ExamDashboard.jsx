@@ -1,5 +1,6 @@
 import React from 'react';
 import { useFocus } from '../hooks/useFocus';
+import { CheckCircle2, AlertTriangle } from 'lucide-react';
 
 export const ExamDashboard = () => {
   const { isFocused, blurCount } = useFocus();
@@ -13,13 +14,23 @@ export const ExamDashboard = () => {
           <p className="text-gray-500 text-sm font-medium">Candidate ID: BTECH-CSE-2026</p>
         </div>
         
-        {}
+        {/* Status */}
         <div className={`px-5 py-2.5 rounded-xl font-bold text-sm border flex items-center gap-2 shadow-sm ${
           isFocused 
             ? 'bg-green-50 border-green-200 text-green-700' 
             : 'bg-red-50 border-red-200 text-red-700 animate-pulse'
         }`}>
-          {isFocused ? '✅ Status: FOCUSED' : '❌ DISTRACTED - VIOLATION LOGGED'}
+          {isFocused ? (
+            <>
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>Status: Active / Focused</span>
+            </>
+          ) : (
+            <>
+              <AlertTriangle className="w-4 h-4 text-red-600" />
+              <span>Focus Lost - Violation Logged</span>
+            </>
+          )}
         </div>
       </div>
 
@@ -52,9 +63,9 @@ export const ExamDashboard = () => {
         <div className="flex flex-col gap-6">
           
 
-          {}
+          {/* Proctoring Status */}
           <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)]">
-            <h3 className="text-gray-900 font-bold mb-4 text-sm uppercase tracking-wider">Integrity Telemetry</h3>
+            <h3 className="text-gray-900 font-bold mb-4 text-sm uppercase tracking-wider">Proctoring Status</h3>
             
             <div className="flex justify-between items-center py-3 border-b border-gray-100">
               <span className="text-gray-600 font-medium">Tab Switches (Blur)</span>

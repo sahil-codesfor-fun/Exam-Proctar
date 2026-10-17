@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect, memo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ClipboardList } from 'lucide-react';
 import api from '../../services/api';
 import StudentReport from './StudentReport';
 import ErrorBoundary from '../ErrorBoundary';
@@ -189,8 +189,8 @@ const StudentAccordionTable = ({ results, examId, examTitle, onGradeUpdate, onRe
   if (results.length === 0) {
     return (
       <div className="text-center py-16">
-        <div className="text-4xl opacity-20 mb-3">📋</div>
-        <p className="text-xs font-black text-gray-300 uppercase tracking-widest italic">No records in the vault.</p>
+        <ClipboardList size={40} className="text-gray-300 mx-auto mb-3" />
+        <p className="text-xs font-black text-gray-300 uppercase tracking-widest italic">No submission records found.</p>
       </div>
     );
   }
@@ -205,7 +205,7 @@ const StudentAccordionTable = ({ results, examId, examTitle, onGradeUpdate, onRe
           <div className="px-2">Exam</div>
           <div className="px-2 text-center">Marks</div>
           <div className="px-2 text-center">%</div>
-          <div className="px-2 text-center">Infr.</div>
+          <div className="px-2 text-center">Viol.</div>
           <div className="px-2 text-center">Status</div>
         </div>
       </div>
