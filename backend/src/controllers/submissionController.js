@@ -1,4 +1,4 @@
-import prisma from '../config/prisma.js';
+import prisma, { withDbRetry } from '../config/prisma.js';
 
 function shuffleArray(array) {
   const arr = [...array];
@@ -159,123 +159,164 @@ export const startSubmission = async (req, res) => {
 
 export const saveAnswers = async (req, res) => {
   try {
-    const sub = await prisma.submission.findUnique({
-      where: { id: req.params.id },
-      select: { id: true, studentId: true, status: true }
+    await withDbRetry(async () => {
+      const sub = await prisma.submission.findUnique({
+        where: { id: req.params.id },
+        select: { id: true, studentId: true, status: true }
+      });
+      if (!sub) return res.status(404).json({ success: false, message: 'Submission not found' });
+      if (sub.studentId !== req.user.id) return res.status(403).json({ success: false, message: 'Not authorized' });
+      
+      if (sub.status !== 'submitted' && sub.status !== 'auto_submitted' && sub.status !== 'force_submitted') {
+        await prisma.submission.update({ where: { id: req.params.id }, data: { answers: req.body.answers } });
+        res.json({ success: true });
+      } else {
+        return res.status(400).json({ success: false, message: 'Cannot modify a submitted exam' });
+      }
     });
-    if (!sub) return res.status(404).json({ success: false, message: 'Submission not found' });
-    if (sub.studentId !== req.user.id) return res.status(403).json({ success: false, message: 'Not authorized' });
-    
-    if (sub.status !== 'submitted' && sub.status !== 'auto_submitted' && sub.status !== 'force_submitted') {
-      await prisma.submission.update({ where: { id: req.params.id }, data: { answers: req.body.answers } });
-      res.json({ success: true });
-    } else return res.status(400).json({ success: false, message: 'Cannot modify a submitted exam' });
-  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+  } catch (err) { 
+    if (!res.headersSent) res.status(500).json({ success: false, message: err.message }); 
+  }
 };
 
 export const submitExam = async (req, res) => {
   try {
-    const sub = await prisma.submission.findUnique({
-      where: { id: req.params.id },
-      select: { id: true, studentId: true, examId: true, maxScore: true, answers: true }
-    });
-    if (!sub) return res.status(404).json({ success: false, message: 'Submission not found' });
-    if (sub.studentId !== req.user.id) return res.status(403).json({ success: false, message: 'Not authorized' });
+    const updatedSub = await withDbRetry(async () => {
+      const sub = await prisma.submission.findUnique({
+        where: { id: req.params.id },
+        select: { id: true, studentId: true, examId: true, maxScore: true, answers: true, status: true }
+      });
+      if (!sub) {
+        const error = new Error('Submission not found');
+        error.status = 404;
+        throw error;
+      }
+      if (sub.studentId !== req.user.id) {
+        const error = new Error('Not authorized');
+        error.status = 403;
+        throw error;
+      }
 
-    const exam = await prisma.exam.findUnique({ 
-      where: { id: sub.examId },
-      select: {
-        id: true,
-        questions: {
-          select: {
-            id: true,
-            type: true,
-            points: true,
-            options: { select: { id: true, text: true, isCorrect: true } },
-            matchingPairs: { select: { id: true, leftItem: true, rightItem: true } }
+      // If already submitted, return existing submission idempotently
+      if (['submitted', 'auto_submitted', 'force_submitted'].includes(sub.status)) {
+        return sub;
+      }
+
+      const exam = await prisma.exam.findUnique({ 
+        where: { id: sub.examId },
+        select: {
+          id: true,
+          questions: {
+            select: {
+              id: true,
+              type: true,
+              points: true,
+              options: { select: { id: true, text: true, isCorrect: true } },
+              matchingPairs: { select: { id: true, leftItem: true, rightItem: true } }
+            }
           }
         }
+      });
+      
+      if (!exam) {
+        const error = new Error('Exam not found');
+        error.status = 404;
+        throw error;
       }
-    });
-    
-    if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
 
-    let finalAnswers = req.body.answers || sub.answers || [];
-    let totalScore = 0;
+      let finalAnswers = req.body.answers || sub.answers || [];
+      let totalScore = 0;
 
-    const isForceKill = req.body.reason && (req.body.reason.toLowerCase().includes('termination') || req.body.reason.toLowerCase().includes('proctor'));
+      const isForceKill = req.body.reason && (req.body.reason.toLowerCase().includes('termination') || req.body.reason.toLowerCase().includes('proctor'));
 
-    for (let ans of finalAnswers) {
-      const question = exam.questions.find(q => q.id === ans.questionId);
-      if (!question) continue;
+      for (let ans of finalAnswers) {
+        const question = exam.questions.find(q => q.id === ans.questionId);
+        if (!question) continue;
 
-      const points = Number(question.points) || 10;
+        const points = Number(question.points) || 10;
 
-      if (question.type === 'mcq') {
-        if (ans.selectedOptionId) {
-          const correctOpt = question.options.find(o => o.isCorrect === true);
-          ans.isCorrect = (correctOpt && correctOpt.id === ans.selectedOptionId);
-        } else if (ans.selectedOption >= 0) {
-          const correctIndex = question.options.findIndex(o => o.isCorrect === true);
-          ans.isCorrect = (ans.selectedOption === correctIndex);
-        } else {
-          ans.isCorrect = false;
-        }
-        ans.score = ans.isCorrect ? points : 0;
-      } 
-      else if (question.type === 'matching') {
-        let correctCount = 0;
-        const totalPairs = question.matchingPairs?.length || 0;
+        if (question.type === 'mcq') {
+          if (ans.selectedOptionId) {
+            const correctOpt = question.options.find(o => o.isCorrect === true);
+            ans.isCorrect = (correctOpt && correctOpt.id === ans.selectedOptionId);
+          } else if (ans.selectedOption >= 0) {
+            const correctIndex = question.options.findIndex(o => o.isCorrect === true);
+            ans.isCorrect = (ans.selectedOption === correctIndex);
+          } else {
+            ans.isCorrect = false;
+          }
+          ans.score = ans.isCorrect ? points : 0;
+        } 
+        else if (question.type === 'matching') {
+          let correctCount = 0;
+          const totalPairs = question.matchingPairs?.length || 0;
 
-        if (totalPairs > 0 && ans.studentMatches && typeof ans.studentMatches === 'object') {
-          question.matchingPairs.forEach(pair => {
-            if (ans.studentMatches[pair.id] === pair.id) correctCount++;
-          });
-          
-          // 🚀 ALL OR NOTHING LOGIC: No partial marks. Perfect or 0!
-          if (correctCount === totalPairs) {
-            ans.score = points;
-            ans.isCorrect = true;
+          if (totalPairs > 0 && ans.studentMatches && typeof ans.studentMatches === 'object') {
+            question.matchingPairs.forEach(pair => {
+              if (ans.studentMatches[pair.id] === pair.id) correctCount++;
+            });
+            
+            // ALL OR NOTHING LOGIC: Perfect or 0
+            if (correctCount === totalPairs) {
+              ans.score = points;
+              ans.isCorrect = true;
+            } else {
+              ans.score = 0;
+              ans.isCorrect = false;
+            }
           } else {
             ans.score = 0;
             ans.isCorrect = false;
           }
         } else {
-          ans.score = 0;
-          ans.isCorrect = false;
+            ans.score = Number(ans.score) || 0;
         }
-      } else {
-          ans.score = Number(ans.score) || 0;
+
+        totalScore += ans.score;
       }
 
-      totalScore += ans.score;
-    }
-
-    if (isForceKill) {
-        totalScore = 0;
-        finalAnswers = finalAnswers.map(a => ({ ...a, score: 0, isCorrect: false }));
-    }
-
-    const maxScore = Number(sub.maxScore) || 0;
-    const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
-    const finalStatus = isForceKill ? 'force_submitted' : (req.body.autoSubmit ? 'auto_submitted' : 'submitted');
-
-    const updatedSub = await prisma.submission.update({
-      where: { id: sub.id },
-      data: {
-        totalScore, 
-        maxScore, 
-        percentage,
-        status: finalStatus,
-        answers: finalAnswers
+      if (isForceKill) {
+          totalScore = 0;
+          finalAnswers = finalAnswers.map(a => ({ ...a, score: 0, isCorrect: false }));
       }
-    });
+
+      const maxScore = Number(sub.maxScore) || 0;
+      const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
+      const finalStatus = isForceKill ? 'force_submitted' : (req.body.autoSubmit ? 'auto_submitted' : 'submitted');
+
+      return await prisma.submission.update({
+        where: { id: sub.id },
+        data: {
+          totalScore, 
+          maxScore, 
+          percentage,
+          status: finalStatus,
+          submittedAt: new Date(),
+          answers: finalAnswers
+        }
+      });
+    }, 4, 400);
 
     res.json({ success: true, data: { ...updatedSub, _id: updatedSub.id } });
 
-    aggregatePerformance(sub.examId).catch(err => console.error("Error in aggregatePerformance:", err));
+    triggerDebouncedAggregation(updatedSub.examId);
 
-  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+  } catch (err) { 
+    if (!res.headersSent) {
+      res.status(err.status || 500).json({ success: false, message: err.message });
+    }
+  }
+};
+
+// ── Debounced Aggregation to prevent 300 concurrent DB table scans ──
+const pendingAggregations = new Map();
+const triggerDebouncedAggregation = (examId) => {
+  if (!examId || pendingAggregations.has(examId)) return;
+  const timer = setTimeout(async () => {
+    pendingAggregations.delete(examId);
+    await aggregatePerformance(examId).catch(err => console.error("Error in aggregatePerformance:", err));
+  }, 6000);
+  pendingAggregations.set(examId, timer);
 };
 
 const aggregatePerformance = async (examId) => {

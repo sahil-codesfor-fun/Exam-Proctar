@@ -1,6 +1,12 @@
 import { io } from 'socket.io-client';
 
 const getSocketUrl = () => {
+  if (typeof window !== 'undefined' && window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    if (import.meta.env.PROD && !/^(192\.168|10\.|172\.(1[6-9]|2\d|3[01]))\./.test(window.location.hostname)) {
+      return (import.meta.env.VITE_API_BASE_URL || 'https://exam-proctar.onrender.com').replace(/\/api\/?$/, '');
+    }
+    return `${window.location.protocol}//${window.location.hostname}:5002`;
+  }
   if (import.meta.env.VITE_API_BASE_URL) {
     return import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?$/, '');
   }

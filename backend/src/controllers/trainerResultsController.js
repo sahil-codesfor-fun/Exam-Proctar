@@ -1,4 +1,4 @@
-import prisma from '../config/prisma.js';
+import prisma, { withDbRetry } from '../config/prisma.js';
 
 // ─── Helper: Compute per-question stats from answers JSON ────────────────────
 function computeQuestionStats(answers) {
@@ -591,4 +591,118 @@ export const gradeSubjectiveAnswers = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+/**
+ * 🚀 Finalize all stuck "in_progress" submissions for an exam
+ * Recovers answers from database drafts, auto-evaluates scores, and marks them "auto_submitted".
+ */
+export const finalizeInProgressSubmissions = async (req, res) => {
+  try {
+    const { examId } = req.params;
+
+    const exam = await prisma.exam.findUnique({
+      where: { id: examId },
+      include: {
+        questions: {
+          select: {
+            id: true,
+            type: true,
+            points: true,
+            options: { select: { id: true, text: true, isCorrect: true } },
+            matchingPairs: { select: { id: true, leftItem: true, rightItem: true } }
+          }
+        }
+      }
+    });
+
+    if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
+
+    const inProgressSubs = await prisma.submission.findMany({
+      where: { examId, status: 'in_progress' },
+      include: { student: { select: { id: true, name: true, studentId: true } } }
+    });
+
+    if (inProgressSubs.length === 0) {
+      return res.json({ success: true, message: 'No in-progress submissions found to finalize.', count: 0 });
+    }
+
+    let finalizedCount = 0;
+
+    for (const sub of inProgressSubs) {
+      const answers = Array.isArray(sub.answers) ? [...sub.answers] : [];
+      let totalScore = 0;
+
+      for (let ans of answers) {
+        const question = exam.questions.find(q => q.id === ans.questionId);
+        if (!question) continue;
+        const points = Number(question.points) || 10;
+
+        if (question.type === 'mcq') {
+          if (ans.selectedOptionId) {
+            const correctOpt = question.options.find(o => o.isCorrect === true);
+            ans.isCorrect = (correctOpt && correctOpt.id === ans.selectedOptionId);
+          } else if (ans.selectedOption >= 0) {
+            const correctIndex = question.options.findIndex(o => o.isCorrect === true);
+            ans.isCorrect = (ans.selectedOption === correctIndex);
+          } else {
+            ans.isCorrect = false;
+          }
+          ans.score = ans.isCorrect ? points : 0;
+        } else if (question.type === 'matching') {
+          let correctCount = 0;
+          const totalPairs = question.matchingPairs?.length || 0;
+          if (totalPairs > 0 && ans.studentMatches && typeof ans.studentMatches === 'object') {
+            question.matchingPairs.forEach(pair => {
+              if (ans.studentMatches[pair.id] === pair.id) correctCount++;
+            });
+            if (correctCount === totalPairs) {
+              ans.score = points;
+              ans.isCorrect = true;
+            } else {
+              ans.score = 0;
+              ans.isCorrect = false;
+            }
+          } else {
+            ans.score = 0;
+            ans.isCorrect = false;
+          }
+        } else {
+          ans.score = Number(ans.score) || 0;
+        }
+
+        totalScore += ans.score;
+      }
+
+      const maxScore = Number(sub.maxScore) || exam.questions.reduce((sum, q) => sum + (Number(q.points) || 10), 0) || 1;
+      const percentage = Math.round((totalScore / maxScore) * 100);
+
+      await withDbRetry(async () => {
+        await prisma.submission.update({
+          where: { id: sub.id },
+          data: {
+            totalScore,
+            maxScore,
+            percentage,
+            status: 'auto_submitted',
+            submittedAt: new Date(),
+            answers
+          }
+        });
+      });
+
+      finalizedCount++;
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully finalized and graded ${finalizedCount} in-progress submissions.`,
+      count: finalizedCount
+    });
+
+  } catch (err) {
+    console.error('finalizeInProgressSubmissions error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 

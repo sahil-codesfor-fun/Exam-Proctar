@@ -66,6 +66,20 @@ const StudentOverview = () => {
       }
     };
     fetchData();
+
+    let socket;
+    import('../../services/socket').then(({ connectSocket }) => {
+      socket = connectSocket();
+      socket.on('ticket_status_changed', fetchData);
+      socket.on('exam_status_changed', fetchData);
+    }).catch(() => {});
+
+    return () => {
+      if (socket) {
+        socket.off('ticket_status_changed', fetchData);
+        socket.off('exam_status_changed', fetchData);
+      }
+    };
   }, []);
 
   const handleSubmitTicket = async () => {
@@ -217,9 +231,19 @@ const StudentOverview = () => {
                                 <button disabled className="font-black text-[10px] uppercase tracking-widest py-3 px-6 rounded-xl border bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60">
                                   Exam Attempted
                                 </button>
-                              ) : ticket && (!rescheduleEnded || ticket.appealNumber >= 2) ? (
-                                <span className={`font-black text-[10px] uppercase tracking-widest py-3 px-6 rounded-xl border ${ticket.status === 'approved' ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' : ticket.status === 'rejected' ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
-                                  {ticket.appealNumber === 2 ? 'Final Appeal' : 'Appeal'}: {ticket.status} {ticket.isRescheduled && '(Rescheduled)'}
+                              ) : ticket && (ticket.status === 'pending' || (ticket.status === 'approved' && !ticket.isRescheduled) || (!rescheduleEnded && ticket.status === 'approved') || ticket.appealNumber >= 2) ? (
+                                <span className={`font-black text-[10px] uppercase tracking-widest py-3 px-6 rounded-xl border ${
+                                  ticket.status === 'approved' 
+                                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' 
+                                    : ticket.status === 'rejected' 
+                                      ? 'bg-red-600 text-white border-red-600 shadow-md' 
+                                      : 'bg-amber-50 text-amber-600 border-amber-100'
+                                }`}>
+                                  {ticket.status === 'pending' 
+                                    ? 'Appeal Under Review' 
+                                    : ticket.status === 'approved' && !ticket.isRescheduled 
+                                      ? 'Appeal Approved (Awaiting Slot)' 
+                                      : `${ticket.appealNumber === 2 ? 'Final Appeal' : 'Appeal'}: ${ticket.status} ${ticket.isRescheduled ? '(Rescheduled)' : ''}`}
                                 </span>
                               ) : (
                                 <button 

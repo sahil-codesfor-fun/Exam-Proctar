@@ -123,15 +123,27 @@ export const resolveTicket = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid status' });
     }
 
+    const updateData = {
+      status,
+      resolvedBy: req.user.id,
+      resolvedAt: new Date()
+    };
+
+    if (status === 'approved' && req.body.rescheduledStartTime && req.body.rescheduledEndTime) {
+      updateData.isRescheduled = true;
+      updateData.rescheduledStartTime = new Date(req.body.rescheduledStartTime);
+      updateData.rescheduledEndTime = new Date(req.body.rescheduledEndTime);
+    }
+
     const ticket = await prisma.missedExamTicket.update({
       where: { id },
-      data: {
-        status,
-        resolvedBy: req.user.id,
-        resolvedAt: new Date()
-      }
+      data: updateData
     });
-    
+
+    try {
+      const { getIO } = await import('../sockets/proctorSocket.js');
+      getIO().emit('ticket_status_changed', { ticketId: ticket.id, studentId: ticket.studentId, examId: ticket.examId, status: ticket.status, isRescheduled: ticket.isRescheduled });
+    } catch (e) {}
     
     res.json({ success: true, data: ticket });
   } catch (error) {
@@ -178,6 +190,11 @@ export const rescheduleExamForStudents = async (req, res) => {
         rescheduledEndTime: new Date(newEndTime)
       }
     });
+
+    try {
+      const { getIO } = await import('../sockets/proctorSocket.js');
+      getIO().emit('ticket_status_changed', { isRescheduled: true });
+    } catch (e) {}
 
     res.json({ success: true, message: `Rescheduled exam for ${updatedTickets.count} students.`, count: updatedTickets.count });
   } catch (error) {

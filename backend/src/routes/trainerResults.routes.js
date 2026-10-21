@@ -5,12 +5,14 @@ import {
   getDetailedReport,
   exportCSV,
   exportExcel,
-  gradeSubjectiveAnswers
+  gradeSubjectiveAnswers,
+  finalizeInProgressSubmissions
 } from '../controllers/trainerResultsController.js';
 
 const router = express.Router();
 
 router.get('/results/:examId',                protect, teacherOnly, getExamResultsSummary);
+router.post('/results/:examId/finalize-in-progress', protect, teacherOnly, finalizeInProgressSubmissions);
 
 router.get('/results/:examId/export/csv',     protect, teacherOnly, exportCSV);
 router.get('/results/:examId/export/excel',   protect, teacherOnly, exportExcel);

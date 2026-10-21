@@ -1,6 +1,6 @@
 import { Worker } from 'bullmq';
 import IORedis from 'ioredis';
-import prisma from '../config/prisma.js';
+import prisma, { withDbRetry } from '../config/prisma.js';
 import codechefStrategy from '../services/platforms/codechefStrategy.js';
 import leetcodeStrategy from '../services/platforms/leetcodeStrategy.js';
 import hackerrankStrategy from '../services/platforms/hackerrankStrategy.js';
@@ -14,10 +14,12 @@ export const processPiggybackSync = async (userId) => {
   console.log(`🔄 Processing Piggyback Sync for user: ${userId}`);
 
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { codechefUsername: true, leetcodeUsername: true, hackerrankUsername: true }
-    });
+    const user = await withDbRetry(async () => {
+      return await prisma.user.findUnique({
+        where: { id: userId },
+        select: { codechefUsername: true, leetcodeUsername: true, hackerrankUsername: true }
+      });
+    }, 2, 600);
 
     if (!user) {
       throw new Error(`User not found: ${userId}`);

@@ -103,10 +103,13 @@ export const LiveExamPage = () => {
 
   useEffect(() => {
     if (phase !== 'exam') return;
+    // Lightweight heartbeat with jitter to spread traffic across 200-300 students
+    const jitter = Math.floor(Math.random() * 5000);
     const heartbeat = setInterval(async () => {
       try {
-        const res = await api.get(`/exams/${examId}`);
-        if (res.data.data.status === 'ended' || res.data.data.status === 'draft') {
+        const res = await api.get(`/exams/${examId}/live-status`);
+        const status = res.data?.data?.status || res.data?.status;
+        if (status === 'ended' || status === 'draft') {
           doSubmit(true, 'The proctor has closed this exam.');
         }
       } catch (err) {
@@ -116,7 +119,7 @@ export const LiveExamPage = () => {
           window.location.href = '/student-dashboard';
         }
       }
-    }, 15000);
+    }, 30000 + jitter);
     return () => clearInterval(heartbeat);
   }, [phase, examId]);
 
@@ -314,7 +317,14 @@ export const LiveExamPage = () => {
     if (phase !== 'exam') return;
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
-        if (prev <= 1) { doSubmit(true, 'Exam window has closed.'); return 0; }
+        if (prev <= 1) { 
+          // Jitter auto-submit across 0-3.5s to prevent 300 simultaneous submissions hitting the DB at second 0
+          const submitJitter = Math.floor(Math.random() * 3500);
+          setTimeout(() => {
+            doSubmit(true, 'Exam window has closed.');
+          }, submitJitter);
+          return 0; 
+        }
         return prev - 1;
       });
     }, 1000);
@@ -546,10 +556,21 @@ export const LiveExamPage = () => {
   const isLow = timeLeft < 300;
 
   const restrictionMinutes = exam?.proctoring?.restrictionMinutes || exam?.proctoringRules?.restrictionMinutes || 0;
-  const restrictionSeconds = restrictionMinutes * 60;
-  const subStartTimeMs = submission?.createdAt ? new Date(submission.createdAt).getTime() : Date.now();
-  const actualElapsedSeconds = Math.floor((Date.now() - subStartTimeMs) / 1000);
-  const isSubmissionAllowed = restrictionSeconds > 0 ? actualElapsedSeconds >= restrictionSeconds : true;
+  const examDurationMinutes = exam?.durationMinutes || 60;
+  
+  // Cap restriction so it cannot exceed exam duration, and never lock if restrictionMinutes is 0 or invalid
+  const effectiveRestrictionSec = (restrictionMinutes > 0 && restrictionMinutes < examDurationMinutes)
+    ? restrictionMinutes * 60
+    : 0;
+
+  // Resolve start time safely protecting against server timezone drift
+  const subStartTimeMs = submission?.createdAt 
+    ? Math.min(new Date(submission.createdAt).getTime(), Date.now()) 
+    : Date.now();
+  const actualElapsedSeconds = Math.max(0, Math.floor((Date.now() - subStartTimeMs) / 1000));
+  const remainingLockSec = Math.max(0, effectiveRestrictionSec - actualElapsedSeconds);
+  const isSubmissionAllowed = remainingLockSec === 0;
+  const lockedMinutesLeft = Math.ceil(remainingLockSec / 60);
 
   const q = exam?.questions?.[currentQ];
   const qIdSafe = q ? (q._id || q.id) : null;
@@ -672,7 +693,7 @@ export const LiveExamPage = () => {
               disabled={submitting || !isSubmissionAllowed}
               className={`${isSubmissionAllowed ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-gray-700 opacity-50 cursor-not-allowed'} text-white font-bold py-2 px-6 rounded-lg text-sm transition-all shadow-lg`}
             >
-              {submitting ? 'Submitting…' : !isSubmissionAllowed ? `Locked (${Math.ceil((restrictionSeconds - actualElapsedSeconds) / 60)}m left)` : 'Submit Exam'}
+              {submitting ? 'Submitting…' : !isSubmissionAllowed ? `Locked (${lockedMinutesLeft}m left)` : 'Submit Exam'}
             </button>
           </div>
 

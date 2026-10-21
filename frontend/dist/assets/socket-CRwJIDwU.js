@@ -1,1 +1,0 @@
-import{l as o}from"./index-BcxXcwBL.js";const c=()=>"http://localhost:5002/api".replace(/\/api\/?$/,""),e=c();let t=null;const l=()=>(t||(t=o(e,{transports:["websocket","polling"]})),t),s=()=>t,r=()=>{t&&(t.disconnect(),t=null)};export{l as connectSocket,r as disconnectSocket,s as getSocket};

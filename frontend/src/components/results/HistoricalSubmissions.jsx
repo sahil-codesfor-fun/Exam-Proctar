@@ -28,6 +28,24 @@ const HistoricalSubmissions = ({ exam }) => {
   const [pageSize, setPageSize] = useState(25);
 
   const [bulkExporting, setBulkExporting] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
+
+  const inProgressCount = useMemo(() => results.filter(r => r.status === 'in_progress').length, [results]);
+
+  const handleFinalizeInProgress = async () => {
+    if (!window.confirm(`Are you sure you want to finalize and auto-grade all ${inProgressCount} in-progress submissions based on their saved answers?`)) return;
+    setFinalizing(true);
+    try {
+      const res = await api.post(`/trainer/results/${examId}/finalize-in-progress`);
+      alert(res.data.message || 'Submissions finalized successfully!');
+      fetchResults();
+    } catch (err) {
+      console.error('Finalize failed:', err);
+      alert(err.response?.data?.message || 'Failed to finalize in-progress submissions');
+    } finally {
+      setFinalizing(false);
+    }
+  };
 
   // ─── Fetch Results ─────────────────────────────────────────
   const fetchResults = useCallback(async () => {
@@ -167,6 +185,17 @@ const HistoricalSubmissions = ({ exam }) => {
             >
               <FileText size={12} /> CSV
             </button>
+            {inProgressCount > 0 && (
+              <button
+                onClick={handleFinalizeInProgress}
+                disabled={finalizing}
+                className="flex items-center gap-2 px-3 py-2 bg-amber-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-amber-700 transition-all disabled:opacity-50"
+                title="Automatically grade and submit all students stuck in 'in_progress'"
+              >
+                {finalizing ? <Loader2 size={12} className="animate-spin" /> : null}
+                Finalize {inProgressCount} In-Progress
+              </button>
+            )}
             <button
               onClick={() => exportResultsAsExcel(filteredResults, examTitle)}
               disabled={filteredResults.length === 0}

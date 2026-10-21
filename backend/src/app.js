@@ -50,9 +50,19 @@ const allowedOrigins = [
   'https://exam-proctar.vercel.app'
 ];
 
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL.replace(/\/+$/, ''));
+}
+
+// Allow local LAN IPs (192.168.*, 10.*, 172.16-31.*, localhost)
+const isLanOrLocalOrigin = (origin) => {
+  if (!origin) return true;
+  return /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/.test(origin);
+};
+
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.vercel.app')) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.vercel.app') || isLanOrLocalOrigin(origin)) {
       callback(null, true);
     } else {
       console.error('CORS Blocked:', origin);
