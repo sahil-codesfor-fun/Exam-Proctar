@@ -205,11 +205,17 @@ export const assignPracticeSheet = async (req, res) => {
 export const getQuestion = async (req, res) => {
   try {
     const { id } = req.params;
+    const isStaff = ['teacher', 'faculty', 'admin', 'superadmin'].includes(req.user?.role);
+
     const question = await prisma.question.findUnique({
       where: { id },
       include: {
+        exam: {
+          select: { id: true, status: true, creatorId: true }
+        },
         testCases: {
           select: {
+            id: true,
             input: true,
             expectedOutput: true,
             isHidden: true
@@ -220,9 +226,29 @@ export const getQuestion = async (req, res) => {
 
     if (!question) return res.status(404).json({ success: false, message: 'Question not found' });
 
-    const safeTestCases = question.testCases.map(tc => tc.isHidden ? { input: tc.input, expectedOutput: 'Hidden', isHidden: true } : tc);
+    // Block students from fetching active exam questions via the practice route
+    if (question.examId && !isStaff) {
+      return res.status(403).json({ success: false, message: 'Assessment questions cannot be retrieved via practice endpoints.' });
+    }
 
-    res.status(200).json({ success: true, question: { ...question, testCases: safeTestCases } });
+    const questionData = { ...question };
+    delete questionData.exam;
+
+    if (!isStaff) {
+      delete questionData.solutionJava;
+      delete questionData.solutionPython;
+      delete questionData.solutionC;
+      delete questionData.solutionCpp;
+
+      questionData.testCases = (question.testCases || []).map(tc => {
+        if (tc.isHidden) {
+          return { id: tc.id, isHidden: true, input: 'Hidden', expectedOutput: 'Hidden' };
+        }
+        return tc;
+      });
+    }
+
+    res.status(200).json({ success: true, question: questionData });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -314,7 +340,7 @@ export const getPracticeSheetById = async (req, res) => {
           userStatus = 'failed';
         }
       }
-      const safeTestCases = (q.testCases || []).map(tc => tc.isHidden ? { ...tc, expectedOutput: 'Hidden' } : tc);
+      const safeTestCases = (q.testCases || []).map(tc => tc.isHidden ? { id: tc.id, isHidden: true, input: 'Hidden', expectedOutput: 'Hidden' } : tc);
       return {
         ...qLink,
         question: {

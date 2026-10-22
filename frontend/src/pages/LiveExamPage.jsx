@@ -251,21 +251,21 @@ export const LiveExamPage = () => {
         }
 
         let initialTimeLeft = e.durationMinutes * 60;
-        const submissionId = s._id || s.id;
-        const savedStart = localStorage.getItem(`exam_started_${submissionId}`);
-
-        const effectiveEndTime = s.rescheduledEndTime || e.endTime;
-
-        if (effectiveEndTime) {
-          const endMs = new Date(effectiveEndTime).getTime();
-          const nowMs = Date.now();
-          initialTimeLeft = Math.max(0, Math.floor((endMs - nowMs) / 1000));
-        } else if (savedStart) {
-          const endMs = parseInt(savedStart) + (e.durationMinutes * 60 * 1000);
+        if (s.expiresAt) {
+          const endMs = new Date(s.expiresAt).getTime();
           const nowMs = Date.now();
           initialTimeLeft = Math.max(0, Math.floor((endMs - nowMs) / 1000));
         } else {
-          initialTimeLeft = e.durationMinutes * 60;
+          const effectiveEndTime = s.rescheduledEndTime || e.endTime;
+          if (effectiveEndTime) {
+            const endMs = new Date(effectiveEndTime).getTime();
+            const nowMs = Date.now();
+            initialTimeLeft = Math.max(0, Math.floor((endMs - nowMs) / 1000));
+          } else if (s.startTime) {
+            const endMs = new Date(s.startTime).getTime() + (e.durationMinutes * 60 * 1000);
+            const nowMs = Date.now();
+            initialTimeLeft = Math.max(0, Math.floor((endMs - nowMs) / 1000));
+          }
         }
 
         setTimeLeft(initialTimeLeft);

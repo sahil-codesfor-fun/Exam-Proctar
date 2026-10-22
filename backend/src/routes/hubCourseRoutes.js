@@ -38,7 +38,7 @@ router.post(
 
 router.get('/', protect, getDepartmentCourses);
 
-router.get('/faculty/student-progress', protect, getFacultyStudentProgress);
+router.get('/faculty/student-progress', protect, teacherOnly, getFacultyStudentProgress);
 
 router.get('/module/:moduleId', protect, getModuleContent);
 

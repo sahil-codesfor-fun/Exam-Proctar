@@ -1,14 +1,14 @@
 import express from 'express';
 import { authLimiter } from '../middlewares/rateLimiter.js';
-import { registerUser, loginUser, getPublicDepartments, getFacultyProfile } from '../controllers/authController.js';
+import { registerUser, loginUser, getPublicDepartments, getFacultyProfile, changePassword } from '../controllers/authController.js';
 import { getDepartmentCourses } from '../controllers/metadataController.js';
 import { protect, facultyOnly } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// Unrestricted signup and login for students and faculty - no rate limit blocks
-router.post('/signup', registerUser);
-router.post('/login', loginUser);
+router.post('/signup', authLimiter, registerUser);
+router.post('/login', authLimiter, loginUser);
+router.post('/change-password', protect, changePassword);
 router.get('/departments', getPublicDepartments);
 router.get('/departments/:id/courses', getDepartmentCourses);
 

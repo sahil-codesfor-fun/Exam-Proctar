@@ -1,4 +1,5 @@
 import prisma, { withDbRetry } from '../config/prisma.js';
+import { runCode } from './compilerController.js';
 
 function shuffleArray(array) {
   const arr = [...array];
@@ -151,7 +152,27 @@ export const startSubmission = async (req, res) => {
       });
     }
 
-    res.json({ success: true, resumed, data: { ...sub, _id: sub.id, rescheduledEndTime: hasRescheduledAccess ? rescheduleTicket.rescheduledEndTime : null } });
+    const durationMins = exam.schedule?.durationMinutes || 60;
+    const subStartMs = sub ? new Date(sub.createdAt).getTime() : Date.now();
+    let calculatedDeadlineMs = subStartMs + (durationMins * 60 * 1000);
+
+    if (hasRescheduledAccess && rescheduleTicket?.rescheduledEndTime) {
+      calculatedDeadlineMs = Math.min(calculatedDeadlineMs, new Date(rescheduleTicket.rescheduledEndTime).getTime());
+    } else if (exam.schedule?.endDate) {
+      calculatedDeadlineMs = Math.min(calculatedDeadlineMs, new Date(exam.schedule.endDate).getTime());
+    }
+    const expiresAt = new Date(calculatedDeadlineMs).toISOString();
+
+    res.json({ 
+      success: true, 
+      resumed, 
+      data: { 
+        ...sub, 
+        _id: sub.id, 
+        expiresAt,
+        rescheduledEndTime: hasRescheduledAccess ? rescheduleTicket.rescheduledEndTime : null 
+      } 
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -162,17 +183,47 @@ export const saveAnswers = async (req, res) => {
     await withDbRetry(async () => {
       const sub = await prisma.submission.findUnique({
         where: { id: req.params.id },
-        select: { id: true, studentId: true, status: true }
+        select: { 
+          id: true, 
+          studentId: true, 
+          status: true,
+          createdAt: true,
+          exam: { select: { schedule: true } }
+        }
       });
       if (!sub) return res.status(404).json({ success: false, message: 'Submission not found' });
       if (sub.studentId !== req.user.id) return res.status(403).json({ success: false, message: 'Not authorized' });
       
-      if (sub.status !== 'submitted' && sub.status !== 'auto_submitted' && sub.status !== 'force_submitted') {
-        await prisma.submission.update({ where: { id: req.params.id }, data: { answers: req.body.answers } });
-        res.json({ success: true });
-      } else {
+      if (['submitted', 'auto_submitted', 'force_submitted'].includes(sub.status)) {
         return res.status(400).json({ success: false, message: 'Cannot modify a submitted exam' });
       }
+
+      // 120s grace period for network latency before strict deadline enforcement
+      const durationMins = sub.exam?.schedule?.durationMinutes || 60;
+      const deadlineMs = new Date(sub.createdAt).getTime() + (durationMins * 60 * 1000) + 120000;
+      if (Date.now() > deadlineMs) {
+        await prisma.submission.update({
+          where: { id: req.params.id },
+          data: { status: 'auto_submitted', submittedAt: new Date() }
+        });
+        return res.status(400).json({ success: false, message: 'Exam deadline has expired. Exam auto-submitted.', expired: true });
+      }
+
+      // Sanitize answers so client cannot inject unauthorized scores
+      const sanitizedAnswers = Array.isArray(req.body.answers) ? req.body.answers.map(ans => ({
+        questionId: ans.questionId,
+        questionType: ans.questionType,
+        selectedOptionId: ans.selectedOptionId || null,
+        selectedOption: ans.selectedOption !== undefined ? ans.selectedOption : -1,
+        code: ans.code || '',
+        language: ans.language || 'python',
+        textAnswer: ans.textAnswer || '',
+        studentMatches: ans.studentMatches || {},
+        maxScore: Number(ans.maxScore) || 0
+      })) : sub.answers;
+
+      await prisma.submission.update({ where: { id: req.params.id }, data: { answers: sanitizedAnswers } });
+      res.json({ success: true });
     });
   } catch (err) { 
     if (!res.headersSent) res.status(500).json({ success: false, message: err.message }); 
@@ -211,8 +262,10 @@ export const submitExam = async (req, res) => {
               id: true,
               type: true,
               points: true,
+              timeLimitSeconds: true,
               options: { select: { id: true, text: true, isCorrect: true } },
-              matchingPairs: { select: { id: true, leftItem: true, rightItem: true } }
+              matchingPairs: { select: { id: true, leftItem: true, rightItem: true } },
+              testCases: { select: { id: true, input: true, expectedOutput: true, isHidden: true, points: true } }
             }
           }
         }
@@ -268,19 +321,50 @@ export const submitExam = async (req, res) => {
             ans.score = 0;
             ans.isCorrect = false;
           }
+        } 
+        else if (question.type === 'coding' || question.type === 'Programming') {
+          // Automated server-side test case evaluation
+          if (ans.code && question.testCases && question.testCases.length > 0) {
+            let passedCount = 0;
+            const totalCases = question.testCases.length;
+            for (const tc of question.testCases) {
+              try {
+                const r = await runCode(ans.language || 'python', ans.code, tc.input || '', Math.min(question.timeLimitSeconds || 3, 5));
+                if (r.success && (r.output || '').trim() === (tc.expectedOutput || '').trim()) {
+                  passedCount++;
+                }
+              } catch (err) {
+                // Failed testcase
+              }
+            }
+            ans.passedTests = passedCount;
+            ans.totalTests = totalCases;
+            ans.score = Math.round((passedCount / totalCases) * points);
+            ans.isCorrect = passedCount === totalCases;
+          } else {
+            ans.score = 0;
+            ans.isCorrect = false;
+          }
+        } else if (question.type === 'subjective' || question.type === 'essay') {
+          // Subjective answers are graded by instructors
+          ans.score = 0;
+          ans.isCorrect = false;
         } else {
-            ans.score = Number(ans.score) || 0;
+          ans.score = 0;
+          ans.isCorrect = false;
         }
 
+        ans.score = Math.min(Math.max(0, Number(ans.score) || 0), points);
         totalScore += ans.score;
       }
 
       if (isForceKill) {
-          totalScore = 0;
-          finalAnswers = finalAnswers.map(a => ({ ...a, score: 0, isCorrect: false }));
+        totalScore = 0;
+        finalAnswers = finalAnswers.map(a => ({ ...a, score: 0, isCorrect: false }));
       }
 
       const maxScore = Number(sub.maxScore) || 0;
+      totalScore = maxScore > 0 ? Math.min(totalScore, maxScore) : totalScore;
       const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
       const finalStatus = isForceKill ? 'force_submitted' : (req.body.autoSubmit ? 'auto_submitted' : 'submitted');
 
@@ -308,7 +392,7 @@ export const submitExam = async (req, res) => {
   }
 };
 
-// ── Debounced Aggregation to prevent 300 concurrent DB table scans ──
+// ── Debounced Aggregation to prevent concurrent DB table scans ──
 const pendingAggregations = new Map();
 const triggerDebouncedAggregation = (examId) => {
   if (!examId || pendingAggregations.has(examId)) return;
@@ -399,6 +483,20 @@ export const getMySubmissions = async (req, res) => {
 
 export const getExamSubmissions = async (req, res) => {
   try {
+    const exam = await prisma.exam.findUnique({
+      where: { id: req.params.examId },
+      select: { id: true, creatorId: true, departmentId: true }
+    });
+    if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
+
+    if (req.user.role === 'student') {
+      return res.status(403).json({ success: false, message: 'Students are not authorized to view peer submissions.' });
+    }
+
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin' && exam.creatorId !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'You are only authorized to view submissions for exams you created.' });
+    }
+
     const subs = await prisma.submission.findMany({
       where: { examId: req.params.examId },
       take: 100,

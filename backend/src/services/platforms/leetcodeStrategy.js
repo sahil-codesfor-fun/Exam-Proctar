@@ -3,7 +3,10 @@ import PlatformStrategy from './PlatformStrategy.js';
 
 class LeetCodeStrategy extends PlatformStrategy {
   async fetchStats(username) {
-    if (!username) return { totalSolved: 0 };
+    const USERNAME_REGEX = /^[a-zA-Z0-9_.-]{1,50}$/;
+    if (!username || !USERNAME_REGEX.test(username)) {
+      return { totalSolved: 0, easy: 0, medium: 0, hard: 0 };
+    }
     
     const query = `
       query userProblemsSolved($username: String!) {

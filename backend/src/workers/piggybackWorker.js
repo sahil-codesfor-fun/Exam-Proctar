@@ -1,5 +1,3 @@
-import { Worker } from 'bullmq';
-import IORedis from 'ioredis';
 import prisma, { withDbRetry } from '../config/prisma.js';
 import codechefStrategy from '../services/platforms/codechefStrategy.js';
 import leetcodeStrategy from '../services/platforms/leetcodeStrategy.js';
@@ -80,31 +78,5 @@ export const processPiggybackSync = async (userId) => {
 };
 
 export const initPiggybackWorker = () => {
-  const rawRedisUrl = process.env.REDIS_URL;
-  const isBullMQEnabled = process.env.ENABLE_BULLMQ === 'true' && rawRedisUrl && !rawRedisUrl.includes('localhost');
-
-  if (isBullMQEnabled) {
-    try {
-      console.log('🚀 Initializing BullMQ Piggyback Worker with Redis...');
-      const connection = new IORedis(rawRedisUrl, {
-        maxRetriesPerRequest: null,
-        tls: rawRedisUrl.startsWith('rediss://') ? {} : undefined
-      });
-
-      const worker = new Worker('platformSyncQueue', async (job) => {
-        return processPiggybackSync(job.data.userId);
-      }, { connection });
-
-      worker.on('failed', (job, err) => {
-        console.error(`🚨 Job ${job?.id} failed: ${err.message}`);
-      });
-
-      return worker;
-    } catch (err) {
-      console.warn('⚠️ Could not initialize BullMQ Worker, falling back to In-Memory mode:', err.message);
-    }
-  }
-
-  console.log('⚡ Piggyback Worker: Running in In-Memory direct queue mode (Zero-Redis, 0 idle commands)');
   return null;
 };

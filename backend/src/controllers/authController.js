@@ -139,16 +139,26 @@ export const loginUser = async (req, res) => {
 export const changePassword = async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   try {
+    if (!currentPassword || typeof currentPassword !== 'string') {
+      return res.status(400).json({ success: false, message: 'Current password is required.' });
+    }
+
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'New password must be at least 6 characters long.' });
+    }
+
+    if (currentPassword === newPassword) {
+      return res.status(400).json({ success: false, message: 'New password must be different from current password.' });
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
       select: { id: true, password: true }
     });
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    if (currentPassword) {
-      const isMatch = await bcrypt.compare(currentPassword, user.password);
-      if (!isMatch) return res.status(400).json({ success: false, message: 'Current password incorrect' });
-    }
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) return res.status(400).json({ success: false, message: 'Current password incorrect' });
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await prisma.user.update({

@@ -4,7 +4,7 @@ import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-router.post('/execute',   executeCode);
+router.post('/execute',   protect, executeCode);
 router.post('/judge',     protect, judgeCode);
 router.get('/languages',  getLanguages);
 router.get('/templates',  getTemplates);

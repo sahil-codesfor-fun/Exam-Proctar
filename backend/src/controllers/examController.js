@@ -353,8 +353,7 @@ export const updateExam = async (req, res) => {
     }
     
     if (isRedisConnected) {
-      const keys = await redisClient.keys('exam*');
-      if (keys.length > 0) await redisClient.del(keys);
+      await redisClient.deletePattern('exam*');
     }
 
     res.json({ success: true, data: responseData, message: "Exam updated successfully" });
@@ -374,8 +373,7 @@ export const deleteExam = async (req, res) => {
     try { const io = getIO(); io.emit('exam_deleted', { examId: req.params.id }); } catch (e) { }
     
     if (isRedisConnected) {
-      const keys = await redisClient.keys('exam*');
-      if (keys.length > 0) await redisClient.del(keys);
+      await redisClient.deletePattern('exam*');
     }
 
     res.json({ success: true, message: 'Exam deleted' });
@@ -398,8 +396,7 @@ export const updateExamStatus = async (req, res) => {
     try { const io = getIO(); io.emit('exam_status_changed', { examId: updatedExam.id, status }); io.emit('exam_published', responseData); } catch (e) { }
     
     if (isRedisConnected) {
-      const keys = await redisClient.keys('exam*');
-      if (keys.length > 0) await redisClient.del(keys);
+      await redisClient.deletePattern('exam*');
     }
 
     res.json({ success: true, data: responseData, message: "Status updated successfully" });

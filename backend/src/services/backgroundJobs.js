@@ -80,8 +80,7 @@ jobQueue.on('createExam', async ({ examId, reqUser, examData, targetBatch, targe
     }
 
     if (isRedisConnected) {
-      const keys = await redisClient.keys('exam*');
-      if (keys.length > 0) await redisClient.del(keys);
+      await redisClient.deletePattern('exam*');
     }
     
     console.log(`✅ Background Job Completed: Exam ${examId} created successfully.`);

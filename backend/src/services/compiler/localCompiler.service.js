@@ -83,6 +83,15 @@ export const runLocalCode = async (language, code, stdin = '', timeout = 5000) =
     }
 };
 
+export const getMinimalEnv = (customTemp = '') => ({
+    PATH: process.env.PATH || '',
+    SystemRoot: process.env.SystemRoot || '',
+    WINDIR: process.env.WINDIR || '',
+    TEMP: customTemp || os.tmpdir(),
+    TMP: customTemp || os.tmpdir(),
+    NODE_ENV: 'production'
+});
+
 const executeCodeInternal = async (language, code, stdin = '', timeout = 5000) => {
     const config = LANGUAGE_CONFIGS[language];
     if (!config) {
@@ -105,6 +114,21 @@ const executeCodeInternal = async (language, code, stdin = '', timeout = 5000) =
     try {
         fs.writeFileSync(filePath, code);
 
+        const killProcessTree = (child) => {
+            if (!child || !child.pid) return;
+            try {
+                if (os.platform() === 'win32') {
+                    exec(`taskkill /pid ${child.pid} /T /F`, () => {});
+                } else {
+                    child.kill('SIGKILL');
+                }
+            } catch (e) {
+                try { child.kill(); } catch (err) {}
+            }
+        };
+
+        const MAX_OUTPUT_BYTES = 64 * 1024;
+
         if (config.isCompiled) {
             const compileCmd = typeof config.compileCommand === 'function' 
                 ? config.compileCommand(filePath, executablePath) 
@@ -112,7 +136,10 @@ const executeCodeInternal = async (language, code, stdin = '', timeout = 5000) =
             
             console.log("COMPILE CMD:", compileCmd);
             try {
-                const { stderr } = await execPromise(compileCmd, { timeout: 10000 });
+                const { stderr } = await execPromise(compileCmd, { 
+                    timeout: 10000,
+                    env: getMinimalEnv()
+                });
                 if (stderr) {
                     console.log("COMPILE STDERR (Non-fatal):", stderr);
                 }
@@ -139,37 +166,45 @@ const executeCodeInternal = async (language, code, stdin = '', timeout = 5000) =
             
             const child = spawn(runCmd, runArgs, {
                 cwd: sessionDir,
-                shell: true,
-                env: { ...process.env, NODE_OPTIONS: '' } 
+                shell: os.platform() === 'win32',
+                env: getMinimalEnv()
             });
 
             let stdout = '';
             let stderr = '';
             let killedByTimeout = false;
+            let outputExceeded = false;
 
             const timer = setTimeout(() => {
                 killedByTimeout = true;
-                console.log(`[Spawn] Process timed out after ${timeout}ms, killing...`);
-                child.kill();
-            }, timeout);
+                console.log(`[Spawn] Process timed out after ${timeout}ms, killing process tree...`);
+                killProcessTree(child);
+            }, Math.min(Math.max(1000, timeout), 15000));
 
             if (stdin) {
-                console.log(`[Spawn] Writing to stdin: ${stdin.substring(0, 50)}...`);
-                child.stdin.write(stdin);
+                child.stdin.write(stdin.slice(0, 100000));
             }
             child.stdin.end();
 
-
             child.stdout.on('data', (data) => {
-                stdout += data.toString();
+                if (stdout.length < MAX_OUTPUT_BYTES) {
+                    stdout += data.toString();
+                } else if (!outputExceeded) {
+                    outputExceeded = true;
+                    stdout += '\n[Output truncated: exceeded 64KB limit]';
+                    killProcessTree(child);
+                }
             });
 
             child.stderr.on('data', (data) => {
-                stderr += data.toString();
+                if (stderr.length < MAX_OUTPUT_BYTES) {
+                    stderr += data.toString();
+                }
             });
 
             child.on('error', (err) => {
                 clearTimeout(timer);
+                killProcessTree(child);
                 console.log("EXECUTION ERROR:", err.message);
                 resolve({
                     success: false,
@@ -185,8 +220,6 @@ const executeCodeInternal = async (language, code, stdin = '', timeout = 5000) =
                 const runtime = Date.now() - start;
                 
                 console.log("EXIT CODE:", code);
-                console.log("STDOUT:", stdout.substring(0, 100) + (stdout.length > 100 ? '...' : ''));
-                console.log("STDERR:", stderr);
 
                 if (killedByTimeout) {
                     resolve({

@@ -7,6 +7,7 @@ import teacherRoutes from './teacherRoutes.js';
 import subjectRoutes from './subjectRoutes.js';
 import examRoutes from './examRoutes.js';
 import { getCourses, getCourseById, createCourse, deleteCourse } from '../../controllers/superadmin/courseController.js';
+import { protect, superAdminOnly } from '../../middleware/authMiddleware.js';
 import prisma from '../../config/prisma.js';
 
 const router = express.Router();
@@ -20,9 +21,9 @@ router.use('/teachers', teacherRoutes);
 router.use('/subjects', subjectRoutes);
 router.use('/exams', examRoutes);
 
-router.get('/courses', getCourses);
-router.get('/courses/:id', getCourseById);
-router.post('/courses', createCourse);
-router.delete('/courses/:id', deleteCourse);
+router.get('/courses', protect, superAdminOnly, getCourses);
+router.get('/courses/:id', protect, superAdminOnly, getCourseById);
+router.post('/courses', protect, superAdminOnly, createCourse);
+router.delete('/courses/:id', protect, superAdminOnly, deleteCourse);
 
 export default router;

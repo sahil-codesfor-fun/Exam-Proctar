@@ -15,14 +15,22 @@ class HackerRankStrategy extends PlatformStrategy {
   }
 
   async fetchStats(username) {
-    if (!username) return { totalSolved: 0 };
+    const USERNAME_REGEX = /^[a-zA-Z0-9_.-]{1,50}$/;
+    if (!username || !USERNAME_REGEX.test(username)) {
+      return { totalSolved: 0 };
+    }
 
     try {
-      const config = this.getAxiosConfig();
+      const config = {
+        ...this.getAxiosConfig(),
+        maxContentLength: 1024 * 1024,
+        maxRedirects: 3
+      };
+      const safeUsername = encodeURIComponent(username);
       
       const [profileRes, badgesRes] = await Promise.all([
-        axios.get(`https://www.hackerrank.com/rest/contests/master/hackers/${username}/profile`, config),
-        axios.get(`https://www.hackerrank.com/rest/hackers/${username}/badges`, config).catch(() => ({ data: { models: [] } }))
+        axios.get(`https://www.hackerrank.com/rest/contests/master/hackers/${safeUsername}/profile`, config),
+        axios.get(`https://www.hackerrank.com/rest/hackers/${safeUsername}/badges`, config).catch(() => ({ data: { models: [] } }))
       ]);
 
       const profile = profileRes.data?.model;

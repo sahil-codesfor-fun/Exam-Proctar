@@ -20,20 +20,48 @@ export const uploadCourseCsv = async (req, res) => {
     
     const departmentId = req.user?.departmentId || null;
 
-    const parseCsv = (buffer) => {
+    const MAX_CSV_ROWS = 3000;
+    const MAX_CSV_COLS = 35;
+    const MAX_FIELD_LEN = 15000;
+
+    const parseCsv = (buffer, label = 'CSV') => {
       return new Promise((resolve, reject) => {
         const results = [];
+        let rowCount = 0;
         const bufferStream = new stream.PassThrough();
         bufferStream.end(buffer);
+        
         bufferStream.pipe(csv())
-          .on('data', (data) => results.push(data))
+          .on('data', (data) => {
+            rowCount++;
+            if (rowCount > MAX_CSV_ROWS) {
+              bufferStream.destroy();
+              return reject(new Error(`${label} exceeds maximum allowed limit of ${MAX_CSV_ROWS} rows.`));
+            }
+            const keys = Object.keys(data);
+            if (keys.length > MAX_CSV_COLS) {
+              bufferStream.destroy();
+              return reject(new Error(`${label} exceeds maximum allowed limit of ${MAX_CSV_COLS} columns.`));
+            }
+            // Check for excessively large individual fields
+            for (const key of keys) {
+              if (typeof data[key] === 'string' && data[key].length > MAX_FIELD_LEN) {
+                data[key] = data[key].slice(0, MAX_FIELD_LEN);
+              }
+            }
+            results.push(data);
+          })
           .on('end', () => resolve(results))
           .on('error', (err) => reject(err));
       });
     };
 
-    const articlesRaw = await parseCsv(articlesFile.buffer);
-    const questionsRaw = await parseCsv(questionsFile.buffer);
+    const articlesRaw = await parseCsv(articlesFile.buffer, 'Articles CSV');
+    const questionsRaw = await parseCsv(questionsFile.buffer, 'Questions CSV');
+
+    if (articlesRaw.length === 0 || questionsRaw.length === 0) {
+      return res.status(400).json({ error: 'Uploaded CSV files cannot be empty.' });
+    }
 
     try {
       const result = await prisma.$transaction(async (tx) => {

@@ -26,7 +26,7 @@ export const TEMPLATES = {
 
 // ── Judge0 Fallback Configuration ─────────────────────────────────────────────
 const JUDGE0_BASE = process.env.JUDGE0_BASE_URL  || 'https://judge0-ce.p.rapidapi.com';
-const JUDGE0_KEY  = process.env.JUDGE0_API_KEY   || '';
+const JUDGE0_KEY  = process.env.RAPIDAPI_KEY      || process.env.JUDGE0_API_KEY || '';
 const JUDGE0_HOST = process.env.JUDGE0_API_HOST  || 'judge0-ce.p.rapidapi.com';
 const USE_JUDGE0  = process.env.USE_JUDGE0 === 'true';
 
@@ -82,7 +82,7 @@ function mapJudgeResult(data) {
   };
 }
 
-async function runCode(language, code, stdin = '', timeSec = 5, memKb = 262144) {
+export async function runCode(language, code, stdin = '', timeSec = 5, memKb = 262144) {
   console.log(`[Compiler] Running code for ${language}...`);
   
   if (USE_JUDGE0 && JUDGE0_KEY && JUDGE0_KEY !== 'your_rapidapi_key_here') {
@@ -94,6 +94,16 @@ async function runCode(language, code, stdin = '', timeSec = 5, memKb = 262144) 
       return mapJudgeResult(result);
     } catch (err) {
       console.error(`[Compiler] Judge0 execution failed for ${language}:`, err.message);
+      if (process.env.ALLOW_LOCAL_FALLBACK !== 'true' && process.env.NODE_ENV === 'production') {
+        return {
+          verdict: 'service_unavailable',
+          output: '',
+          error: 'Execution service is temporarily unavailable. Host fallback is disabled for security.',
+          runtime: 0,
+          memory: 0,
+          success: false
+        };
+      }
     }
   }
 
@@ -136,6 +146,8 @@ export const executeCode = async (req, res) => {
 
   try {
     if (!language || !code) return res.status(400).json({ success: false, message: 'language and code required' });
+    if (code.length > 100000 || (stdin && stdin.length > 50000)) return res.status(400).json({ success: false, message: 'Code or stdin size exceeds limit' });
+    if (!LANGUAGE_CONFIG[language]) return res.status(400).json({ success: false, message: `Unsupported: ${language}` });
     
     const result = await runCode(language, code, stdin);
     
@@ -174,6 +186,7 @@ export const judgeCode = async (req, res) => {
 
   try {
     if (!language || !code) return res.status(400).json({ success: false, message: 'language and code required' });
+    if (code.length > 100000) return res.status(400).json({ success: false, message: 'Code size exceeds 100KB limit' });
     if (!LANGUAGE_CONFIG[language]) return res.status(400).json({ success: false, message: `Unsupported: ${language}` });
 
     let question = null;
@@ -190,9 +203,11 @@ export const judgeCode = async (req, res) => {
       });
       if (!question) return res.status(404).json({ success: false, message: 'Question not found' });
       testCases = question.testCases;
+    } else if (req.user?.role === 'student') {
+      return res.status(400).json({ success: false, message: 'questionId is required for student evaluation.' });
     }
 
-    if (testCases.length === 0) {
+    if (!testCases || testCases.length === 0) {
       return res.status(400).json({ success: false, message: 'No test cases provided or found for question.' });
     }
 

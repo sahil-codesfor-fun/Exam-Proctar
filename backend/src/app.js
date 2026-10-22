@@ -43,34 +43,8 @@ app.use((req, res, next) => {
 
 // ── Rate Limiters (Imported from middlewares/rateLimiter.js) ─────────────────
 
-// 🚨 THE REAL VIP LIST 🚨
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'https://exam-proctar.vercel.app'
-];
-
-if (process.env.FRONTEND_URL) {
-  allowedOrigins.push(process.env.FRONTEND_URL.replace(/\/+$/, ''));
-}
-
-// Allow local LAN IPs (192.168.*, 10.*, 172.16-31.*, localhost)
-const isLanOrLocalOrigin = (origin) => {
-  if (!origin) return true;
-  return /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/.test(origin);
-};
-
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.vercel.app') || isLanOrLocalOrigin(origin)) {
-      callback(null, true);
-    } else {
-      console.error('CORS Blocked:', origin);
-      callback(new Error('CORS Policy Blocked this request'));
-    }
-  },
-  credentials: true
-}));
+import { corsOptions } from './config/corsConfig.js';
+app.use(cors(corsOptions));
 
 app.use(compression());
 app.use(express.json({ limit: '5mb' }));

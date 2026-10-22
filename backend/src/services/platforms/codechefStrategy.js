@@ -4,15 +4,21 @@ import PlatformStrategy from './PlatformStrategy.js';
 
 class CodeChefStrategy extends PlatformStrategy {
   async fetchStats(username) {
-    if (!username) return { totalSolved: 0 };
+    const USERNAME_REGEX = /^[a-zA-Z0-9_.-]{1,50}$/;
+    if (!username || !USERNAME_REGEX.test(username)) {
+      return { totalSolved: 0 };
+    }
 
-    const url = `https://www.codechef.com/users/${username}`;
+    const safeUsername = encodeURIComponent(username);
+    const url = `https://www.codechef.com/users/${safeUsername}`;
     try {
       const response = await axios.get(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         },
-        timeout: 10000
+        timeout: 10000,
+        maxContentLength: 1024 * 1024,
+        maxRedirects: 3
       });
 
       const $ = cheerio.load(response.data);

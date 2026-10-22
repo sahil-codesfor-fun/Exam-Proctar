@@ -1,12 +1,10 @@
-import { createClient } from 'redis';
-
 /**
- * Universal In-Memory Store & Fallback Proxy
- * Guarantees that any Redis operation (get, setEx, keys, del, incr) continues
- * to work smoothly in-memory without crashes if Redis is offline or quota exceeded.
+ * High-Speed Universal In-Memory Store
+ * Fully replaces external Redis infrastructure with zero network overhead,
+ * zero cost, and 100% crash-proof in-memory key-value management.
  */
-class InMemoryRedisProxy {
-  constructor(maxKeys = 3000) {
+class InMemoryStore {
+  constructor(maxKeys = 5000) {
     this.store = new Map();
     this.maxKeys = maxKeys;
     // Clean expired entries every 60 seconds
@@ -84,6 +82,19 @@ class InMemoryRedisProxy {
     return matches;
   }
 
+  async scanKeys(pattern, limit = 1000) {
+    const all = await this.keys(pattern);
+    return all.slice(0, limit);
+  }
+
+  async deletePattern(pattern) {
+    const matching = await this.keys(pattern);
+    if (matching.length > 0) {
+      await this.del(matching);
+    }
+    return matching.length;
+  }
+
   cleanup() {
     const now = Date.now();
     for (const [key, item] of this.store.entries()) {
@@ -94,125 +105,8 @@ class InMemoryRedisProxy {
   }
 }
 
-const memoryProxy = new InMemoryRedisProxy();
-
-let realRedisClient = null;
-let isRealRedisConnected = false;
-
-const rawRedisUrl = process.env.REDIS_URL;
-const hasValidRedis = rawRedisUrl && !rawRedisUrl.includes('localhost') && rawRedisUrl.trim().length > 0;
-
-if (hasValidRedis) {
-  try {
-    realRedisClient = createClient({
-      url: rawRedisUrl,
-      socket: {
-        family: 4,
-        tls: rawRedisUrl.startsWith('rediss://'),
-        rejectUnauthorized: false,
-        reconnectStrategy: (retries) => {
-          if (retries > 3) {
-            console.warn('⚠️ Redis: Max connection retries reached. Switched to In-Memory mode.');
-            return new Error('Redis max retries reached');
-          }
-          return 5000;
-        }
-      }
-    });
-
-    realRedisClient.on('error', (err) => {
-      isRealRedisConnected = false;
-    });
-
-    realRedisClient.on('connect', () => {
-      console.log('✅ Redis Client Connected');
-      isRealRedisConnected = true;
-    });
-
-    realRedisClient.on('end', () => {
-      isRealRedisConnected = false;
-    });
-
-    realRedisClient.connect().catch(() => {
-      isRealRedisConnected = false;
-    });
-  } catch (err) {
-    isRealRedisConnected = false;
-  }
-} else {
-  console.log('⚡ Redis Client: Running in High-Speed In-Memory Fallback Mode (Zero-Redis)');
-}
-
-/**
- * Resilient proxy that routes to real Redis when online,
- * or effortlessly to the in-memory proxy when Redis is down or unavailable.
- */
-const redisClient = {
-  async get(key) {
-    if (isRealRedisConnected && realRedisClient?.isOpen) {
-      try {
-        const val = await realRedisClient.get(key);
-        if (val !== null) return val;
-      } catch {
-        isRealRedisConnected = false;
-      }
-    }
-    return memoryProxy.get(key);
-  },
-
-  async setEx(key, seconds, value) {
-    memoryProxy.setEx(key, seconds, value);
-    if (isRealRedisConnected && realRedisClient?.isOpen) {
-      realRedisClient.setEx(key, seconds, value).catch(() => {
-        isRealRedisConnected = false;
-      });
-    }
-    return 'OK';
-  },
-
-  async set(key, value, options) {
-    memoryProxy.set(key, value, options);
-    if (isRealRedisConnected && realRedisClient?.isOpen) {
-      realRedisClient.set(key, value, options).catch(() => {
-        isRealRedisConnected = false;
-      });
-    }
-    return 'OK';
-  },
-
-  async incr(key) {
-    const res = await memoryProxy.incr(key);
-    if (isRealRedisConnected && realRedisClient?.isOpen) {
-      realRedisClient.incr(key).catch(() => {
-        isRealRedisConnected = false;
-      });
-    }
-    return res;
-  },
-
-  async del(keys) {
-    const res = await memoryProxy.del(keys);
-    if (isRealRedisConnected && realRedisClient?.isOpen) {
-      realRedisClient.del(keys).catch(() => {
-        isRealRedisConnected = false;
-      });
-    }
-    return res;
-  },
-
-  async keys(pattern) {
-    if (isRealRedisConnected && realRedisClient?.isOpen) {
-      try {
-        return await realRedisClient.keys(pattern);
-      } catch {
-        isRealRedisConnected = false;
-      }
-    }
-    return memoryProxy.keys(pattern);
-  }
-};
-
-// Always true because the in-memory proxy is always active and available!
+const memoryStore = new InMemoryStore();
+const redisClient = memoryStore;
 const isRedisConnected = true;
 
 export { redisClient, isRedisConnected };
