@@ -16,8 +16,9 @@ export default defineConfig({
     open: true
   },
   preview: {
-    host: '0.0.0.0',
-    port: 5173
+    host: '127.0.0.1',
+    port: 5173,
+    allowedHosts: ['codenexus.geetauniversity.edu.in']
   },
   build: {
     target: 'es2020',
