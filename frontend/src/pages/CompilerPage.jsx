@@ -176,7 +176,7 @@ export function CompilerPage() {
   };
   
   useEffect(() => {
-    const newSocket = io('http://localhost:5002/practice');
+    const newSocket = io(`${window.location.origin}/practice`);
     setSocket(newSocket);
     return () => newSocket.close();
   }, []);
