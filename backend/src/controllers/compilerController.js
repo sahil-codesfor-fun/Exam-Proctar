@@ -24,16 +24,12 @@ export const TEMPLATES = {
   cpp:        `#include <iostream>\n#include <string>\nusing namespace std;\n\nint main() {\n    string s;\n    if (cin >> s) {\n        cout << s << endl;\n    } else {\n        cout << "Hello World" << endl;\n    }\n    return 0;\n}`,
 };
 
-// ── Judge0 Fallback Configuration ─────────────────────────────────────────────
-const JUDGE0_BASE = process.env.JUDGE0_BASE_URL  || 'https://judge0-ce.p.rapidapi.com';
-const JUDGE0_KEY  = process.env.RAPIDAPI_KEY      || process.env.JUDGE0_API_KEY || '';
-const JUDGE0_HOST = process.env.JUDGE0_API_HOST  || 'judge0-ce.p.rapidapi.com';
-const USE_JUDGE0  = process.env.USE_JUDGE0 === 'true';
+// ── Judge0 Configuration (Self-hosted, no API key needed) ─────────────────────
+const JUDGE0_BASE = (process.env.JUDGE0_BASE_URL || 'http://127.0.0.1:2358').replace(/\/+$/, '');
+const USE_JUDGE0  = process.env.USE_JUDGE0 === 'true' || process.env.USE_JUDGE0 === 'True';
 
 const judge0Headers = () => ({
-  'content-type':    'application/json',
-  'X-RapidAPI-Key':  JUDGE0_KEY,
-  'X-RapidAPI-Host': JUDGE0_HOST,
+  'content-type': 'application/json',
 });
 
 function b64(str) { return Buffer.from(str || '').toString('base64'); }
@@ -85,7 +81,7 @@ function mapJudgeResult(data) {
 export async function runCode(language, code, stdin = '', timeSec = 5, memKb = 262144) {
   console.log(`[Compiler] Running code for ${language}...`);
   
-  if (USE_JUDGE0 && JUDGE0_KEY && JUDGE0_KEY !== 'your_rapidapi_key_here') {
+  if (USE_JUDGE0) {
     try {
       const cfg = LANGUAGE_CONFIG[language];
       if (!cfg) throw new Error(`Unsupported language: ${language}`);
@@ -420,4 +416,3 @@ export const getLanguages = (_req, res) => {
 export const getTemplates = (_req, res) => {
   res.json({ success: true, data: TEMPLATES });
 };
-
