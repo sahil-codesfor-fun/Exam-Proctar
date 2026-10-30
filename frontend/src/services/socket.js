@@ -1,7 +1,10 @@
 import { io } from 'socket.io-client';
 
-const getSocketUrl = () => {
+export const getSocketUrl = () => {
   if (typeof window !== 'undefined') {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL?.replace(/\/api\/?$/, '') || window.location.origin;
+    }
     return window.location.origin;
   }
   return import.meta.env.VITE_API_BASE_URL?.replace(/\/api\/?$/, '') || '';

@@ -2,6 +2,9 @@ import axios from 'axios';
 
 const getBaseUrl = () => {
   if (typeof window !== 'undefined') {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return import.meta.env.VITE_API_BASE_URL || `${window.location.origin}/api`;
+    }
     return `${window.location.origin}/api`;
   }
   return import.meta.env.VITE_API_BASE_URL || '/api';

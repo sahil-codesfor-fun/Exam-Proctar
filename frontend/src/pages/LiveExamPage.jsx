@@ -568,7 +568,7 @@ export const LiveExamPage = () => {
   // 🚀 Task 3: Compile & run sample test cases (0 marks awarded)
   const handleRunCode = async () => {
     const ans = answers[currentQ];
-    const q = exam?.questions?.[currentQ];
+    const q = exam?.questions?.find(qq => (qq._id || qq.id) === ans?.questionId) || exam?.questions?.[currentQ];
     if (!ans?.code) return;
 
     setRunning(true);
@@ -576,10 +576,13 @@ export const LiveExamPage = () => {
     setJudgeResult(null);
 
     try {
-      const sampleCases = q?.testCases?.filter(tc => !tc.isHidden) || [];
+      const sampleCases = (q?.testCases || []).filter(tc => !tc.isHidden || tc.isHidden === false || tc.isHidden === 0 || tc.isHidden === 'false');
       const payload = { language: ans.language || 'python', code: ans.code, stdin: codeStdin };
       if (sampleCases.length > 0) {
-        payload.sampleTestCases = sampleCases;
+        payload.sampleTestCases = sampleCases.map(tc => ({
+          input: tc.input || '',
+          expectedOutput: tc.expectedOutput || ''
+        }));
       }
       const r = await api.post('/compiler/execute', payload);
       const resData = r.data;
@@ -608,7 +611,7 @@ export const LiveExamPage = () => {
   // 🚀 Task 3: Submit code for evaluation against all test cases; marks strictly derived from hidden test cases
   const handleJudge = async () => {
     const ans = answers[currentQ];
-    const q = exam?.questions?.[currentQ];
+    const q = exam?.questions?.find(qq => (qq._id || qq.id) === ans?.questionId) || exam?.questions?.[currentQ];
     if (!ans?.code) return;
 
     setJudging(true);
@@ -808,21 +811,26 @@ export const LiveExamPage = () => {
                   let passed = false;
                   let failed = false;
                   if (a) {
-                    if (qq.type === 'mcq') done = (a.selectedOptionId !== null || a.selectedOption >= 0);
-                    else if (qq.type === 'coding') done = (a.code && a.code.trim().length > 0);
-                    else if (qq.type === 'subjective') done = (a.textAnswer && a.textAnswer.trim().length > 0);
-                    else if (qq.type === 'matching') done = (a.studentMatches && Object.keys(a.studentMatches).length > 0);
-
-                    if (qq.type === 'coding' && a.verdict) {
-                      if (a.verdict === 'accepted') passed = true;
-                      else failed = true;
+                    if (qq.type === 'coding') {
+                      // For coding questions: only turn green if verdict is accepted!
+                      // Do NOT mark as done/green merely because boilerplate code is in a.code
+                      if (a.verdict) {
+                        if (a.verdict === 'accepted') passed = true;
+                        else failed = true;
+                      }
+                    } else if (qq.type === 'mcq') {
+                      done = (a.selectedOptionId !== null || a.selectedOption >= 0);
+                    } else if (qq.type === 'subjective') {
+                      done = (a.textAnswer && a.textAnswer.trim().length > 0);
+                    } else if (qq.type === 'matching') {
+                      done = (a.studentMatches && Object.keys(a.studentMatches).length > 0);
                     }
                   }
 
                   let bgClass = 'bg-[#1e2330] text-gray-300 hover:bg-[#2a3040]';
-                  if (passed) bgClass = 'bg-green-600 text-white hover:bg-green-500';
+                  if (passed) bgClass = 'bg-emerald-600 text-white hover:bg-emerald-500';
                   else if (failed) bgClass = 'bg-red-600 text-white hover:bg-red-500';
-                  else if (done) bgClass = 'bg-green-600 text-white hover:bg-green-500';
+                  else if (done) bgClass = 'bg-emerald-600 text-white hover:bg-emerald-500';
 
                   const activeClass = (currentQ === idx) ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900 border-transparent' : 'border-transparent';
 
@@ -1043,20 +1051,10 @@ export const LiveExamPage = () => {
                         className="bg-gray-800 text-white text-sm border border-gray-700 rounded-lg px-3 py-1.5 outline-none cursor-pointer font-semibold">
                         {LANGS.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                       </select>
-                      <button 
-                        onClick={() => {
-                          if (window.confirm(`Reset code to default boilerplate for ${ans.language || 'python'}?`)) {
-                            updateAnswer(qIdSafe, 'code', EXAM_TEMPLATES[ans.language || 'python'] || '');
-                          }
-                        }}
-                        title="Reset code to default boilerplate"
-                        className="px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white rounded-lg text-xs font-bold border border-gray-700 transition-colors">
-                        Reset Boilerplate
-                      </button>
                       <div className="ml-auto flex gap-2">
                         <button onClick={handleRunCode} disabled={running || judging}
                           className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-bold px-4 py-1.5 rounded-lg shadow-sm transition-colors">
-                          {running ? 'Compiling…' : 'Compile & Run Samples'}
+                          {running ? 'Compiling…' : 'Compile'}
                         </button>
                         <button onClick={handleJudge} disabled={running || judging}
                           className="bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white text-xs font-bold px-4 py-1.5 rounded-lg shadow-sm transition-colors">
@@ -1146,42 +1144,71 @@ export const LiveExamPage = () => {
 
                       {judging && <p className="text-gray-500 text-xs font-mono animate-pulse mt-2">Evaluating against test cases...</p>}
                       {judgeResult && (
-                        <div className="animate-in slide-in-from-bottom-2 duration-300">
-                          <div className={`text-sm font-bold mb-3 pb-2 border-b flex items-center justify-between ${judgeResult.verdict === 'accepted' ? 'text-emerald-400 border-emerald-500/20' : 'text-red-400 border-red-500/20'}`}>
-                            <span>
-                              {judgeResult.verdict === 'accepted' ? 'All Test Cases Passed Successfully' : (
-                                judgeResult.totalHidden > 0 
-                                  ? `Hidden Tests (Graded): ${judgeResult.passedHidden || 0} / ${judgeResult.totalHidden} Passed • Sample Tests: ${judgeResult.passedSample || 0} / ${judgeResult.totalSample || 0}`
-                                  : `Passed ${judgeResult.passed} out of ${judgeResult.total} Test Cases`
-                              )}
-                            </span>
-                            {judgeResult.totalHidden > 0 && (
-                              <span className="text-xs text-gray-400 font-medium font-mono">
-                                Marks: {Math.round(((judgeResult.passedHidden || 0) / judgeResult.totalHidden) * (exam?.questions?.[currentQ]?.points || 10))} / {exam?.questions?.[currentQ]?.points || 10} pts
-                              </span>
+                        judgeResult.verdict === 'error' ? (
+                          <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs font-semibold flex items-center gap-2">
+                            <AlertCircle size={15} className="flex-shrink-0" />
+                            <span>{judgeResult.message || 'Evaluation failed. Please verify your solution and try again.'}</span>
+                          </div>
+                        ) : (
+                          <div className="animate-in slide-in-from-bottom-2 duration-300 space-y-3">
+                            <div className={`p-3 rounded-xl border flex items-center justify-between ${
+                              judgeResult.verdict === 'accepted' 
+                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
+                                : 'bg-red-500/10 border-red-500/30 text-red-400'
+                            }`}>
+                              <div className="flex items-center gap-2.5">
+                                <span className={`px-2.5 py-1 rounded-md text-[11px] font-black uppercase tracking-wider ${
+                                  judgeResult.verdict === 'accepted' 
+                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
+                                    : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                                }`}>
+                                  {judgeResult.verdict === 'accepted' ? 'Accepted' : 'Failed'}
+                                </span>
+                                <span className="text-xs font-bold text-gray-200">
+                                  {judgeResult.totalHidden > 0
+                                    ? `Hidden Tests: ${judgeResult.passedHidden || 0} / ${judgeResult.totalHidden} Passed`
+                                    : `Test Cases: ${judgeResult.passed || 0} / ${judgeResult.total || 0} Passed`}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-3">
+                                {judgeResult.totalSample > 0 && (
+                                  <span className="text-[11px] text-gray-400 font-medium hidden sm:inline">
+                                    Sample Cases: {judgeResult.passedSample || 0} / {judgeResult.totalSample}
+                                  </span>
+                                )}
+                                <span className="text-xs font-black px-3 py-1 bg-gray-900/80 rounded-lg border border-gray-700 text-emerald-400 font-mono">
+                                  Marks: {judgeResult.totalHidden > 0 
+                                    ? Math.round(((judgeResult.passedHidden || 0) / judgeResult.totalHidden) * (exam?.questions?.[currentQ]?.points || 10))
+                                    : Math.round(((judgeResult.passed || 0) / Math.max(1, judgeResult.total || 1)) * (exam?.questions?.[currentQ]?.points || 10))
+                                  } / {exam?.questions?.[currentQ]?.points || 10} pts
+                                </span>
+                              </div>
+                            </div>
+
+                            {judgeResult.results?.length > 0 && (
+                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                                {judgeResult.results.map((r, i) => (
+                                  <div key={i} className={`p-2.5 border rounded-xl flex-1 ${r.passed ? 'bg-emerald-500/5 border-emerald-500/25' : 'bg-red-500/5 border-red-500/25'}`}>
+                                    <div className={`text-xs font-black tracking-wider uppercase flex items-center justify-between ${r.passed ? 'text-emerald-400' : 'text-red-400'}`}>
+                                      <span>{r.hidden ? `Hidden Test ${i + 1}` : `Sample Case ${i + 1}`}</span>
+                                      <span>{r.passed ? 'Passed' : 'Failed'}</span>
+                                    </div>
+                                    {r.hidden ? (
+                                      <div className="mt-1.5 pt-1.5 border-t border-gray-800 text-[10px] font-mono text-gray-400">
+                                        {r.passed ? '✓ Graded (Marks Awarded)' : '✗ Output hidden for security'}
+                                      </div>
+                                    ) : (
+                                      <div className="mt-1.5 pt-1.5 border-t border-gray-800 text-[10px] font-mono text-gray-500">
+                                        Sample Test (0 Marks)
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
                             )}
                           </div>
-
-                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                            {judgeResult.results?.map((r, i) => (
-                              <div key={i} className={`p-3 border rounded-xl flex-1 ${r.passed ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
-                                <div className={`text-xs font-black tracking-wider uppercase flex items-center justify-between ${r.passed ? 'text-emerald-400' : 'text-red-400'}`}>
-                                  <span>{r.hidden ? `Hidden Test Case ${i + 1}` : `Sample Case ${i + 1}`}</span>
-                                  <span>{r.passed ? 'Passed' : 'Failed'}</span>
-                                </div>
-                                {r.hidden ? (
-                                  <div className="mt-2 pt-2 border-t border-gray-700/50 text-[10px] font-mono text-gray-400">
-                                    {r.passed ? '✓ Test passed • Marks awarded' : '✗ Test failed • 0 marks'}
-                                  </div>
-                                ) : (
-                                  <div className="mt-2 pt-2 border-t border-gray-700/50 text-[10px] font-mono text-gray-500">
-                                    Sample Test • 0 Marks
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
+                        )
                       )}
                     </div>
 

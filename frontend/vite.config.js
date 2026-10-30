@@ -13,12 +13,30 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
-    open: true
+    open: true,
+    allowedHosts: ['codenexus.geetauniversity.edu.in', 'localhost', '127.0.0.1'],
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5002',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/socket.io': {
+        target: 'http://localhost:5002',
+        ws: true,
+        changeOrigin: true,
+      },
+      '/practice': {
+        target: 'http://localhost:5002',
+        ws: true,
+        changeOrigin: true,
+      }
+    }
   },
   preview: {
     host: '127.0.0.1',
     port: 5173,
-    allowedHosts: ['codenexus.geetauniversity.edu.in']
+    allowedHosts: ['codenexus.geetauniversity.edu.in', 'localhost', '127.0.0.1']
   },
   build: {
     target: 'es2020',

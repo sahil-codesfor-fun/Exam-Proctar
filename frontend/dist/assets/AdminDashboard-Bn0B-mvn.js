@@ -1,1 +1,0 @@
-import{j as r}from"./vendor-react-core-FBF55MVh.js";import{T as t}from"./TeachersList-B5Vq97-k.js";import"./index-cvfecpZP.js";import"./vendor-export-tools-CjmKG9zm.js";import"./vendor-icons-C0iVjLHr.js";const e=()=>r.jsx(t,{apiEndpoint:"/admin/teachers",isSuperAdmin:!1});export{e as default};

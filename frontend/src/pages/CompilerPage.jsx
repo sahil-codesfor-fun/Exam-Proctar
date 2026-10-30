@@ -180,7 +180,10 @@ export function CompilerPage() {
   };
   
   useEffect(() => {
-    const newSocket = io(`${window.location.origin}/practice`);
+    const socketBase = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+      ? (import.meta.env.VITE_API_URL?.replace(/\/+$/, '') || import.meta.env.VITE_API_BASE_URL?.replace(/\/api\/?$/, '') || window.location.origin)
+      : window.location.origin;
+    const newSocket = io(`${socketBase}/practice`);
     setSocket(newSocket);
     return () => newSocket.close();
   }, []);
