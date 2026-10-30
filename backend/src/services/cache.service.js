@@ -92,6 +92,11 @@ class CacheService {
     await this.invalidatePattern('dashboard:*');
   }
 
+  async invalidateFacultyCaches() {
+    await this.invalidatePattern('faculty:*');
+    await this.invalidatePattern('dashboard:*');
+  }
+
   async invalidatePracticeCaches() {
     await this.invalidatePattern('practice:*');
   }

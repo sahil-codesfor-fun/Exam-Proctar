@@ -81,7 +81,7 @@ export const sendFacultyCredentials = async (faculty) => {
           
           <p>
             <b>Portal URL:</b><br/>
-            <a href="http://localhost:5173/faculty/login" style="color: #4B775E; font-weight: bold;">http://localhost:5173/faculty/login</a>
+            <a href="${(process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/+$/, "")}/faculty/login" style="color: #4B775E; font-weight: bold;">${(process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/+$/, "")}/faculty/login</a>
           </p>
           
           <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />

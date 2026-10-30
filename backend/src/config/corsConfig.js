@@ -2,7 +2,9 @@
 const defaultOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
-  'https://exam-proctar.vercel.app'
+  'https://exam-proctar.vercel.app',
+  'https://codenexus.geetauniversity.edu.in',
+  'http://codenexus.geetauniversity.edu.in'
 ];
 
 if (process.env.FRONTEND_URL) {

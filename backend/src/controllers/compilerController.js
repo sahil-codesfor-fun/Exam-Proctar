@@ -473,7 +473,11 @@ export const judgeCode = async (req, res) => {
         }
       }
 
-      cacheService.invalidateFacultyCaches().catch(() => {});
+      if (cacheService && typeof cacheService.invalidateFacultyCaches === 'function') {
+        cacheService.invalidateFacultyCaches().catch(() => {});
+      } else if (cacheService && typeof cacheService.invalidatePracticeCaches === 'function') {
+        cacheService.invalidatePracticeCaches().catch(() => {});
+      }
     }
 
     const hiddenCases = testCases.filter(tc => tc.isHidden);
