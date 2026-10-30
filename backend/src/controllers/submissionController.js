@@ -1,5 +1,5 @@
 import prisma, { withDbRetry } from '../config/prisma.js';
-import { runCode } from './compilerController.js';
+import { runCode, TEMPLATES } from './compilerController.js';
 
 function shuffleArray(array) {
   const arr = [...array];
@@ -126,13 +126,17 @@ export const startSubmission = async (req, res) => {
            }
         }
 
+        const isCoding = q.type === 'coding' || q.type === 'Programming';
+        const initialLang = 'python';
+        const initialCode = isCoding ? (TEMPLATES[initialLang] || '') : '';
+
         return {
           questionId: q.id,
           questionType: q.type,
           selectedOptionId: null, 
           selectedOption: -1,     
-          code: '',
-          language: 'python',
+          code: initialCode,
+          language: initialLang,
           textAnswer: '',
           studentMatches: {},     
           maxScore: Number(q.points) || 10, 
@@ -326,21 +330,37 @@ export const submitExam = async (req, res) => {
           // Automated server-side test case evaluation
           if (ans.code && question.testCases && question.testCases.length > 0) {
             let passedCount = 0;
+            let passedHiddenCount = 0;
+            const hiddenCases = question.testCases.filter(tc => tc.isHidden);
+            const totalHidden = hiddenCases.length;
             const totalCases = question.testCases.length;
+
             for (const tc of question.testCases) {
               try {
                 const r = await runCode(ans.language || 'python', ans.code, tc.input || '', Math.min(question.timeLimitSeconds || 3, 5));
                 if (r.success && (r.output || '').trim() === (tc.expectedOutput || '').trim()) {
                   passedCount++;
+                  if (tc.isHidden) passedHiddenCount++;
                 }
               } catch (err) {
                 // Failed testcase
               }
             }
+
             ans.passedTests = passedCount;
             ans.totalTests = totalCases;
-            ans.score = Math.round((passedCount / totalCases) * points);
-            ans.isCorrect = passedCount === totalCases;
+            ans.passedHiddenTests = passedHiddenCount;
+            ans.totalHiddenTests = totalHidden;
+
+            // Task 3: Marks are awarded strictly based on hidden test cases
+            if (totalHidden > 0) {
+              ans.score = Math.round((passedHiddenCount / totalHidden) * points);
+              ans.isCorrect = passedHiddenCount === totalHidden;
+            } else {
+              // Fallback if question has no hidden test cases
+              ans.score = Math.round((passedCount / totalCases) * points);
+              ans.isCorrect = passedCount === totalCases;
+            }
           } else {
             ans.score = 0;
             ans.isCorrect = false;

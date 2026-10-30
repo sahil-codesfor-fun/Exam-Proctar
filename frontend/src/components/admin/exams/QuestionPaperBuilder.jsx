@@ -31,7 +31,7 @@ const QuestionPaperBuilder = ({ exam, onClose }) => {
       options: type === 'MCQ' ? [{ text: '', isCorrect: false }, { text: '', isCorrect: false }] : [],
       testCases: type === 'Programming' ? [{ input: '', expectedOutput: '', isHidden: false, points: 1 }] : [],
       programmingDetails: type === 'Programming' ? {
-        allowedLanguages: '["python", "c", "cpp", "java", "javascript"]',
+        allowedLanguages: '["python", "c", "cpp", "java"]',
         timeLimit: 2000,
         memoryLimit: 256000,
         compilationLimit: 5000,

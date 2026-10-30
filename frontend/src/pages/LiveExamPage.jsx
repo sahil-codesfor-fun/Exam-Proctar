@@ -11,14 +11,58 @@ import { Shield, ShieldAlert, Lock, CheckCircle2, Clock, AlertOctagon, AlertTria
 const Editor = lazy(() => import('@monaco-editor/react'));
 
 const LANGS = [
-  { id: 'javascript', name: 'JavaScript', m: 'javascript' }, { id: 'typescript', name: 'TypeScript', m: 'typescript' },
-  { id: 'python', name: 'Python', m: 'python' }, { id: 'java', name: 'Java', m: 'java' },
-  { id: 'c', name: 'C', m: 'c' }, { id: 'cpp', name: 'C++', m: 'cpp' }, { id: 'csharp', name: 'C#', m: 'csharp' },
-  { id: 'go', name: 'Go', m: 'go' }, { id: 'rust', name: 'Rust', m: 'rust' }, { id: 'php', name: 'PHP', m: 'php' },
-  { id: 'ruby', name: 'Ruby', m: 'ruby' }, { id: 'kotlin', name: 'Kotlin', m: 'kotlin' }, { id: 'swift', name: 'Swift', m: 'swift' },
-  { id: 'perl', name: 'Perl', m: 'perl' }, { id: 'bash', name: 'Bash', m: 'shell' }, { id: 'r', name: 'R', m: 'r' },
-  { id: 'dart', name: 'Dart', m: 'dart' }, { id: 'lua', name: 'Lua', m: 'lua' }, { id: 'scala', name: 'Scala', m: 'scala' },
+  { id: 'c',      name: 'C',    m: 'c'      },
+  { id: 'cpp',    name: 'C++',  m: 'cpp'    },
+  { id: 'java',   name: 'Java', m: 'java'   },
+  { id: 'python', name: 'Python', m: 'python' },
 ];
+
+const EXAM_TEMPLATES = {
+  c: `#include <stdio.h>
+
+int main() {
+    // Read input and write your solution here
+    char line[256];
+    if (scanf("%s", line) != EOF) {
+        printf("%s\\n", line);
+    }
+    return 0;
+}`,
+  cpp: `#include <iostream>
+#include <string>
+using namespace std;
+
+int main() {
+    // Read input and write your solution here
+    string s;
+    if (cin >> s) {
+        cout << s << endl;
+    }
+    return 0;
+}`,
+  java: `import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        // Read input and write your solution here
+        if (sc.hasNextLine()) {
+            System.out.println(sc.nextLine());
+        }
+    }
+}`,
+  python: `# Python 3
+import sys
+
+def solve():
+    # Read input and write your solution here
+    input_data = sys.stdin.read().split()
+    if input_data:
+        print(input_data[0])
+
+if __name__ == "__main__":
+    solve()`,
+};
 
 export const LiveExamPage = () => {
   const { id: examId } = useParams();
@@ -237,17 +281,29 @@ export const LiveExamPage = () => {
 
           e.questions = dealtQuestions;
 
-          setAnswers(s.answers.map(ans => ({
-            ...ans,
-            studentMatches: ans.studentMatches || {}
-          })));
+          setAnswers(s.answers.map(ans => {
+            const isCoding = ans.questionType === 'coding' || ans.questionType === 'Programming';
+            const lang = ans.language || 'python';
+            const codeVal = isCoding && (!ans.code || ans.code.trim() === '') ? (EXAM_TEMPLATES[lang] || '') : (ans.code || '');
+            return {
+              ...ans,
+              code: codeVal,
+              studentMatches: ans.studentMatches || {}
+            };
+          }));
         } else {
-          setAnswers(e.questions.map(q => ({
-            questionId: q._id || q.id, questionType: q.type,
-            selectedOption: -1, selectedOptionId: null, code: '', language: 'python', textAnswer: '',
-            studentMatches: {},
-            score: 0, maxScore: q.points,
-          })));
+          setAnswers(e.questions.map(q => {
+            const isCoding = q.type === 'coding' || q.type === 'Programming';
+            return {
+              questionId: q._id || q.id, questionType: q.type,
+              selectedOption: -1, selectedOptionId: null,
+              code: isCoding ? (EXAM_TEMPLATES['python'] || '') : '',
+              language: 'python',
+              textAnswer: '',
+              studentMatches: {},
+              score: 0, maxScore: q.points,
+            };
+          }));
         }
 
         let initialTimeLeft = e.durationMinutes * 60;
@@ -496,9 +552,23 @@ export const LiveExamPage = () => {
     }
   };
 
-  // 🚀 SEPARATED: Only executes code, NO TEST CASES OR JUDGING!
+  // Ensure coding question has boilerplate when active question changes
+  useEffect(() => {
+    const q = exam?.questions?.[currentQ];
+    if (q && (q.type === 'coding' || q.type === 'Programming')) {
+      const qIdSafe = q._id || q.id;
+      const curAns = answers[currentQ];
+      if (curAns && (!curAns.code || curAns.code.trim() === '')) {
+        const lang = curAns.language || 'python';
+        updateAnswer(qIdSafe, 'code', EXAM_TEMPLATES[lang] || '');
+      }
+    }
+  }, [currentQ, exam?.questions]);
+
+  // 🚀 Task 3: Compile & run sample test cases (0 marks awarded)
   const handleRunCode = async () => {
     const ans = answers[currentQ];
+    const q = exam?.questions?.[currentQ];
     if (!ans?.code) return;
 
     setRunning(true);
@@ -506,26 +576,40 @@ export const LiveExamPage = () => {
     setJudgeResult(null);
 
     try {
-      const r = await api.post('/compiler/execute', { language: ans.language, code: ans.code, stdin: codeStdin });
+      const sampleCases = q?.testCases?.filter(tc => !tc.isHidden) || [];
+      const payload = { language: ans.language || 'python', code: ans.code, stdin: codeStdin };
+      if (sampleCases.length > 0) {
+        payload.sampleTestCases = sampleCases;
+      }
+      const r = await api.post('/compiler/execute', payload);
       const resData = r.data;
 
-      if (resData.success) {
+      if (resData.sampleResults) {
+        setRunResult({
+          isSampleRun: true,
+          allPassed: resData.allPassed,
+          sampleResults: resData.sampleResults,
+          error: resData.error,
+          message: resData.message,
+          success: resData.success
+        });
+      } else if (resData.success) {
         setRunResult({ output: resData.output, error: null, executionTime: resData.executionTime, success: true });
       } else {
         setRunResult({ error: resData.stderr, output: '', errorType: resData.errorType, success: false });
       }
     } catch (e) {
-      setRunResult({ error: e.response?.data?.message || e.message || 'Execution failed', output: '' });
+      setRunResult({ error: e.response?.data?.message || e.message || 'Execution failed', output: '', success: false });
     } finally {
       setRunning(false);
     }
   };
 
-  // 🚀 SEPARATED: Only checks against test cases, NO RAW TERMINAL OUTPUT!
+  // 🚀 Task 3: Submit code for evaluation against all test cases; marks strictly derived from hidden test cases
   const handleJudge = async () => {
     const ans = answers[currentQ];
     const q = exam?.questions?.[currentQ];
-    if (!ans?.code || !q?.testCases?.length) return;
+    if (!ans?.code) return;
 
     setJudging(true);
     setJudgeResult(null);
@@ -533,20 +617,35 @@ export const LiveExamPage = () => {
 
     try {
       const r = await api.post('/compiler/judge', {
-        language: ans.language, code: ans.code,
-        testCases: q.testCases, timeLimitSec: q.timeLimitSeconds || 5,
+        language: ans.language || 'python',
+        code: ans.code,
+        questionId: ans.questionId,
+        testCases: q?.testCases,
+        timeLimitSec: q?.timeLimitSeconds || 5,
       });
 
       const d = r.data.data;
       setJudgeResult(d);
 
-      const score = d.verdict === 'accepted' ? q.points : Math.round((d.passed / d.total) * q.points);
+      // Task 3: Marks are awarded strictly based on hidden test cases
+      const totalScoring = d.totalScoring || d.total || 0;
+      const passedScoring = d.passedScoring ?? d.passed ?? 0;
+      const qPoints = Number(q?.points) || 10;
+      const score = totalScoring > 0 ? Math.round((passedScoring / totalScoring) * qPoints) : 0;
+
       updateAnswer(ans.questionId, 'score', score);
       updateAnswer(ans.questionId, 'verdict', d.verdict);
-      updateAnswer(ans.questionId, 'passedTests', d.passed);
-      updateAnswer(ans.questionId, 'totalTests', d.total);
+      updateAnswer(ans.questionId, 'passedTests', passedScoring);
+      updateAnswer(ans.questionId, 'totalTests', totalScoring);
     } catch (e) {
       console.error("Judge failed:", e);
+      setJudgeResult({
+        verdict: 'error',
+        passed: 0,
+        total: 0,
+        results: [],
+        message: e.response?.data?.message || e.message || 'Judge failed'
+      });
     } finally {
       setJudging(false);
     }
@@ -930,17 +1029,37 @@ export const LiveExamPage = () => {
 
                   <div className="flex-1 flex flex-col overflow-hidden bg-[#1e1e1e]">
                     <div className="flex items-center gap-2 px-4 py-2 bg-gray-900 border-b border-gray-800 flex-shrink-0">
-                      <select value={ans.language || 'python'} onChange={e => updateAnswer(qIdSafe, 'language', e.target.value)}
-                        className="bg-gray-800 text-white text-sm border border-gray-700 rounded-lg px-3 py-1.5 outline-none cursor-pointer">
+                      <select 
+                        value={ans.language || 'python'} 
+                        onChange={e => {
+                          const newLang = e.target.value;
+                          const currentCode = ans.code || '';
+                          const isBoilerplate = !currentCode.trim() || Object.values(EXAM_TEMPLATES).some(t => t.trim() === currentCode.trim());
+                          updateAnswer(qIdSafe, 'language', newLang);
+                          if (isBoilerplate) {
+                            updateAnswer(qIdSafe, 'code', EXAM_TEMPLATES[newLang] || '');
+                          }
+                        }}
+                        className="bg-gray-800 text-white text-sm border border-gray-700 rounded-lg px-3 py-1.5 outline-none cursor-pointer font-semibold">
                         {LANGS.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                       </select>
+                      <button 
+                        onClick={() => {
+                          if (window.confirm(`Reset code to default boilerplate for ${ans.language || 'python'}?`)) {
+                            updateAnswer(qIdSafe, 'code', EXAM_TEMPLATES[ans.language || 'python'] || '');
+                          }
+                        }}
+                        title="Reset code to default boilerplate"
+                        className="px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white rounded-lg text-xs font-bold border border-gray-700 transition-colors">
+                        Reset Boilerplate
+                      </button>
                       <div className="ml-auto flex gap-2">
                         <button onClick={handleRunCode} disabled={running || judging}
-                          className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-bold px-4 py-1.5 rounded-lg">
-                          {running ? 'Compiling…' : 'Compile'}
+                          className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-bold px-4 py-1.5 rounded-lg shadow-sm transition-colors">
+                          {running ? 'Compiling…' : 'Compile & Run Samples'}
                         </button>
                         <button onClick={handleJudge} disabled={running || judging}
-                          className="bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white text-xs font-bold px-4 py-1.5 rounded-lg">
+                          className="bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white text-xs font-bold px-4 py-1.5 rounded-lg shadow-sm transition-colors">
                           {judging ? 'Evaluating…' : 'Submit Code'}
                         </button>
                       </div>
@@ -974,23 +1093,53 @@ export const LiveExamPage = () => {
                       </Suspense>
                     </div>
 
-                    <div className="h-48 border-t border-gray-800 bg-[#0d1117] overflow-auto p-4 flex-shrink-0">
-
-                      { }
+                    <div className="h-52 border-t border-gray-800 bg-[#0d1117] overflow-auto p-4 flex-shrink-0">
+                      {/* Active Results Display */}
                       {!judgeResult && (
                         <>
                           <div className="flex items-center gap-2 mb-3">
                             <input value={codeStdin} onChange={e => setCodeStdin(e.target.value)}
                               className="flex-1 bg-gray-800 border border-gray-700 rounded-md px-3 py-1.5 text-xs text-gray-300 font-mono outline-none focus:border-gray-500 transition-colors"
-                              placeholder="Custom stdin input…" />
+                              placeholder="Custom stdin input (used if question has no sample test cases)..." />
                           </div>
-                          {running && <p className="text-gray-500 text-xs font-mono animate-pulse">Compiling & Running...</p>}
+                          {running && <p className="text-gray-500 text-xs font-mono animate-pulse">Compiling & Running Sample Cases...</p>}
                           {runResult && (
-                            <div className="flex flex-col gap-2 animate-in fade-in duration-300">
-                              <pre className={`font-mono text-[12px] whitespace-pre-wrap p-4 rounded-xl border shadow-inner ${runResult.error ? 'text-red-400 bg-red-950/20 border-red-500/20' : 'text-emerald-400 bg-emerald-950/20 border-emerald-500/20'}`}>
-                                {runResult.error || runResult.output || '(No output provided by program)'}
-                              </pre>
-                            </div>
+                            runResult.isSampleRun ? (
+                              <div className="flex flex-col gap-2.5 animate-in fade-in duration-300">
+                                <div className={`p-2.5 rounded-xl border flex items-center justify-between text-xs font-bold ${runResult.error ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'}`}>
+                                  <span>{runResult.error ? 'Compilation / Runtime Error' : 'Compiled Successfully'}</span>
+                                  <span className="text-[11px] text-gray-400 bg-gray-900/60 px-2.5 py-1 rounded-md border border-gray-700">
+                                    Sample Cases Passed: {runResult.sampleResults?.filter(r => r.passed).length} / {runResult.sampleResults?.length} (Testing Only • 0 Marks Awarded)
+                                  </span>
+                                </div>
+                                {runResult.error && (
+                                  <pre className="font-mono text-xs text-red-400 bg-red-950/20 border border-red-500/20 p-3 rounded-xl whitespace-pre-wrap">
+                                    {runResult.error}
+                                  </pre>
+                                )}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                                  {runResult.sampleResults?.map((sr, idx) => (
+                                    <div key={idx} className={`p-2.5 rounded-xl border text-xs font-mono ${sr.passed ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
+                                      <div className="flex items-center justify-between font-bold mb-1.5 pb-1 border-b border-gray-800">
+                                        <span className="text-gray-300">Sample Case {sr.index}</span>
+                                        <span className={sr.passed ? 'text-emerald-400' : 'text-red-400'}>{sr.passed ? '✓ Passed' : '✗ Failed'}</span>
+                                      </div>
+                                      <div className="space-y-1 text-[11px]">
+                                        <div><span className="text-gray-500 font-bold uppercase text-[9px]">Input:</span> <span className="text-gray-300">{sr.input || '(empty)'}</span></div>
+                                        <div><span className="text-gray-500 font-bold uppercase text-[9px]">Expected:</span> <span className="text-emerald-400">{sr.expectedOutput}</span></div>
+                                        <div><span className="text-gray-500 font-bold uppercase text-[9px]">Actual:</span> <span className={sr.passed ? 'text-emerald-300' : 'text-red-300'}>{sr.actualOutput || sr.error || '(no output)'}</span></div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col gap-2 animate-in fade-in duration-300">
+                                <pre className={`font-mono text-[12px] whitespace-pre-wrap p-4 rounded-xl border shadow-inner ${runResult.error ? 'text-red-400 bg-red-950/20 border-red-500/20' : 'text-emerald-400 bg-emerald-950/20 border-emerald-500/20'}`}>
+                                  {runResult.error || runResult.output || '(No output provided by program)'}
+                                </pre>
+                              </div>
+                            )
                           )}
                         </>
                       )}
@@ -998,20 +1147,35 @@ export const LiveExamPage = () => {
                       {judging && <p className="text-gray-500 text-xs font-mono animate-pulse mt-2">Evaluating against test cases...</p>}
                       {judgeResult && (
                         <div className="animate-in slide-in-from-bottom-2 duration-300">
-                          <div className={`text-sm font-bold mb-3 pb-2 border-b ${judgeResult.verdict === 'accepted' ? 'text-emerald-400 border-emerald-500/20' : 'text-red-400 border-red-500/20'}`}>
-                            {judgeResult.verdict === 'accepted' ? 'All Test Cases Passed Successfully' : `Passed ${judgeResult.passed} out of ${judgeResult.total} Test Cases`}
+                          <div className={`text-sm font-bold mb-3 pb-2 border-b flex items-center justify-between ${judgeResult.verdict === 'accepted' ? 'text-emerald-400 border-emerald-500/20' : 'text-red-400 border-red-500/20'}`}>
+                            <span>
+                              {judgeResult.verdict === 'accepted' ? 'All Test Cases Passed Successfully' : (
+                                judgeResult.totalHidden > 0 
+                                  ? `Hidden Tests (Graded): ${judgeResult.passedHidden || 0} / ${judgeResult.totalHidden} Passed • Sample Tests: ${judgeResult.passedSample || 0} / ${judgeResult.totalSample || 0}`
+                                  : `Passed ${judgeResult.passed} out of ${judgeResult.total} Test Cases`
+                              )}
+                            </span>
+                            {judgeResult.totalHidden > 0 && (
+                              <span className="text-xs text-gray-400 font-medium font-mono">
+                                Marks: {Math.round(((judgeResult.passedHidden || 0) / judgeResult.totalHidden) * (exam?.questions?.[currentQ]?.points || 10))} / {exam?.questions?.[currentQ]?.points || 10} pts
+                              </span>
+                            )}
                           </div>
 
                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                             {judgeResult.results?.map((r, i) => (
                               <div key={i} className={`p-3 border rounded-xl flex-1 ${r.passed ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
                                 <div className={`text-xs font-black tracking-wider uppercase flex items-center justify-between ${r.passed ? 'text-emerald-400' : 'text-red-400'}`}>
-                                  <span>{r.hidden ? `Hidden Test Case ${i + 1}` : `Public Test Case ${i + 1}`}</span>
+                                  <span>{r.hidden ? `Hidden Test Case ${i + 1}` : `Sample Case ${i + 1}`}</span>
                                   <span>{r.passed ? 'Passed' : 'Failed'}</span>
                                 </div>
-                                {r.hidden && !r.passed && (
-                                  <div className="mt-2 pt-2 border-t border-gray-700/50 text-[10px] font-mono text-gray-500 italic">
-                                    Output hidden for security.
+                                {r.hidden ? (
+                                  <div className="mt-2 pt-2 border-t border-gray-700/50 text-[10px] font-mono text-gray-400">
+                                    {r.passed ? '✓ Test passed • Marks awarded' : '✗ Test failed • 0 marks'}
+                                  </div>
+                                ) : (
+                                  <div className="mt-2 pt-2 border-t border-gray-700/50 text-[10px] font-mono text-gray-500">
+                                    Sample Test • 0 Marks
                                   </div>
                                 )}
                               </div>

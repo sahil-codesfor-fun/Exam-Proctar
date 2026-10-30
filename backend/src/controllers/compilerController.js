@@ -8,20 +8,58 @@ dotenv.config();
 
 // ── Language Configuration ───────────────────────────────────────────────────
 export const LANGUAGE_CONFIG = {
-  javascript: { id: 93,  ext: 'js',    name: 'JavaScript (Node.js)', monacoLang: 'javascript' },
-  python:     { id: 92,  ext: 'py',    name: 'Python 3',             monacoLang: 'python'     },
-  java:       { id: 91,  ext: 'java',  name: 'Java 24',              monacoLang: 'java'       },
   c:          { id: 50,  ext: 'c',     name: 'C (GCC)',              monacoLang: 'c'          },
   cpp:        { id: 54,  ext: 'cpp',   name: 'C++ (G++)',            monacoLang: 'cpp'        },
+  java:       { id: 91,  ext: 'java',  name: 'Java 24',              monacoLang: 'java'       },
+  python:     { id: 92,  ext: 'py',    name: 'Python 3',             monacoLang: 'python'     },
 };
 
 // ── Starter code templates (Cross-platform optimized) ─────────────────────────
 export const TEMPLATES = {
-  javascript: `// JavaScript (Node.js)\nconst fs = require('fs');\nconst input = fs.readFileSync(0, 'utf8');\nconst lines = input.trim().split('\\n');\n\n// Your solution here\nif (lines[0]) {\n    console.log(lines[0]);\n} else {\n    console.log("Hello World");\n}`,
-  python:     `# Python 3\nimport sys\n\ndef solve():\n    input_data = sys.stdin.read().split()\n    if not input_data:\n        print("Hello World")\n        return\n    # Your solution here\n    print(input_data[0])\n\nif __name__ == "__main__":\n    solve()`,
-  java:       `import java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        if (sc.hasNextLine()) {\n            String line = sc.nextLine();\n            System.out.println(line);\n        } else {\n            System.out.println("Hello World");\n        }\n    }\n}`,
-  c:          `#include <stdio.h>\n\nint main() {\n    char line[256];\n    if (scanf("%s", line) != EOF) {\n        printf("%s\\n", line);\n    } else {\n        printf("Hello World\\n");\n    }\n    return 0;\n}`,
-  cpp:        `#include <iostream>\n#include <string>\nusing namespace std;\n\nint main() {\n    string s;\n    if (cin >> s) {\n        cout << s << endl;\n    } else {\n        cout << "Hello World" << endl;\n    }\n    return 0;\n}`,
+  c: `#include <stdio.h>
+
+int main() {
+    // Read input and write your solution here
+    char line[256];
+    if (scanf("%s", line) != EOF) {
+        printf("%s\\n", line);
+    }
+    return 0;
+}`,
+  cpp: `#include <iostream>
+#include <string>
+using namespace std;
+
+int main() {
+    // Read input and write your solution here
+    string s;
+    if (cin >> s) {
+        cout << s << endl;
+    }
+    return 0;
+}`,
+  java: `import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        // Read input and write your solution here
+        if (sc.hasNextLine()) {
+            System.out.println(sc.nextLine());
+        }
+    }
+}`,
+  python: `# Python 3
+import sys
+
+def solve():
+    # Read input and write your solution here
+    input_data = sys.stdin.read().split()
+    if input_data:
+        print(input_data[0])
+
+if __name__ == "__main__":
+    solve()`,
 };
 
 // ── Judge0 Configuration (Self-hosted, no API key needed) ─────────────────────
@@ -132,7 +170,7 @@ export async function runCode(language, code, stdin = '', timeSec = 5, memKb = 2
 // ── Controllers ───────────────────────────────────────────────────────────────
 
 export const executeCode = async (req, res) => {
-  const { language, code, stdin = '' } = req.body;
+  const { language, code, stdin = '', sampleTestCases } = req.body;
   console.log("========================================");
   console.log("INCOMING EXECUTION REQUEST");
   console.log("LANGUAGE:", language);
@@ -145,6 +183,53 @@ export const executeCode = async (req, res) => {
     if (code.length > 100000 || (stdin && stdin.length > 50000)) return res.status(400).json({ success: false, message: 'Code or stdin size exceeds limit' });
     if (!LANGUAGE_CONFIG[language]) return res.status(400).json({ success: false, message: `Unsupported: ${language}` });
     
+    // If running against visible sample test cases
+    if (Array.isArray(sampleTestCases) && sampleTestCases.length > 0) {
+      const sampleResults = [];
+      let allPassed = true;
+      let runtimeOrCompileErr = null;
+
+      for (let i = 0; i < sampleTestCases.length; i++) {
+        const tc = sampleTestCases[i];
+        const r = await runCode(language, code, tc.input || '', 5);
+        if (!r.success) {
+          runtimeOrCompileErr = r.error || 'Execution failed';
+          sampleResults.push({
+            index: i + 1,
+            input: tc.input || '',
+            expectedOutput: tc.expectedOutput || '',
+            actualOutput: (r.output || '').trim(),
+            error: r.error,
+            passed: false,
+            verdict: r.verdict
+          });
+          allPassed = false;
+        } else {
+          const actual = (r.output || '').trim();
+          const expected = (tc.expectedOutput || '').trim();
+          const passed = actual === expected;
+          if (!passed) allPassed = false;
+          sampleResults.push({
+            index: i + 1,
+            input: tc.input || '',
+            expectedOutput: tc.expectedOutput || '',
+            actualOutput: actual,
+            error: null,
+            passed,
+            verdict: passed ? 'accepted' : 'wrong_answer'
+          });
+        }
+      }
+
+      return res.json({
+        success: !runtimeOrCompileErr,
+        allPassed,
+        sampleResults,
+        error: runtimeOrCompileErr,
+        message: runtimeOrCompileErr ? 'Compilation or Runtime error' : 'Compiled successfully'
+      });
+    }
+
     const result = await runCode(language, code, stdin);
     
     console.log("EXECUTION RESULT:", result.verdict);
@@ -391,12 +476,30 @@ export const judgeCode = async (req, res) => {
       cacheService.invalidateFacultyCaches().catch(() => {});
     }
 
+    const hiddenCases = testCases.filter(tc => tc.isHidden);
+    const visibleCases = testCases.filter(tc => !tc.isHidden);
+
+    const scoringCases = hiddenCases.length > 0 ? hiddenCases : testCases;
+    const passedScoring = results.filter(r => r.passed && (hiddenCases.length > 0 ? r.hidden : true)).length;
+    const totalScoring = scoringCases.length;
+
+    const passedHidden = results.filter(r => r.passed && r.hidden).length;
+    const totalHidden = hiddenCases.length;
+    const passedSample = results.filter(r => r.passed && !r.hidden).length;
+    const totalSample = visibleCases.length;
+
     res.json({ 
       success: true, 
       data: { 
         verdict: finalVerdict, 
         passed, 
-        total: testCases.length, 
+        total: testCases.length,
+        passedHidden,
+        totalHidden,
+        passedSample,
+        totalSample,
+        passedScoring,
+        totalScoring,
         results 
       } 
     });

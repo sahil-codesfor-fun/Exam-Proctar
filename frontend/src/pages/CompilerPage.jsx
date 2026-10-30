@@ -8,53 +8,57 @@ import { ShieldAlert, Code2, Terminal, Scale } from 'lucide-react';
 const Editor = lazy(() => import('@monaco-editor/react'));
 
 const LANGUAGES = [
-  { id: 'javascript', name: 'JavaScript',  monacoLang: 'javascript' },
-  { id: 'typescript', name: 'TypeScript',  monacoLang: 'typescript' },
-  { id: 'python',     name: 'Python',      monacoLang: 'python'     },
-  { id: 'java',       name: 'Java',        monacoLang: 'java'       },
   { id: 'c',          name: 'C',           monacoLang: 'c'          },
   { id: 'cpp',        name: 'C++',         monacoLang: 'cpp'        },
-  { id: 'csharp',     name: 'C#',          monacoLang: 'csharp'     },
-  { id: 'go',         name: 'Go',          monacoLang: 'go'         },
-  { id: 'rust',       name: 'Rust',        monacoLang: 'rust'       },
-  { id: 'php',        name: 'PHP',         monacoLang: 'php'        },
-  { id: 'ruby',       name: 'Ruby',        monacoLang: 'ruby'       },
-  { id: 'kotlin',     name: 'Kotlin',      monacoLang: 'kotlin'     },
-  { id: 'swift',      name: 'Swift',       monacoLang: 'swift'      },
-  { id: 'perl',       name: 'Perl',        monacoLang: 'perl'       },
-  { id: 'bash',       name: 'Bash',        monacoLang: 'shell'      },
-  { id: 'r',          name: 'R',           monacoLang: 'r'          },
-  { id: 'sql',        name: 'SQL',         monacoLang: 'sql'        },
-  { id: 'scala',      name: 'Scala',       monacoLang: 'scala'      },
-  { id: 'haskell',    name: 'Haskell',     monacoLang: 'haskell'    },
-  { id: 'lua',        name: 'Lua',         monacoLang: 'lua'        },
-  { id: 'dart',       name: 'Dart',        monacoLang: 'dart'       },
-  { id: 'elixir',     name: 'Elixir',      monacoLang: 'elixir'     },
+  { id: 'java',       name: 'Java',        monacoLang: 'java'       },
+  { id: 'python',     name: 'Python',      monacoLang: 'python'     },
 ];
 
 const TEMPLATES = {
-  javascript: `// JavaScript (Node.js 18)\nconst lines = require('fs').readFileSync('/dev/stdin','utf8').trim().split('\\n');\nconsole.log(lines[0]);`,
-  typescript: `// TypeScript 5\nimport * as fs from 'fs';\nconst lines = fs.readFileSync('/dev/stdin','utf8').trim().split('\\n');\nconsole.log(lines[0]);`,
-  python:     `# Python 3.11\nimport sys\ndata = sys.stdin.read().split()\nprint(data[0] if data else '')`,
-  java:       `import java.util.*;\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        System.out.println(sc.nextLine());\n    }\n}`,
-  c:          `#include <stdio.h>\nint main() {\n    char s[256]; scanf("%s", s);\n    printf("%s\\n", s);\n    return 0;\n}`,
-  cpp:        `#include <bits/stdc++.h>\nusing namespace std;\nint main() {\n    ios_base::sync_with_stdio(false); cin.tie(NULL);\n    string s; cin >> s;\n    cout << s << "\\n";\n    return 0;\n}`,
-  csharp:     `using System;\nclass Main {\n    static void Main() { Console.WriteLine(Console.ReadLine()); }\n}`,
-  go:         `package main\nimport ("bufio";"fmt";"os")\nfunc main() {\n    r := bufio.NewReader(os.Stdin)\n    var s string; fmt.Fscan(r, &s)\n    fmt.Println(s)\n}`,
-  rust:       `use std::io::{self,BufRead};\nfn main() {\n    let stdin=io::stdin();\n    if let Some(Ok(l))=stdin.lock().lines().next(){println!("{}",l);}\n}`,
-  php:        `<?php\n$line = trim(fgets(STDIN));\necho $line . "\\n";`,
-  ruby:       `puts gets.chomp`,
-  kotlin:     `import java.util.Scanner\nfun main() { val sc=Scanner(System.\`in\`); println(sc.nextLine()) }`,
-  swift:      `if let line = readLine() { print(line) }`,
-  perl:       `my $l = <STDIN>; chomp $l; print "$l\\n";`,
-  bash:       `#!/bin/bash\nread line\necho "$line"`,
-  r:          `cat(readLines(file("stdin"),n=1), "\\n")`,
-  sql:        `-- SQLite\nSELECT 'Hello, World!';`,
-  scala:      `import scala.io.StdIn\nobject Main extends App { println(StdIn.readLine()) }`,
-  haskell:    `main :: IO ()\nmain = getLine >>= putStrLn`,
-  lua:        `print(io.read())`,
-  dart:       `import 'dart:io';\nvoid main() { print(stdin.readLineSync()); }`,
-  elixir:     `IO.puts IO.gets("") |> String.trim()`,
+  c: `#include <stdio.h>
+
+int main() {
+    // Read input and write your solution here
+    char line[256];
+    if (scanf("%s", line) != EOF) {
+        printf("%s\\n", line);
+    }
+    return 0;
+}`,
+  cpp: `#include <iostream>
+#include <string>
+using namespace std;
+
+int main() {
+    // Read input and write your solution here
+    string s;
+    if (cin >> s) {
+        cout << s << endl;
+    }
+    return 0;
+}`,
+  java: `import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        // Read input and write your solution here
+        if (sc.hasNextLine()) {
+            System.out.println(sc.nextLine());
+        }
+    }
+}`,
+  python: `# Python 3
+import sys
+
+def solve():
+    # Read input and write your solution here
+    input_data = sys.stdin.read().split()
+    if input_data:
+        print(input_data[0])
+
+if __name__ == "__main__":
+    solve()`,
 };
 
 const VERDICT_COLORS = {
@@ -310,9 +314,22 @@ export function CompilerPage() {
   const handleRun = async () => {
     setRunning(true); setRunResult(null); setTab('output');
     try {
-      const r = await api.post('/compiler/execute', { language: lang, code, stdin });
+      const sampleCases = question?.testCases?.filter(tc => !tc.isHidden) || [];
+      const payload = { language: lang, code, stdin };
+      if (sampleCases.length > 0) {
+        payload.sampleTestCases = sampleCases;
+      }
+      const r = await api.post('/compiler/execute', payload);
       const resData = r.data;
-      if (resData.success) {
+      if (resData.sampleResults) {
+        setRunResult({
+          isSampleRun: true,
+          allPassed: resData.allPassed,
+          sampleResults: resData.sampleResults,
+          error: resData.error,
+          message: resData.message
+        });
+      } else if (resData.success) {
         setRunResult({ verdict: 'accepted', output: resData.output, runtime: parseFloat(resData.executionTime) * 1000, error: null });
       } else {
         setRunResult({ verdict: (resData.errorType || 'runtime_error').toLowerCase().replace(/ /g, '_'), error: resData.stderr, output: '', runtime: 0 });
@@ -633,21 +650,52 @@ export function CompilerPage() {
                         <div className="flex items-center gap-2 shrink-0">
                             <input value={stdin} onChange={e => setStdin(e.target.value)}
                                 className="flex-1 bg-gray-800 border border-gray-700 rounded-md px-3 py-1.5 text-xs text-gray-300 font-mono outline-none focus:border-gray-500 transition-colors"
-                                placeholder="Custom stdin input…" spellCheck={false} />
+                                placeholder="Custom stdin input (used if no sample test cases)..." spellCheck={false} />
                         </div>
 
-                        <div className="flex-1">
+                        <div className="flex-1 overflow-auto">
                             {running ? (
-                                <p className="text-gray-500 text-xs font-mono animate-pulse">Compiling & Running...</p>
+                                <p className="text-gray-500 text-xs font-mono animate-pulse">Compiling & Running Sample Cases...</p>
                             ) : runResult ? (
-                                <div className="flex flex-col gap-2 animate-in fade-in duration-300">
-                                    <pre className={`font-mono text-[12px] whitespace-pre-wrap p-4 rounded-xl border shadow-inner ${runResult.error ? 'text-red-400 bg-red-950/20 border-red-500/20' : 'text-emerald-400 bg-emerald-950/20 border-emerald-500/20'}`}>
-                                        {runResult.error || runResult.output || '(No output provided by program)'}
-                                    </pre>
-                                </div>
+                                runResult.isSampleRun ? (
+                                  <div className="flex flex-col gap-3 animate-in fade-in duration-300">
+                                      <div className={`p-3 rounded-xl border flex items-center justify-between text-xs font-bold ${runResult.error ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'}`}>
+                                          <span>{runResult.error ? 'Compilation / Runtime Error' : 'Compiled Successfully'}</span>
+                                          <span className="text-[11px] text-gray-400 bg-gray-900/60 px-2.5 py-1 rounded-md border border-gray-700">
+                                              Sample Test Cases Passed: {runResult.sampleResults?.filter(r => r.passed).length} / {runResult.sampleResults?.length} (Testing Only • 0 Marks Awarded)
+                                          </span>
+                                      </div>
+                                      {runResult.error && (
+                                          <pre className="font-mono text-xs text-red-400 bg-red-950/20 border border-red-500/20 p-3 rounded-xl whitespace-pre-wrap">
+                                              {runResult.error}
+                                          </pre>
+                                      )}
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                          {runResult.sampleResults?.map((sr, idx) => (
+                                              <div key={idx} className={`p-3 rounded-xl border text-xs font-mono ${sr.passed ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
+                                                  <div className="flex items-center justify-between font-bold mb-2 pb-1 border-b border-gray-800">
+                                                      <span className="text-gray-300">Sample Case {sr.index}</span>
+                                                      <span className={sr.passed ? 'text-emerald-400' : 'text-red-400'}>{sr.passed ? '✓ Passed' : '✗ Failed'}</span>
+                                                  </div>
+                                                  <div className="space-y-1 text-[11px]">
+                                                      <div><span className="text-gray-500 font-bold uppercase text-[9px]">Input:</span> <span className="text-gray-300">{sr.input || '(empty)'}</span></div>
+                                                      <div><span className="text-gray-500 font-bold uppercase text-[9px]">Expected:</span> <span className="text-emerald-400">{sr.expectedOutput}</span></div>
+                                                      <div><span className="text-gray-500 font-bold uppercase text-[9px]">Actual:</span> <span className={sr.passed ? 'text-emerald-300' : 'text-red-300'}>{sr.actualOutput || sr.error || '(no output)'}</span></div>
+                                                  </div>
+                                              </div>
+                                          ))}
+                                      </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col gap-2 animate-in fade-in duration-300">
+                                      <pre className={`font-mono text-[12px] whitespace-pre-wrap p-4 rounded-xl border shadow-inner ${runResult.error ? 'text-red-400 bg-red-950/20 border-red-500/20' : 'text-emerald-400 bg-emerald-950/20 border-emerald-500/20'}`}>
+                                          {runResult.error || runResult.output || '(No output provided by program)'}
+                                      </pre>
+                                  </div>
+                                )
                             ) : (
                                 <p className="text-gray-600 text-xs font-bold uppercase tracking-widest text-center mt-10">
-                                    Run code to view output
+                                    Click Compile to run sample test cases
                                 </p>
                             )}
                         </div>
@@ -663,7 +711,11 @@ export function CompilerPage() {
                             <div className="animate-in slide-in-from-bottom-2 duration-300">
                                 <div className={`text-sm font-bold mb-3 pb-2 border-b ${judgeResult.verdict === 'accepted' ? 'text-emerald-400 border-emerald-500/20' : 'text-red-400 border-red-500/20'}`}>
                                     {judgeResult.verdict === 'error' ? (judgeResult.message || 'Evaluation Failed') :
-                                     judgeResult.verdict === 'accepted' ? 'All Test Cases Passed Successfully' : `Passed ${judgeResult.passed} out of ${judgeResult.total} Test Cases`}
+                                     judgeResult.verdict === 'accepted' ? 'All Test Cases Passed Successfully' : (
+                                       judgeResult.totalHidden > 0 
+                                         ? `Hidden Tests (Graded): ${judgeResult.passedHidden || 0} / ${judgeResult.totalHidden} Passed • Sample Tests: ${judgeResult.passedSample || 0} / ${judgeResult.totalSample || 0}`
+                                         : `Passed ${judgeResult.passed} out of ${judgeResult.total} Test Cases`
+                                     )}
                                 </div>
                                 
                                 {judgeResult.results?.length > 0 && (
