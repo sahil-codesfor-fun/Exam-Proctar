@@ -52,18 +52,41 @@ export const LandingPage = () => {
       api.get(`/auth/departments/${credentials.departmentId}/courses`)
         .then(res => {
            setCourses(res.data.data || []);
-           setCredentials(prev => ({ ...prev, course: '' }));
+           setCredentials(prev => ({ ...prev, course: '', section: '' }));
         })
         .catch(err => console.error("Failed to fetch courses", err));
     } else {
       setCourses([]);
+      setCredentials(prev => ({ ...prev, course: '', section: '' }));
     }
   }, [credentials.departmentId]);
   
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setCredentials(prev => ({ ...prev, [name]: value }));
+    if (name === 'departmentId') {
+      setCredentials(prev => ({ ...prev, departmentId: value, course: '', section: '' }));
+    } else if (name === 'course') {
+      setCredentials(prev => ({ ...prev, course: value, section: '' }));
+    } else {
+      setCredentials(prev => ({ ...prev, [name]: value }));
+    }
   };
+
+  const selectedCourseObj = courses.find(c => 
+    c.id === credentials.course || 
+    c.courseId === credentials.course || 
+    c.name === credentials.course ||
+    c.code === credentials.course
+  );
+
+  const availableSections = selectedCourseObj?.sections && selectedCourseObj.sections.length > 0
+    ? selectedCourseObj.sections
+    : selectedCourseObj?.totalSections
+      ? Array.from({ length: selectedCourseObj.totalSections }, (_, i) => {
+          const char = String.fromCharCode(65 + i);
+          return { id: char, name: `Section ${char}` };
+        })
+      : [];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -295,13 +318,15 @@ export const LandingPage = () => {
                           value={credentials.section} 
                           onChange={handleChange} 
                           required 
-                          className="w-full pl-10 pr-8 py-2 rounded-lg border border-slate-200/80 bg-slate-50/30 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all text-xs cursor-pointer appearance-none"
+                          disabled={!credentials.course || availableSections.length === 0}
+                          className="w-full pl-10 pr-8 py-2 rounded-lg border border-slate-200/80 bg-slate-50/30 focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-all text-xs cursor-pointer appearance-none disabled:opacity-50"
                         >
-                          <option value="" disabled>Select</option>
-                          <option value="A">Section A</option>
-                          <option value="B">Section B</option>
-                          <option value="C">Section C</option>
-                          <option value="D">Section D</option>
+                          <option value="" disabled>
+                            {!credentials.course ? 'Select Course First' : 'Select'}
+                          </option>
+                          {availableSections.map(s => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                          ))}
                         </select>
                         <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 border-l border-slate-200 pl-2">
                           ▼

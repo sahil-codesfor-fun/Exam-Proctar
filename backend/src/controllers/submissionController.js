@@ -1,5 +1,6 @@
 import prisma, { withDbRetry } from '../config/prisma.js';
 import { runCode, TEMPLATES } from './compilerController.js';
+import { isSectionAllowed, isCourseAllowed } from './examController.js';
 
 function shuffleArray(array) {
   const arr = [...array];
@@ -19,6 +20,8 @@ export const startSubmission = async (req, res) => {
       select: {
         id: true,
         status: true,
+        course: true,
+        targetSection: true,
         schedule: true,
         settings: true,
         questions: {
@@ -34,6 +37,19 @@ export const startSubmission = async (req, res) => {
     });
 
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
+
+    if (req.user.role === 'student') {
+      const student = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { course: true, section: true }
+      });
+      if (!isCourseAllowed(exam.course, student?.course)) {
+        return res.status(403).json({ success: false, message: `Access Denied: This exam is only scheduled for ${exam.course || 'another course'}.` });
+      }
+      if (!isSectionAllowed(exam.targetSection, student?.section)) {
+        return res.status(403).json({ success: false, message: `Access Denied: This exam is only scheduled for Section ${exam.targetSection}. Your registered section is ${student?.section || 'unassigned'}.` });
+      }
+    }
 
     const now = new Date();
     

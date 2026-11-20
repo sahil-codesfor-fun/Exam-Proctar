@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../../services/api';
-import { Search, X, Check, Filter, Layers, LayoutGrid, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
+import { Search, X, Check, Layers, LayoutGrid, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
 
 const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
   const [courses, setCourses] = useState([]);
@@ -11,14 +11,6 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
   const [statusFilter, setStatusFilter] = useState('ALL');
   
   const [selectedCourseIds, setSelectedCourseIds] = useState([]);
-  
-  const [config, setConfig] = useState({
-    academicYear: new Date().getFullYear().toString() + '-' + (new Date().getFullYear() + 1).toString().slice(-2),
-    batch: new Date().getFullYear().toString(),
-    semesterStructure: 'ODD_EVEN',
-    totalSections: 2,
-    intakeCapacity: 60,
-  });
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -26,7 +18,7 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
   
   const [showCreateCourse, setShowCreateCourse] = useState(false);
   const [newCourse, setNewCourse] = useState({
-    name: '', code: '', duration: 4, credits: 160, semesters: 8
+    name: '', code: '', duration: 4, credits: 160, semesters: 8, totalSections: 2
   });
   const [creatingCourse, setCreatingCourse] = useState(false);
 
@@ -90,8 +82,7 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
 
     try {
       await api.post(`/superadmin/departments/${department.id}/courses`, {
-        courseIds: selectedCourseIds,
-        metadata: config
+        courseIds: selectedCourseIds
       });
       setSuccess(`Successfully allocated ${selectedCourseIds.length} course(s).`);
       setSelectedCourseIds([]);
@@ -117,7 +108,7 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
       const res = await api.post('/superadmin/courses', newCourse);
       setSuccess(`Course ${res.data.data.name} created successfully!`);
       setShowCreateCourse(false);
-      setNewCourse({ name: '', code: '', duration: 4, credits: 160, semesters: 8 });
+      setNewCourse({ name: '', code: '', duration: 4, credits: 160, semesters: 8, totalSections: 2 });
       await fetchData();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create course.');
@@ -310,14 +301,17 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
                               {course.code}
                             </span>
                           </div>
-                          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-                            <span>Duration: {course.duration} Years</span>
+                          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                            <span>Duration: {course.duration} Yrs</span>
                             <span>Credits: {course.credits}</span>
                             <span>Semesters: {course.semesters}</span>
+                            <span className="inline-flex items-center gap-1 font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
+                              Sections: {course.totalSections || 1} ({Array.from({ length: course.totalSections || 1 }, (_, i) => String.fromCharCode(65 + i)).join(', ')})
+                            </span>
                           </div>
                           {allocated && (
                             <div className="mt-2 text-xs font-medium text-green-700 bg-green-100/50 inline-block px-2 py-1 rounded">
-                              Already Allocated
+                              Already Allocated • {allocatedCourses.find(ac => ac.courseId === course.id)?.totalSections || course.totalSections || 1} Section{(allocatedCourses.find(ac => ac.courseId === course.id)?.totalSections || course.totalSections || 1) > 1 ? 's' : ''} ({Array.from({ length: allocatedCourses.find(ac => ac.courseId === course.id)?.totalSections || course.totalSections || 1 }, (_, i) => String.fromCharCode(65 + i)).join(', ')})
                             </div>
                           )}
                         </div>
@@ -346,100 +340,42 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
             </div>
           </div>
 
-          {}
-          <div className="w-full lg:w-80 shrink-0 space-y-6">
-            <div className="bg-blue-50 border border-blue-100 rounded-xl p-5">
-              <h4 className="font-bold text-blue-900 flex items-center gap-2 mb-4">
-                <Filter className="w-5 h-5 text-blue-600" />
-                Allocation Config
+          {/* Right Action / Summary Sidebar */}
+          <div className="w-full lg:w-72 shrink-0">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-4 sticky top-0">
+              <h4 className="font-bold text-slate-800 border-b border-slate-200 pb-3">
+                Allocation Summary
               </h4>
-              <p className="text-xs text-blue-700 mb-4 leading-relaxed">
-                Configure the default settings for the selected courses. These can be modified later per course.
-              </p>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-blue-900 mb-1">Academic Year</label>
-                  <input 
-                    type="text" 
-                    value={config.academicYear} 
-                    onChange={e => setConfig({...config, academicYear: e.target.value})}
-                    className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+              <div className="space-y-3">
+                <div className="flex justify-between items-center p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
+                  <span className="text-sm font-medium text-slate-600">Selected to Allocate</span>
+                  <span className="text-lg font-bold text-blue-600">{selectedCourseIds.length}</span>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-blue-900 mb-1">Batch</label>
-                  <input 
-                    type="text" 
-                    value={config.batch} 
-                    onChange={e => setConfig({...config, batch: e.target.value})}
-                    className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-blue-900 mb-1">Sections</label>
-                    <input 
-                      type="number" 
-                      min="1"
-                      value={config.totalSections} 
-                      onChange={e => setConfig({...config, totalSections: parseInt(e.target.value)})}
-                      className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-blue-900 mb-1">Intake</label>
-                    <input 
-                      type="number" 
-                      min="1"
-                      value={config.intakeCapacity} 
-                      onChange={e => setConfig({...config, intakeCapacity: parseInt(e.target.value)})}
-                      className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-blue-900 mb-1">Semester Structure</label>
-                  <select 
-                    value={config.semesterStructure} 
-                    onChange={e => setConfig({...config, semesterStructure: e.target.value})}
-                    className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="ODD_EVEN">Odd & Even (Standard)</option>
-                    <option value="TRIMESTER">Trimester</option>
-                    <option value="ANNUAL">Annual (Yearly)</option>
-                  </select>
+                <div className="flex justify-between items-center p-3 bg-white rounded-lg border border-slate-200 shadow-xs">
+                  <span className="text-sm font-medium text-slate-600">Currently Allocated</span>
+                  <span className="text-lg font-bold text-green-600">{allocatedCourses.length}</span>
                 </div>
               </div>
-            </div>
-            
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-semibold text-slate-700">Selected</span>
-                <span className="text-lg font-bold text-blue-600">{selectedCourseIds.length}</span>
+
+              <div className="pt-2">
+                <button 
+                  onClick={handleAllocate}
+                  disabled={selectedCourseIds.length === 0 || saving}
+                  className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-xl transition-all shadow-sm"
+                >
+                  {saving ? (
+                    <>
+                      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                      Allocating...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-5 h-5" />
+                      Allocate Courses
+                    </>
+                  )}
+                </button>
               </div>
-              <div className="flex justify-between items-center mb-6">
-                <span className="text-sm font-semibold text-slate-700">Currently Allocated</span>
-                <span className="text-lg font-bold text-green-600">{allocatedCourses.length}</span>
-              </div>
-              
-              <button 
-                onClick={handleAllocate}
-                disabled={selectedCourseIds.length === 0 || saving}
-                className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-xl transition-all shadow-sm"
-              >
-                {saving ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    Allocating...
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-5 h-5" />
-                    Allocate Courses
-                  </>
-                )}
-              </button>
             </div>
           </div>
 
@@ -475,7 +411,7 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
                   value={newCourse.code} onChange={e => setNewCourse({...newCourse, code: e.target.value.toUpperCase()})}
                 />
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1">Duration (Yrs)</label>
                   <input 
@@ -499,6 +435,17 @@ const AllocateCoursesModal = ({ department, onClose, onRefresh }) => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                     value={newCourse.semesters} onChange={e => setNewCourse({...newCourse, semesters: parseInt(e.target.value)})}
                   />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Number of Sections</label>
+                  <input 
+                    type="number" required min="1" max="26"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    value={newCourse.totalSections} onChange={e => setNewCourse({...newCourse, totalSections: parseInt(e.target.value) || 1})}
+                  />
+                  <span className="text-[10px] text-gray-400">
+                    Creates sections ({Array.from({ length: Math.min(newCourse.totalSections || 1, 6) }, (_, i) => String.fromCharCode(65 + i)).join(', ')}{newCourse.totalSections > 6 ? '...' : ''})
+                  </span>
                 </div>
               </div>
               <div className="pt-4 flex justify-end gap-3">

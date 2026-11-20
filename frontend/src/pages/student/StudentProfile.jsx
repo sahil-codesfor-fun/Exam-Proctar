@@ -39,7 +39,15 @@ const StudentProfile = () => {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] font-black text-gray-400 uppercase">Department</span>
-                  <span className="text-sm font-bold text-gray-700">Engineering & Tech</span>
+                  <span className="text-sm font-bold text-gray-700">{user?.departmentRel?.name || user?.department || 'Engineering & Tech'}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-gray-400 uppercase">Course</span>
+                  <span className="text-sm font-bold text-gray-700">{user?.course || 'N/A'}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-gray-400 uppercase">Section</span>
+                  <span className="text-sm font-bold text-gray-700">{user?.section ? `Section ${user.section}` : 'N/A'}</span>
                 </div>
               </div>
             </div>

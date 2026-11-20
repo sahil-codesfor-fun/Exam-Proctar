@@ -88,7 +88,8 @@ export const getDepartmentCourses = async (req, res) => {
     const allocations = await prisma.departmentCourse.findMany({
       where: { departmentId: id },
       select: {
-        course: { select: { name: true, code: true } }
+        totalSections: true,
+        course: { select: { id: true, name: true, code: true, totalSections: true } }
       },
       orderBy: { course: { name: 'asc' } }
     });
@@ -98,38 +99,75 @@ export const getDepartmentCourses = async (req, res) => {
         where: { id },
         select: { code: true, name: true }
       });
-      let defaultCourses = DEPARTMENT_MAPPINGS.default.courses;
+      let defaultCourses = DEPARTMENT_MAPPINGS.default.courses.map(c => ({
+        ...c,
+        totalSections: 2,
+        sections: [
+          { id: 'A', name: 'Section A' },
+          { id: 'B', name: 'Section B' }
+        ]
+      }));
       
       if (dept) {
         if (dept.code === 'CSE' || dept.name.includes('Computer')) {
           defaultCourses = [
-            { id: 'B.Tech CSE', name: 'B.Tech CSE' },
-            { id: 'B.Tech CSE (AI/ML)', name: 'B.Tech CSE (AI/ML)' },
-            { id: 'B.Tech CSE (Data Science)', name: 'B.Tech CSE (Data Science)' },
-            { id: 'B.Tech CSE (Cyber Security)', name: 'B.Tech CSE (Cyber Security)' },
-            { id: 'M.Tech CSE', name: 'M.Tech CSE' },
-            { id: 'BCA', name: 'BCA' }
-          ];
+            { id: 'B.Tech CSE', name: 'B.Tech CSE', totalSections: 4 },
+            { id: 'B.Tech CSE (AI/ML)', name: 'B.Tech CSE (AI/ML)', totalSections: 2 },
+            { id: 'B.Tech CSE (Data Science)', name: 'B.Tech CSE (Data Science)', totalSections: 2 },
+            { id: 'B.Tech CSE (Cyber Security)', name: 'B.Tech CSE (Cyber Security)', totalSections: 2 },
+            { id: 'M.Tech CSE', name: 'M.Tech CSE', totalSections: 1 },
+            { id: 'BCA', name: 'BCA', totalSections: 2 }
+          ].map(c => ({
+            ...c,
+            sections: Array.from({ length: c.totalSections }, (_, i) => {
+              const char = String.fromCharCode(65 + i);
+              return { id: char, name: `Section ${char}` };
+            })
+          }));
         } else if (dept.name.includes('Pharma')) {
           defaultCourses = [
-            { id: 'B.Pharm', name: 'B.Pharm' },
-            { id: 'D.Pharm', name: 'D.Pharm' },
-            { id: 'M.Pharm', name: 'M.Pharm' }
-          ];
+            { id: 'B.Pharm', name: 'B.Pharm', totalSections: 2 },
+            { id: 'D.Pharm', name: 'D.Pharm', totalSections: 2 },
+            { id: 'M.Pharm', name: 'M.Pharm', totalSections: 1 }
+          ].map(c => ({
+            ...c,
+            sections: Array.from({ length: c.totalSections }, (_, i) => {
+              const char = String.fromCharCode(65 + i);
+              return { id: char, name: `Section ${char}` };
+            })
+          }));
         } else if (dept.name.includes('Manage')) {
           defaultCourses = [
-            { id: 'BBA', name: 'BBA' },
-            { id: 'MBA', name: 'MBA' }
-          ];
+            { id: 'BBA', name: 'BBA', totalSections: 2 },
+            { id: 'MBA', name: 'MBA', totalSections: 2 }
+          ].map(c => ({
+            ...c,
+            sections: Array.from({ length: c.totalSections }, (_, i) => {
+              const char = String.fromCharCode(65 + i);
+              return { id: char, name: `Section ${char}` };
+            })
+          }));
         }
       }
       return res.json({ success: true, data: defaultCourses });
     }
 
-    const courses = allocations.map(a => ({
-      id: a.course.name,
-      name: `${a.course.name} (${a.course.code})`
-    }));
+    const courses = allocations.map(a => {
+      const count = a.totalSections || a.course?.totalSections || 1;
+      const courseName = (a.course.name || '').trim();
+      const courseCode = (a.course.code || '').trim();
+      return {
+        id: courseName,
+        courseId: a.course.id,
+        name: `${courseName} (${courseCode})`,
+        code: courseCode,
+        totalSections: count,
+        sections: Array.from({ length: count }, (_, i) => {
+          const char = String.fromCharCode(65 + i);
+          return { id: char, name: `Section ${char}` };
+        })
+      };
+    });
     
     res.json({ success: true, data: courses });
   } catch (err) {
@@ -147,8 +185,57 @@ export const getDepartmentBatches = async (req, res) => {
 
 export const getDepartmentSections = async (req, res) => {
   try {
-    // Return default sections
-    res.json({ success: true, data: DEPARTMENT_MAPPINGS.default.sections });
+    const { id } = req.params;
+    const { course, courseId } = req.query;
+
+    if (course || courseId) {
+      // Find course-wise section allocation
+      const cleanCourse = (course || '').trim();
+      const whereCondition = courseId 
+        ? { departmentId: id, courseId }
+        : { 
+            departmentId: id, 
+            OR: [
+              { course: { name: cleanCourse } },
+              { course: { code: cleanCourse } }
+            ]
+          };
+
+      const allocation = await prisma.departmentCourse.findFirst({
+        where: whereCondition,
+        include: { course: true }
+      });
+
+      const count = allocation?.totalSections || allocation?.course?.totalSections || 1;
+      const sections = Array.from({ length: count }, (_, i) => {
+        const char = String.fromCharCode(65 + i);
+        return { id: char, name: `Section ${char}` };
+      });
+      return res.json({ success: true, data: sections });
+    }
+
+    // Default: find highest section count among department's allocated courses
+    const allocations = await prisma.departmentCourse.findMany({
+      where: { departmentId: id },
+      include: { course: true }
+    });
+
+    let maxSections = 1;
+    for (const a of allocations) {
+      const c = a.totalSections || a.course?.totalSections || 1;
+      if (c > maxSections) maxSections = c;
+    }
+
+    if (allocations.length === 0) {
+      maxSections = 4;
+    }
+
+    const sections = Array.from({ length: maxSections }, (_, i) => {
+      const char = String.fromCharCode(65 + i);
+      return { id: char, name: `Section ${char}` };
+    });
+
+    res.json({ success: true, data: sections });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

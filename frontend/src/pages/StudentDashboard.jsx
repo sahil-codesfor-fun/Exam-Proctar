@@ -69,12 +69,8 @@ export const StudentDashboard = () => {
     import('../services/socket').then(({ connectSocket }) => {
       socket = connectSocket();
       socket.emit('join_dashboard', { role: 'student' });
-      socket.on('exam_published', (newExam) => {
-        setExams(prev => {
-          const exists = prev.find(e => (e._id || e.id) === (newExam._id || newExam.id));
-          if (exists) return prev.map(e => (e._id || e.id) === (newExam._id || newExam.id) ? newExam : e);
-          return [newExam, ...prev];
-        });
+      socket.on('exam_published', () => {
+        fetchData();
       });
 
       socket.on('exam_deleted', (data) => {

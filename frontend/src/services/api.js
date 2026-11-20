@@ -1,13 +1,22 @@
 import axios from 'axios';
 
 const getBaseUrl = () => {
+  // If explicitly configured in environment (e.g. .env or cloud build)
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL.replace(/\/+$/, '');
+  }
+
   if (typeof window !== 'undefined') {
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      return import.meta.env.VITE_API_BASE_URL || `${window.location.origin}/api`;
+    // In local development without a reverse proxy, point directly to backend port 5003
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocal && (window.location.port === '5173' || window.location.port === '5174')) {
+      return `${window.location.protocol}//${window.location.hostname}:5003/api`;
     }
+    // In production or behind reverse proxy (e.g. Nginx on university/production server)
     return `${window.location.origin}/api`;
   }
-  return import.meta.env.VITE_API_BASE_URL || '/api';
+
+  return '/api';
 };
 
 const api = axios.create({

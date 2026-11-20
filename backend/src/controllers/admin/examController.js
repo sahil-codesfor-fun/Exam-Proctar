@@ -133,6 +133,20 @@ export const assignExam = async (req, res) => {
     }
 
     const assignment = await examService.assignExam(req.params.id, payload);
+
+    if (payload.section) {
+      await prisma.exam.update({
+        where: { id: req.params.id },
+        data: { targetSection: payload.section }
+      });
+    }
+    if (payload.batch) {
+      await prisma.exam.update({
+        where: { id: req.params.id },
+        data: { targetBatch: payload.batch }
+      });
+    }
+
     res.status(200).json({ success: true, data: assignment });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });

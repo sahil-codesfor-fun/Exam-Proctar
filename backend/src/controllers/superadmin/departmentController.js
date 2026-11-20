@@ -89,9 +89,10 @@ export const allocateCourses = async (req, res) => {
 
     const validCourses = await prisma.course.findMany({
       where: { id: { in: newCourseIds } },
-      select: { id: true }
+      select: { id: true, totalSections: true }
     });
     const validCourseIds = validCourses.map(c => c.id);
+    const courseMap = new Map(validCourses.map(c => [c.id, c]));
     
     const validatedNewCourseIds = newCourseIds.filter(cid => validCourseIds.includes(cid));
 
@@ -99,15 +100,23 @@ export const allocateCourses = async (req, res) => {
       return res.status(400).json({ success: false, message: "Selected courses are either already allocated or no longer exist." });
     }
 
-    const newAllocations = validatedNewCourseIds.map(courseId => ({
-      departmentId: id,
-      courseId,
-      academicYear: metadata?.academicYear || null,
-      batch: metadata?.batch || null,
-      semesterStructure: metadata?.semesterStructure || null,
-      totalSections: metadata?.totalSections ? parseInt(metadata.totalSections) : null,
-      intakeCapacity: metadata?.intakeCapacity ? parseInt(metadata.intakeCapacity) : null,
-    }));
+    const newAllocations = validatedNewCourseIds.map(courseId => {
+      const courseObj = courseMap.get(courseId);
+      // Course-wise section allocation: use course's own totalSections or course-specific override
+      const courseSections = (metadata?.courseSections && metadata.courseSections[courseId])
+        ? parseInt(metadata.courseSections[courseId])
+        : (courseObj?.totalSections || (metadata?.totalSections ? parseInt(metadata.totalSections) : 1));
+
+      return {
+        departmentId: id,
+        courseId,
+        academicYear: metadata?.academicYear || null,
+        batch: metadata?.batch || null,
+        semesterStructure: metadata?.semesterStructure || null,
+        totalSections: courseSections,
+        intakeCapacity: metadata?.intakeCapacity ? parseInt(metadata.intakeCapacity) : null,
+      };
+    });
 
     await prisma.departmentCourse.createMany({ data: newAllocations });
 

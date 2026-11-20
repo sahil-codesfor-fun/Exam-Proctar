@@ -6,7 +6,7 @@ import userRoutes from './userRoutes.js';
 import teacherRoutes from './teacherRoutes.js';
 import subjectRoutes from './subjectRoutes.js';
 import examRoutes from './examRoutes.js';
-import { getCourses, getCourseById, createCourse, deleteCourse } from '../../controllers/superadmin/courseController.js';
+import { getCourses, getCourseById, createCourse, updateCourse, deleteCourse } from '../../controllers/superadmin/courseController.js';
 import { protect, superAdminOnly } from '../../middleware/authMiddleware.js';
 import prisma from '../../config/prisma.js';
 
@@ -24,6 +24,7 @@ router.use('/exams', examRoutes);
 router.get('/courses', protect, superAdminOnly, getCourses);
 router.get('/courses/:id', protect, superAdminOnly, getCourseById);
 router.post('/courses', protect, superAdminOnly, createCourse);
+router.put('/courses/:id', protect, superAdminOnly, updateCourse);
 router.delete('/courses/:id', protect, superAdminOnly, deleteCourse);
 
 export default router;

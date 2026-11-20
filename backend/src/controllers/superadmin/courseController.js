@@ -25,7 +25,7 @@ export const getCourseById = async (req, res) => {
 
 export const createCourse = async (req, res) => {
   try {
-    const { name, code, duration, credits, semesters } = req.body;
+    const { name, code, duration, credits, semesters, totalSections } = req.body;
     
     const existing = await prisma.course.findUnique({ where: { code } });
     if (existing) {
@@ -33,9 +33,39 @@ export const createCourse = async (req, res) => {
     }
 
     const course = await prisma.course.create({
-      data: { name, code, duration: parseInt(duration), credits: parseInt(credits), semesters: parseInt(semesters) }
+      data: {
+        name,
+        code,
+        duration: parseInt(duration),
+        credits: parseInt(credits),
+        semesters: parseInt(semesters),
+        totalSections: parseInt(totalSections || 1)
+      }
     });
     res.status(201).json({ success: true, message: 'Course created successfully', data: course });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+export const updateCourse = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, code, duration, credits, semesters, totalSections } = req.body;
+    
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (code) updateData.code = code;
+    if (duration !== undefined) updateData.duration = parseInt(duration);
+    if (credits !== undefined) updateData.credits = parseInt(credits);
+    if (semesters !== undefined) updateData.semesters = parseInt(semesters);
+    if (totalSections !== undefined) updateData.totalSections = parseInt(totalSections) || 1;
+
+    const updated = await prisma.course.update({
+      where: { id },
+      data: updateData
+    });
+    res.status(200).json({ success: true, message: 'Course updated successfully', data: updated });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }

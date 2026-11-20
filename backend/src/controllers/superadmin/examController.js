@@ -1,4 +1,5 @@
 import * as examService from '../../services/superadmin/examService.js';
+import prisma from '../../config/prisma.js';
 
 export const createExam = async (req, res) => {
   try {
@@ -81,6 +82,18 @@ export const duplicateExam = async (req, res) => {
 export const assignExam = async (req, res) => {
   try {
     const assignment = await examService.assignExam(req.params.id, req.body);
+    if (req.body.section) {
+      await prisma.exam.update({
+        where: { id: req.params.id },
+        data: { targetSection: req.body.section }
+      });
+    }
+    if (req.body.batch) {
+      await prisma.exam.update({
+        where: { id: req.params.id },
+        data: { targetBatch: req.body.batch }
+      });
+    }
     res.status(200).json({ success: true, data: assignment });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });

@@ -410,7 +410,30 @@ export const TeacherDashboard = () => {
               </div>
 
               <div className="grid grid-cols-3 gap-4">
-                <select disabled={!form.departmentId} value={form.course} onChange={e => setForm(p => ({...p, course: e.target.value}))} className="px-4 py-3 bg-white rounded-xl font-bold text-gray-600 outline-none border border-gray-200 focus:border-emerald-400 transition-all cursor-pointer disabled:opacity-50 disabled:bg-gray-100">
+                <select 
+                  disabled={!form.departmentId} 
+                  value={form.course} 
+                  onChange={e => {
+                    const selectedCourseVal = e.target.value;
+                    const selectedCourseObj = courses.find(c => c.id === selectedCourseVal || c.name === selectedCourseVal || c.courseId === selectedCourseVal);
+                    
+                    if (selectedCourseObj && Array.isArray(selectedCourseObj.sections) && selectedCourseObj.sections.length > 0) {
+                      setSections(selectedCourseObj.sections);
+                    } else if (selectedCourseObj && selectedCourseObj.totalSections) {
+                      const genSections = Array.from({ length: selectedCourseObj.totalSections }, (_, i) => {
+                        const char = String.fromCharCode(65 + i);
+                        return { id: char, name: `Section ${char}` };
+                      });
+                      setSections(genSections);
+                    } else {
+                      api.get(`/metadata/departments/${form.departmentId}/sections`)
+                        .then(res => setSections(res.data.data || []))
+                        .catch(() => {});
+                    }
+                    setForm(p => ({...p, course: selectedCourseVal, targetSection: ''}));
+                  }} 
+                  className="px-4 py-3 bg-white rounded-xl font-bold text-gray-600 outline-none border border-gray-200 focus:border-emerald-400 transition-all cursor-pointer disabled:opacity-50 disabled:bg-gray-100"
+                >
                   <option value="">All Courses</option>
                   {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>

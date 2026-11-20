@@ -22,12 +22,12 @@ const startServer = async () => {
   await seedSuperAdmin();
 
   // 2. Start Express server
-  const PORT = process.env.PORT || 5002; 
+  const PORT = process.env.PORT || 5002;
   const httpServer = createServer(app);
 
   // 3. Initialize Socket.IO with multi-process Redis adapter support
   const ioOptions = {
-    cors: { 
+    cors: {
       origin: (origin, callback) => checkOriginAllowed(origin, callback),
       methods: ['GET', 'POST'],
       credentials: true

@@ -7,6 +7,18 @@ const AssignExamModal = ({ exam, onClose, onSave }) => {
   const [assignType, setAssignType] = useState('department');
   const [semester, setSemester] = useState('');
   const [batch, setBatch] = useState('');
+  const [section, setSection] = useState('');
+  const [sections, setSections] = useState([]);
+
+  useEffect(() => {
+    if (exam?.departmentId) {
+      api.get(`/metadata/departments/${exam.departmentId}/sections`, {
+        params: exam.course ? { course: exam.course } : {}
+      })
+      .then(res => setSections(res.data.data || []))
+      .catch(() => {});
+    }
+  }, [exam?.departmentId, exam?.course]);
 
   const handleAssign = async () => {
     setLoading(true);
@@ -14,7 +26,8 @@ const AssignExamModal = ({ exam, onClose, onSave }) => {
       const payload = {
         assignType,
         semester: semester ? parseInt(semester) : undefined,
-        batch: batch || undefined
+        batch: batch || undefined,
+        section: section ? section.toUpperCase() : undefined
       };
 
       await api.post(`/admin/exams/${exam.id}/assign`, payload);
@@ -58,8 +71,35 @@ const AssignExamModal = ({ exam, onClose, onSave }) => {
               <option value="department">Entire Department</option>
               <option value="semester">By Semester</option>
               <option value="batch">By Batch</option>
+              <option value="section">By Specific Section</option>
             </select>
           </div>
+
+          {assignType === 'section' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Target Section</label>
+              {sections.length > 0 ? (
+                <select 
+                  value={section} 
+                  onChange={(e) => setSection(e.target.value.toUpperCase())} 
+                  className="w-full px-3 py-2 border rounded-lg uppercase bg-white cursor-pointer"
+                >
+                  <option value="">Select Section</option>
+                  {sections.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <input 
+                  type="text" 
+                  value={section} 
+                  onChange={(e) => setSection(e.target.value.toUpperCase())} 
+                  className="w-full px-3 py-2 border rounded-lg uppercase" 
+                  placeholder="e.g. A, B, C, D, E"
+                />
+              )}
+            </div>
+          )}
 
           {assignType === 'semester' && (
             <div>

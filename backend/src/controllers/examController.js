@@ -48,6 +48,39 @@ export const createExam = async (req, res) => {
   }
 };
 
+export const isSectionAllowed = (targetSection, studentSection) => {
+  if (!targetSection) return true; // No section restriction: available to all sections
+  const cleanTarget = String(targetSection).trim().toUpperCase();
+  if (['', 'ALL', 'ALL SECTIONS', 'NULL', 'UNDEFINED'].includes(cleanTarget)) return true;
+
+  if (!studentSection) return false; // Section-specific exam requires student to have matching section
+  const cleanStudent = String(studentSection).trim().toUpperCase().replace(/^SECTION\s+/i, '');
+
+  const allowedSections = cleanTarget
+    .split(',')
+    .map(s => s.trim().toUpperCase().replace(/^SECTION\s+/i, ''))
+    .filter(Boolean);
+
+  return allowedSections.includes(cleanStudent);
+};
+
+export const isCourseAllowed = (examCourse, studentCourse) => {
+  if (!examCourse) return true; // No course restriction
+  const cleanExamCourse = String(examCourse).trim().toLowerCase();
+  if (['', 'all', 'all courses', 'null', 'undefined'].includes(cleanExamCourse)) return true;
+
+  if (!studentCourse) return false;
+  const cleanStudentCourse = String(studentCourse).trim().toLowerCase();
+
+  if (cleanExamCourse === cleanStudentCourse) return true;
+
+  // Handle common variations e.g. "b.tech" vs "b.tech cse"
+  if (cleanStudentCourse.startsWith('b.tech') && cleanExamCourse.startsWith('b.tech')) return true;
+  if (cleanStudentCourse.replace(/[^a-z0-9]/g, '') === cleanExamCourse.replace(/[^a-z0-9]/g, '')) return true;
+
+  return false;
+};
+
 export const getExams = async (req, res) => {
   try {
     const cacheKey = `exams:user:${req.user.id}:role:${req.user.role}`;
@@ -57,29 +90,28 @@ export const getExams = async (req, res) => {
     }
     
     let filter = {};
+    let student = null;
+    let batch = null;
+
     if (['teacher', 'faculty', 'admin', 'superadmin'].includes(req.user.role)) {
       filter = { creatorId: req.user.id };
     } else {
-      const student = await prisma.user.findUnique({
+      student = await prisma.user.findUnique({
         where: { id: req.user.id },
-        select: { studentId: true, course: true, section: true }
+        select: { studentId: true, course: true, section: true, departmentId: true }
       });
-      const batch = student?.studentId && student.studentId.length >= 2 ? '20' + student.studentId.substring(0, 2) : null;
-
-      const studentCourse = student?.course || '';
-      const allowedCourses = [studentCourse];
-      if (studentCourse.startsWith('B.Tech CSE') && studentCourse !== 'B.Tech CSE') {
-        allowedCourses.push('B.Tech CSE');
-      }
+      batch = student?.studentId && student.studentId.length >= 2 ? '20' + student.studentId.substring(0, 2) : null;
 
       filter = {
-        status: { in: ['published', 'active', 'ended'] },
-        AND: [
-          { OR: [{ course: null }, { course: '' }, { course: { in: allowedCourses } }] },
-          { OR: [{ targetBatch: null }, { targetBatch: '' }, { targetBatch: batch || '' }] },
-          { OR: [{ targetSection: null }, { targetSection: '' }, { targetSection: student?.section || '' }] }
-        ]
+        status: { in: ['published', 'active', 'ended'] }
       };
+
+      if (student?.departmentId) {
+        filter.OR = [
+          { departmentId: student.departmentId },
+          { departmentId: null }
+        ];
+      }
     }
 
     const isStudent = req.user.role === 'student';
@@ -98,7 +130,29 @@ export const getExams = async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
-    const formattedExams = exams.map(exam => {
+    let studentFilteredExams = exams;
+    if (isStudent && student) {
+      studentFilteredExams = exams.filter(exam => {
+        // 1. Batch filter
+        if (exam.targetBatch && exam.targetBatch.trim() !== '' && exam.targetBatch.toLowerCase() !== 'all') {
+          if (!batch || exam.targetBatch.trim() !== batch) return false;
+        }
+
+        // 2. Course filter
+        if (!isCourseAllowed(exam.course, student.course)) {
+          return false;
+        }
+
+        // 3. Section filter: strict course-wise section check!
+        if (!isSectionAllowed(exam.targetSection, student.section)) {
+          return false;
+        }
+
+        return true;
+      });
+    }
+
+    const formattedExams = studentFilteredExams.map(exam => {
       try {
         const proctoring = {
           maxViolations: exam.settings?.autoTerminateViolations || 3,
@@ -197,6 +251,21 @@ export const getExam = async (req, res) => {
     });
 
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
+
+    if (isStudent) {
+      const studentData = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { studentId: true, course: true, section: true }
+      });
+
+      if (!isCourseAllowed(exam.course, studentData?.course)) {
+        return res.status(403).json({ success: false, message: `Access Denied: This exam is only scheduled for ${exam.course || 'another course'}.` });
+      }
+
+      if (!isSectionAllowed(exam.targetSection, studentData?.section)) {
+        return res.status(403).json({ success: false, message: `Access Denied: This exam is only scheduled for Section ${exam.targetSection}. Your registered section is ${studentData?.section || 'unassigned'}.` });
+      }
+    }
 
     const proctoring = {
       maxViolations: exam.settings?.autoTerminateViolations || 3,
@@ -414,9 +483,24 @@ export const getExamLiveStatus = async (req, res) => {
   try {
     const exam = await prisma.exam.findUnique({
       where: { id: req.params.id },
-      select: { id: true, status: true }
+      select: { id: true, status: true, course: true, targetSection: true }
     });
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' });
+
+    if (req.user.role === 'student') {
+      const studentData = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { studentId: true, course: true, section: true }
+      });
+
+      if (!isCourseAllowed(exam.course, studentData?.course)) {
+        return res.status(403).json({ success: false, message: `Access Denied: This exam is only scheduled for ${exam.course || 'another course'}.` });
+      }
+
+      if (!isSectionAllowed(exam.targetSection, studentData?.section)) {
+        return res.status(403).json({ success: false, message: `Access Denied: This exam is only scheduled for Section ${exam.targetSection}. Your registered section is ${studentData?.section || 'unassigned'}.` });
+      }
+    }
     res.json({ success: true, data: { status: exam.status } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
