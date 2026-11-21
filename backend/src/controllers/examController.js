@@ -123,7 +123,7 @@ export const getExams = async (req, res) => {
         subject: { select: { id: true, name: true } },
         questions: isStudent
           ? { select: { id: true, points: true, type: true } }
-          : { select: { id: true, points: true, type: true, title: true, options: true, testCases: true, matchingPairs: true } },
+          : { include: { options: true, testCases: true, matchingPairs: true } },
         settings: true,
         schedule: true
       },

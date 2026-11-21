@@ -175,6 +175,7 @@ export const TeacherDashboard = () => {
             if (upper.startsWith('TYPE:')) q.type = line.substring(5).trim().toLowerCase();
             else if (upper.startsWith('TITLE:')) q.title = line.substring(6).trim();
             else if (upper.startsWith('DESC:')) q.description = line.substring(5).trim();
+            else if (upper.startsWith('DESCRIPTION:')) q.description = line.substring(12).trim();
             else if (upper.startsWith('POINTS:')) q.points = parseInt(line.substring(7).trim()) || 10;
             else if (upper.startsWith('OPT:')) {
               let optText = line.substring(4).trim();
@@ -199,7 +200,9 @@ export const TeacherDashboard = () => {
         const data = await file.arrayBuffer(); const workbook = XLSX.read(data); const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
         rows.forEach(row => {
           const type = (row['Type'] || 'subjective').toLowerCase().trim();
-          let q = { ...EMPTY_Q, type, title: row['Title'] || 'Imported Question', description: row['Description'] || '', points: Number(row['Points']) || 10, options: [], testCases: [], matchingPairs: [] };
+          const desc = row['Description'] || row['description'] || row['Desc'] || row['desc'] || row['Problem Statement'] || row['problem_statement'] || row['ProblemStatement'] || '';
+          const constraints = row['Constraints'] || row['constraints'] || row['Constraint'] || row['constraint'] || '';
+          let q = { ...EMPTY_Q, type, title: row['Title'] || row['title'] || 'Imported Question', description: desc, constraints, points: Number(row['Points'] || row['points']) || 10, options: [], testCases: [], matchingPairs: [] };
           if (type === 'mcq') {
             const correctIndex = Number(row['Correct Option']) || 1;
             [1, 2, 3, 4].forEach(i => { if (row[`Option ${i}`]) q.options.push({ text: String(row[`Option ${i}`]), isCorrect: i === correctIndex }); });
@@ -276,13 +279,38 @@ export const TeacherDashboard = () => {
 
   const showFormatGuide = () => { showToast(`Formats: MCQ (Option 1-4, Correct Option), MATCHING (Pair1_Left, Pair1_Right ... Pair4_Left, Pair4_Right), CODING (TC1_IN, TC1_OUT, TC1_HIDDEN). TXT: PAIR: Left | Right`, 'info'); };
 
-  const openEditModal = (examData) => {
+  const openEditModal = async (examData) => {
     setEditingId(examData._id);
-    setForm({
-      ...examData,
-      startTime: formatForInput(examData.startTime),
-      proctoring: { ...defaultForm.proctoring, ...examData.proctoring }
-    });
+    try {
+      const res = await api.get(`/exams/${examData._id}`);
+      const fullExam = res.data?.data || examData;
+      setForm({
+        ...fullExam,
+        startTime: formatForInput(fullExam.startTime),
+        proctoring: { ...defaultForm.proctoring, ...fullExam.proctoring },
+        questions: (fullExam.questions || []).map(q => ({
+          ...EMPTY_Q,
+          ...q,
+          description: q.description || '',
+          constraints: q.constraints || '',
+          options: q.options && q.options.length > 0 ? q.options : [{ text: '', isCorrect: false }, { text: '', isCorrect: false }, { text: '', isCorrect: false }, { text: '', isCorrect: false }],
+          testCases: q.testCases && q.testCases.length > 0 ? q.testCases : [{ input: '', expectedOutput: '', isHidden: false }],
+          matchingPairs: q.matchingPairs && q.matchingPairs.length > 0 ? q.matchingPairs : [{ leftItem: '', rightItem: '' }, { leftItem: '', rightItem: '' }]
+        }))
+      });
+    } catch {
+      setForm({
+        ...examData,
+        startTime: formatForInput(examData.startTime),
+        proctoring: { ...defaultForm.proctoring, ...examData.proctoring },
+        questions: (examData.questions || []).map(q => ({
+          ...EMPTY_Q,
+          ...q,
+          description: q.description || '',
+          constraints: q.constraints || ''
+        }))
+      });
+    }
     setModal(true);
   };
 
