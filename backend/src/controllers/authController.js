@@ -1,4 +1,4 @@
-import prisma from '../config/prisma.js';
+import prisma, { withDbRetry } from '../config/prisma.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 
@@ -13,15 +13,17 @@ export const registerUser = async (req, res) => {
     const cleanEmail = email ? email.trim().toLowerCase() : '';
     const cleanStudentId = studentId ? studentId.trim() : '';
 
-    const userExists = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: cleanEmail },
-          ...(cleanStudentId ? [{ studentId: cleanStudentId }] : [])
-        ]
-      },
-      select: { id: true }
-    });
+    const userExists = await withDbRetry(() =>
+      prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: cleanEmail },
+            ...(cleanStudentId ? [{ studentId: cleanStudentId }] : [])
+          ]
+        },
+        select: { id: true }
+      })
+    );
 
     if (userExists) {
       return res.status(400).json({ success: false, message: 'User already exists with this email or Student ID!' });
@@ -41,7 +43,7 @@ export const registerUser = async (req, res) => {
       studentId: cleanStudentId || null
     };
 
-    const user = await prisma.user.create({ data: newUserData });
+    const user = await withDbRetry(() => prisma.user.create({ data: newUserData }));
 
     res.status(201).json({
       success: true,
@@ -53,7 +55,12 @@ export const registerUser = async (req, res) => {
       token: generateToken(user.id),
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Registration error: ' + error.message });
+    console.error('Registration error:', error);
+    const isPoolTimeout = error?.code === 'P2024' || error?.message?.includes('connection pool');
+    const msg = isPoolTimeout
+      ? 'The server is currently experiencing heavy traffic. Please try registering again in a few moments.'
+      : 'Registration error: ' + (error.message?.includes('prisma') ? 'Database operation timed out. Please retry.' : error.message);
+    res.status(500).json({ success: false, message: msg });
   }
 };
 
@@ -63,19 +70,21 @@ export const loginUser = async (req, res) => {
   const lowerIdentifier = rawIdentifier.toLowerCase();
 
   try {
-    const user = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: lowerIdentifier },
-          { email: rawIdentifier },
-          { studentId: rawIdentifier },
-          { facultyId: rawIdentifier }
-        ]
-      },
-      include: {
-        departmentRel: { select: { name: true, code: true } }
-      }
-    });
+    const user = await withDbRetry(() =>
+      prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: lowerIdentifier },
+            { email: rawIdentifier },
+            { studentId: rawIdentifier },
+            { facultyId: rawIdentifier }
+          ]
+        },
+        include: {
+          departmentRel: { select: { name: true, code: true } }
+        }
+      })
+    );
 
     if (!user) return res.status(401).json({ success: false, message: 'Invalid credentials. Please check your email or ID.' });
     if (!user.isActive) return res.status(403).json({ success: false, message: 'Account is disabled. Please contact administrator.' });
@@ -132,7 +141,12 @@ export const loginUser = async (req, res) => {
       res.status(401).json({ success: false, message: 'Invalid credentials. Password is incorrect.' });
     }
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error: ' + error.message });
+    console.error('Login error:', error);
+    const isPoolTimeout = error?.code === 'P2024' || error?.message?.includes('connection pool');
+    const msg = isPoolTimeout
+      ? 'The server is currently experiencing heavy traffic. Please try logging in again in a few moments.'
+      : 'Server error: ' + (error.message?.includes('prisma') ? 'Database operation timed out. Please retry.' : error.message);
+    res.status(500).json({ success: false, message: msg });
   }
 };
 
