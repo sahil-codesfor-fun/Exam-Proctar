@@ -47,7 +47,17 @@ const ExamDetail = () => {
       });
 
       socket.on('violation_alert', (data) => {
-        setLiveStudents(p => p.map(s => s.studentId === data.studentId ? { ...s, violations: (s.violations || 0) + 1 } : s));
+        setLiveStudents(p => p.map(s => s.studentId === data.studentId ? { 
+          ...s, 
+          violations: data.violations !== undefined ? data.violations : ((s.violations || 0) + 1) 
+        } : s));
+      });
+
+      socket.on('proctor_batch_alert', (data) => {
+        setLiveStudents(p => p.map(s => s.studentId === data.studentId ? { 
+          ...s, 
+          violations: data.violations !== undefined ? data.violations : ((s.violations || 0) + (data.count || 1)) 
+        } : s));
       });
     });
 
@@ -57,6 +67,7 @@ const ExamDetail = () => {
         socket.off('student_joined');
         socket.off('student_left');
         socket.off('violation_alert');
+        socket.off('proctor_batch_alert');
       }
     };
   }, [exam, currentExamId]);

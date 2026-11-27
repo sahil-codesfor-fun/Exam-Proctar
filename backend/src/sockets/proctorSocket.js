@@ -62,17 +62,24 @@ export const setupProctorSockets = (io) => {
 
       if (!activeSessions.has(examId)) activeSessions.set(examId, new Map());
       const sessionMap = activeSessions.get(examId);
-      sessionMap.set(studentId, { socketId: socket.id, name: studentName, joinedAt: new Date() });
+      const existing = sessionMap.get(studentId) || {};
+      sessionMap.set(studentId, {
+        socketId: socket.id,
+        name: studentName,
+        joinedAt: existing.joinedAt || new Date(),
+        violations: existing.violations || 0
+      });
 
       io.to(`faculty_${examId}`).emit('student_joined', {
         studentId,
         studentName,
         timestamp: new Date().toISOString(),
         activeCount: sessionMap.size,
+        violations: existing.violations || 0
       });
     });
 
-    socket.on('join_monitoring', ({ examId }) => {
+    socket.on('join_monitoring', async ({ examId }) => {
       if (!examId) return;
 
       // Staff authorization check - students cannot monitor exams
@@ -84,8 +91,29 @@ export const setupProctorSockets = (io) => {
 
       socket.join(`faculty_${examId}`);
       const sessions = activeSessions.get(examId);
+      const studentList = sessions ? Array.from(sessions.entries()).map(([id, info]) => ({ studentId: id, ...info })) : [];
+
+      // Query database to ensure violation counts match persisted violations
+      try {
+        const dbViolations = await prisma.violation.groupBy({
+          by: ['studentId'],
+          where: { examId },
+          _count: { id: true }
+        });
+        const vMap = new Map(dbViolations.map(v => [v.studentId, v._count.id]));
+        studentList.forEach(s => {
+          const dbCount = vMap.get(s.studentId) || 0;
+          s.violations = Math.max(s.violations || 0, dbCount);
+          if (sessions?.has(s.studentId)) {
+            sessions.get(s.studentId).violations = s.violations;
+          }
+        });
+      } catch (err) {
+        console.warn('[Socket] Failed to hydrate violations from DB:', err.message);
+      }
+
       socket.emit('active_students', {
-        students: sessions ? Array.from(sessions.entries()).map(([id, info]) => ({ studentId: id, ...info })) : [],
+        students: studentList,
       });
     });
 
@@ -109,6 +137,11 @@ export const setupProctorSockets = (io) => {
       if (now - lastSent < 300) return;
       lastAlertTimestamp.set(alertKey, now);
 
+      const sessionMap = activeSessions.get(socket.examId);
+      const studentSession = sessionMap?.get(socket.studentId);
+      const newCount = Number(data.count) || ((studentSession?.violations || 0) + 1);
+      if (studentSession) studentSession.violations = newCount;
+
       io.to(`faculty_${socket.examId}`).emit('violation_alert', {
         studentId: socket.studentId,
         studentName: socket.studentName,
@@ -116,7 +149,8 @@ export const setupProctorSockets = (io) => {
         severity: String(data.severity || 'medium').slice(0, 20),
         details: String(data.details || '').slice(0, 500),
         timestamp: new Date().toISOString(),
-        count: Number(data.count) || 0,
+        count: newCount,
+        violations: newCount
       });
     });
 
@@ -143,12 +177,31 @@ export const setupProctorSockets = (io) => {
 
       if (freshEvents.length === 0) return;
 
-      // Broadcast scoped directly to exam faculty room
+      const sessionMap = activeSessions.get(socket.examId);
+      const studentSession = sessionMap?.get(socket.studentId);
+      const added = freshEvents.length;
+      const latestCount = freshEvents[freshEvents.length - 1]?.count;
+      const newCount = latestCount || ((studentSession?.violations || 0) + added);
+      if (studentSession) studentSession.violations = newCount;
+
+      // Broadcast both proctor_batch_alert AND violation_alert
       io.to(`faculty_${socket.examId}`).emit('proctor_batch_alert', {
         studentId: socket.studentId,
         studentName: socket.studentName,
         events: freshEvents,
-        count: freshEvents.length
+        count: added,
+        violations: newCount
+      });
+
+      io.to(`faculty_${socket.examId}`).emit('violation_alert', {
+        studentId: socket.studentId,
+        studentName: socket.studentName,
+        type: freshEvents[freshEvents.length - 1]?.type || 'multiple_violations',
+        severity: freshEvents[freshEvents.length - 1]?.severity || 'medium',
+        details: freshEvents[freshEvents.length - 1]?.details || `${added} violation(s) detected`,
+        timestamp: new Date().toISOString(),
+        count: newCount,
+        violations: newCount
       });
     });
 
