@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { runLocalCode } from '../services/compiler/localCompiler.service.js';
 import prisma from '../config/prisma.js';
 import cacheService from '../services/cache.service.js';
+import { compilerQueue } from '../services/compiler/compilerQueue.service.js';
 dotenv.config();
 
 // ── Language Configuration ───────────────────────────────────────────────────
@@ -116,55 +117,57 @@ function mapJudgeResult(data) {
   };
 }
 
-export async function runCode(language, code, stdin = '', timeSec = 5, memKb = 262144) {
-  console.log(`[Compiler] Running code for ${language}...`);
-  
-  if (USE_JUDGE0) {
-    try {
-      const cfg = LANGUAGE_CONFIG[language];
-      if (!cfg) throw new Error(`Unsupported language: ${language}`);
-      const token  = await submitToJudge0(cfg.id, code, stdin, timeSec, memKb);
-      const result = await pollJudge0(token, (timeSec + 12) * 1000);
-      return mapJudgeResult(result);
-    } catch (err) {
-      console.error(`[Compiler] Judge0 execution failed for ${language}:`, err.message);
-      if (process.env.ALLOW_LOCAL_FALLBACK !== 'true' && process.env.NODE_ENV === 'production') {
-        return {
-          verdict: 'service_unavailable',
-          output: '',
-          error: 'Execution service is temporarily unavailable. Host fallback is disabled for security.',
-          runtime: 0,
-          memory: 0,
-          success: false
-        };
+export async function runCode(language, code, stdin = '', timeSec = 5, memKb = 262144, priority = 'normal') {
+  return compilerQueue.enqueue(async () => {
+    console.log(`[Compiler] Running code for ${language}...`);
+    
+    if (USE_JUDGE0) {
+      try {
+        const cfg = LANGUAGE_CONFIG[language];
+        if (!cfg) throw new Error(`Unsupported language: ${language}`);
+        const token  = await submitToJudge0(cfg.id, code, stdin, timeSec, memKb);
+        const result = await pollJudge0(token, (timeSec + 12) * 1000);
+        return mapJudgeResult(result);
+      } catch (err) {
+        console.error(`[Compiler] Judge0 execution failed for ${language}:`, err.message);
+        if (process.env.ALLOW_LOCAL_FALLBACK !== 'true' && process.env.NODE_ENV === 'production') {
+          return {
+            verdict: 'service_unavailable',
+            output: '',
+            error: 'Execution service is temporarily unavailable. Host fallback is disabled for security.',
+            runtime: 0,
+            memory: 0,
+            success: false
+          };
+        }
       }
     }
-  }
 
-  if (LANGUAGE_CONFIG[language]) {
-    try {
-      const localResult = await runLocalCode(language, code, stdin, timeSec * 1000);
-      return {
-        verdict: localResult.success ? 'accepted' : (localResult.errorType.toLowerCase().replace(/ /g, '_')),
-        output: localResult.output || '',
-        error: localResult.stderr || '',
-        runtime: localResult.runtime || 0,
-        memory: localResult.memory || 0,
-        success: localResult.success
-      };
-    } catch (err) {
-      console.error(`[Compiler] Local execution failed for ${language}:`, err.message);
+    if (LANGUAGE_CONFIG[language]) {
+      try {
+        const localResult = await runLocalCode(language, code, stdin, timeSec * 1000);
+        return {
+          verdict: localResult.success ? 'accepted' : (localResult.errorType.toLowerCase().replace(/ /g, '_')),
+          output: localResult.output || '',
+          error: localResult.stderr || '',
+          runtime: localResult.runtime || 0,
+          memory: localResult.memory || 0,
+          success: localResult.success
+        };
+      } catch (err) {
+        console.error(`[Compiler] Local execution failed for ${language}:`, err.message);
+      }
     }
-  }
-  
-  return { 
-    verdict: 'internal_server_error', 
-    output: '', 
-    error: 'No execution engine available for this language.', 
-    runtime: 0, 
-    memory: 0,
-    success: false 
-  };
+    
+    return { 
+      verdict: 'internal_server_error', 
+      output: '', 
+      error: 'No execution engine available for this language.', 
+      runtime: 0, 
+      memory: 0,
+      success: false 
+    };
+  }, { isJudge0: USE_JUDGE0, priority, timeoutMs: (timeSec + 15) * 1000 });
 }
 
 // ── Controllers ───────────────────────────────────────────────────────────────
@@ -191,7 +194,7 @@ export const executeCode = async (req, res) => {
 
       for (let i = 0; i < sampleTestCases.length; i++) {
         const tc = sampleTestCases[i];
-        const r = await runCode(language, code, tc.input || '', 5);
+        const r = await runCode(language, code, tc.input || '', 5, 262144, 'high');
         if (!r.success) {
           runtimeOrCompileErr = r.error || 'Execution failed';
           sampleResults.push({
@@ -230,7 +233,7 @@ export const executeCode = async (req, res) => {
       });
     }
 
-    const result = await runCode(language, code, stdin);
+    const result = await runCode(language, code, stdin, 5, 262144, 'high');
     
     console.log("EXECUTION RESULT:", result.verdict);
     

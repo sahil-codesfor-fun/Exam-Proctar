@@ -252,7 +252,8 @@ export const saveAnswers = async (req, res) => {
 
 export const submitExam = async (req, res) => {
   try {
-    const updatedSub = await withDbRetry(async () => {
+    // 1. Fetch step with withDbRetry - database connection is released immediately (<5ms)
+    const fetchResult = await withDbRetry(async () => {
       const sub = await prisma.submission.findUnique({
         where: { id: req.params.id },
         select: { id: true, studentId: true, examId: true, maxScore: true, answers: true, status: true }
@@ -270,7 +271,7 @@ export const submitExam = async (req, res) => {
 
       // If already submitted, return existing submission idempotently
       if (['submitted', 'auto_submitted', 'force_submitted'].includes(sub.status)) {
-        return sub;
+        return { sub, exam: null, alreadySubmitted: true };
       }
 
       const exam = await prisma.exam.findUnique({ 
@@ -297,113 +298,125 @@ export const submitExam = async (req, res) => {
         throw error;
       }
 
-      let finalAnswers = req.body.answers || sub.answers || [];
-      let totalScore = 0;
+      return { sub, exam, alreadySubmitted: false };
+    }, 4, 300);
 
-      const isForceKill = req.body.reason && (req.body.reason.toLowerCase().includes('termination') || req.body.reason.toLowerCase().includes('proctor'));
+    if (fetchResult.alreadySubmitted) {
+      return res.json({ success: true, data: { ...fetchResult.sub, _id: fetchResult.sub.id } });
+    }
 
-      for (let ans of finalAnswers) {
-        const question = exam.questions.find(q => q.id === ans.questionId);
-        if (!question) continue;
+    const { sub, exam } = fetchResult;
 
-        const points = Number(question.points) || 10;
+    // 2. Compute scores and evaluate test cases (NO MySQL connections held during compilation!)
+    let finalAnswers = req.body.answers || sub.answers || [];
+    let totalScore = 0;
 
-        if (question.type === 'mcq') {
-          if (ans.selectedOptionId) {
-            const correctOpt = question.options.find(o => o.isCorrect === true);
-            ans.isCorrect = (correctOpt && correctOpt.id === ans.selectedOptionId);
-          } else if (ans.selectedOption >= 0) {
-            const correctIndex = question.options.findIndex(o => o.isCorrect === true);
-            ans.isCorrect = (ans.selectedOption === correctIndex);
-          } else {
-            ans.isCorrect = false;
-          }
-          ans.score = ans.isCorrect ? points : 0;
-        } 
-        else if (question.type === 'matching') {
-          let correctCount = 0;
-          const totalPairs = question.matchingPairs?.length || 0;
+    const isForceKill = req.body.reason && (req.body.reason.toLowerCase().includes('termination') || req.body.reason.toLowerCase().includes('proctor'));
 
-          if (totalPairs > 0 && ans.studentMatches && typeof ans.studentMatches === 'object') {
-            question.matchingPairs.forEach(pair => {
-              if (ans.studentMatches[pair.id] === pair.id) correctCount++;
-            });
-            
-            // ALL OR NOTHING LOGIC: Perfect or 0
-            if (correctCount === totalPairs) {
-              ans.score = points;
-              ans.isCorrect = true;
-            } else {
-              ans.score = 0;
-              ans.isCorrect = false;
-            }
-          } else {
-            ans.score = 0;
-            ans.isCorrect = false;
-          }
-        } 
-        else if (question.type === 'coding' || question.type === 'Programming') {
-          // Automated server-side test case evaluation
-          if (ans.code && question.testCases && question.testCases.length > 0) {
-            let passedCount = 0;
-            let passedHiddenCount = 0;
-            const hiddenCases = question.testCases.filter(tc => tc.isHidden);
-            const totalHidden = hiddenCases.length;
-            const totalCases = question.testCases.length;
+    for (let ans of finalAnswers) {
+      const question = exam.questions.find(q => q.id === ans.questionId);
+      if (!question) continue;
 
-            for (const tc of question.testCases) {
-              try {
-                const r = await runCode(ans.language || 'python', ans.code, tc.input || '', Math.min(question.timeLimitSeconds || 3, 5));
-                if (r.success && (r.output || '').trim() === (tc.expectedOutput || '').trim()) {
-                  passedCount++;
-                  if (tc.isHidden) passedHiddenCount++;
-                }
-              } catch (err) {
-                // Failed testcase
-              }
-            }
+      const points = Number(question.points) || 10;
 
-            ans.passedTests = passedCount;
-            ans.totalTests = totalCases;
-            ans.passedHiddenTests = passedHiddenCount;
-            ans.totalHiddenTests = totalHidden;
-
-            // Task 3: Marks are awarded strictly based on hidden test cases
-            if (totalHidden > 0) {
-              ans.score = Math.round((passedHiddenCount / totalHidden) * points);
-              ans.isCorrect = passedHiddenCount === totalHidden;
-            } else {
-              // Fallback if question has no hidden test cases
-              ans.score = Math.round((passedCount / totalCases) * points);
-              ans.isCorrect = passedCount === totalCases;
-            }
-          } else {
-            ans.score = 0;
-            ans.isCorrect = false;
-          }
-        } else if (question.type === 'subjective' || question.type === 'essay') {
-          // Subjective answers are graded by instructors
-          ans.score = 0;
+      if (question.type === 'mcq') {
+        if (ans.selectedOptionId) {
+          const correctOpt = question.options.find(o => o.isCorrect === true);
+          ans.isCorrect = (correctOpt && correctOpt.id === ans.selectedOptionId);
+        } else if (ans.selectedOption >= 0) {
+          const correctIndex = question.options.findIndex(o => o.isCorrect === true);
+          ans.isCorrect = (ans.selectedOption === correctIndex);
+        } else {
           ans.isCorrect = false;
+        }
+        ans.score = ans.isCorrect ? points : 0;
+      } 
+      else if (question.type === 'matching') {
+        let correctCount = 0;
+        const totalPairs = question.matchingPairs?.length || 0;
+
+        if (totalPairs > 0 && ans.studentMatches && typeof ans.studentMatches === 'object') {
+          question.matchingPairs.forEach(pair => {
+            if (ans.studentMatches[pair.id] === pair.id) correctCount++;
+          });
+          
+          // ALL OR NOTHING LOGIC: Perfect or 0
+          if (correctCount === totalPairs) {
+            ans.score = points;
+            ans.isCorrect = true;
+          } else {
+            ans.score = 0;
+            ans.isCorrect = false;
+          }
         } else {
           ans.score = 0;
           ans.isCorrect = false;
         }
+      } 
+      else if (question.type === 'coding' || question.type === 'Programming') {
+        // Automated server-side test case evaluation through compilerQueue
+        if (ans.code && question.testCases && question.testCases.length > 0) {
+          let passedCount = 0;
+          let passedHiddenCount = 0;
+          const hiddenCases = question.testCases.filter(tc => tc.isHidden);
+          const totalHidden = hiddenCases.length;
+          const totalCases = question.testCases.length;
 
-        ans.score = Math.min(Math.max(0, Number(ans.score) || 0), points);
-        totalScore += ans.score;
+          for (const tc of question.testCases) {
+            try {
+              const r = await runCode(ans.language || 'python', ans.code, tc.input || '', Math.min(question.timeLimitSeconds || 3, 5), 262144, 'normal');
+              if (r.success && (r.output || '').trim() === (tc.expectedOutput || '').trim()) {
+                passedCount++;
+                if (tc.isHidden) passedHiddenCount++;
+              }
+            } catch (err) {
+              // Failed testcase
+            }
+          }
+
+          ans.passedTests = passedCount;
+          ans.totalTests = totalCases;
+          ans.passedHiddenTests = passedHiddenCount;
+          ans.totalHiddenTests = totalHidden;
+
+          // Task 3: Marks are awarded strictly based on hidden test cases
+          if (totalHidden > 0) {
+            ans.score = Math.round((passedHiddenCount / totalHidden) * points);
+            ans.isCorrect = passedHiddenCount === totalHidden;
+          } else {
+            // Fallback if question has no hidden test cases
+            ans.score = Math.round((passedCount / totalCases) * points);
+            ans.isCorrect = passedCount === totalCases;
+          }
+        } else {
+          ans.score = 0;
+          ans.isCorrect = false;
+        }
+      } else if (question.type === 'subjective' || question.type === 'essay') {
+        // Subjective answers are graded by instructors
+        ans.score = 0;
+        ans.isCorrect = false;
+      } else {
+        ans.score = 0;
+        ans.isCorrect = false;
       }
 
-      if (isForceKill) {
-        totalScore = 0;
-        finalAnswers = finalAnswers.map(a => ({ ...a, score: 0, isCorrect: false }));
-      }
+      ans.score = Math.min(Math.max(0, Number(ans.score) || 0), points);
+      totalScore += ans.score;
+    }
 
-      const maxScore = Number(sub.maxScore) || 0;
-      totalScore = maxScore > 0 ? Math.min(totalScore, maxScore) : totalScore;
-      const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
-      const finalStatus = isForceKill ? 'force_submitted' : (req.body.autoSubmit ? 'auto_submitted' : 'submitted');
+    if (isForceKill) {
+      totalScore = 0;
+      finalAnswers = finalAnswers.map(a => ({ ...a, score: 0, isCorrect: false }));
+    }
 
+    const maxScore = Number(sub.maxScore) || 0;
+    totalScore = maxScore > 0 ? Math.min(totalScore, maxScore) : totalScore;
+    const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
+    const finalStatus = isForceKill ? 'force_submitted' : (req.body.autoSubmit ? 'auto_submitted' : 'submitted');
+
+    // 3. Persist final results to MySQL with withDbRetry (<5ms connection hold)
+    const updatedSub = await withDbRetry(async () => {
       return await prisma.submission.update({
         where: { id: sub.id },
         data: {
@@ -415,7 +428,7 @@ export const submitExam = async (req, res) => {
           answers: finalAnswers
         }
       });
-    }, 4, 400);
+    }, 4, 300);
 
     res.json({ success: true, data: { ...updatedSub, _id: updatedSub.id } });
 
